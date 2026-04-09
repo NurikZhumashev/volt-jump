@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Audio Update</title>
+    <title>Neon Tower: Arcade Audio</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -44,15 +44,13 @@
         .shop-card h3 { margin-top: 0; font-size: 24px; text-shadow: 0 0 10px #ff0055; }
     </style>
 </head>
-<body>
-
-    <canvas id="gameCanvas"></canvas>
+<body onclick="sfx.init()"> <canvas id="gameCanvas"></canvas>
 
     <div id="uiOverlay">
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
         <h1 id="menuTitle">NEON RUN</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 16px; color: #ddd; max-width: 80%;">
-            Включи звук 🔊<br><span style="color: #ff0033; font-weight: bold;">Охотник выйдет на след через 2 секунды.</span>
+            Включи звук 🔊<br>Музыка играет даже в меню!
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <button class="ui-btn btn-shop" onclick="openShop()">🛒 МАГАЗИН</button>
@@ -86,82 +84,95 @@
         let currentLevel = 1;
         let gameState = 'START'; 
 
-        // --- АУДИО-СИНТЕЗАТОР ---
+        // --- УЛУЧШЕННЫЙ АУДИО-ДВИЖОК ---
         class SoundEngine {
             constructor() {
-                try {
+                this.ctx = null;
+                this.bgmStarted = false;
+                this.bgmNodes = [];
+            }
+            init() {
+                if (!this.ctx) {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
                     this.ctx = new AudioContext();
-                } catch(e) { console.log("Web Audio API не поддерживается"); this.ctx = null; }
-                this.bgmOsc = null; this.bgmGain = null; this.lfo = null;
+                }
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                if (!this.bgmStarted) this.startBGM();
             }
-            init() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
             
-            playTone(freq, type, duration, vol=0.1) {
+            playTone(freq, type, duration, vol=0.2) {
                 if(!this.ctx) return;
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = type;
                 osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(freq / 2, this.ctx.currentTime + duration);
                 gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + duration);
                 osc.connect(gain); gain.connect(this.ctx.destination);
                 osc.start(); osc.stop(this.ctx.currentTime + duration);
             }
             
-            jump(isSpring) {
-                if (isSpring) {
-                    this.playTone(400, 'square', 0.1, 0.05);
-                    setTimeout(() => this.playTone(600, 'square', 0.2, 0.05), 50);
-                } else {
-                    this.playTone(200, 'sine', 0.1, 0.08);
+            jump() {
+                this.playTone(300, 'triangle', 0.2, 0.3); // Единый громкий звук для всех платформ
+            }
+            
+            coin() {
+                this.playTone(987.77, 'sine', 0.1, 0.1);
+                setTimeout(() => this.playTone(1318.51, 'sine', 0.2, 0.1), 50);
+            }
+            
+            powerup() {
+                for(let i=0; i<5; i++) {
+                    setTimeout(() => this.playTone(400 + i*150, 'sawtooth', 0.1, 0.1), i*60);
                 }
             }
-            coin() {
-                this.playTone(800, 'sine', 0.1, 0.05);
-                setTimeout(() => this.playTone(1200, 'sine', 0.2, 0.05), 80);
+            
+            thrust() {
+                if(Math.random() > 0.7) this.playTone(60 + Math.random()*40, 'sawtooth', 0.1, 0.05);
             }
-            powerup() {
-                this.playTone(300, 'sawtooth', 0.1, 0.1);
-                setTimeout(() => this.playTone(400, 'sawtooth', 0.1, 0.1), 100);
-                setTimeout(() => this.playTone(500, 'sawtooth', 0.3, 0.1), 200);
-            }
-            thrust() { this.playTone(100 + Math.random()*50, 'sawtooth', 0.1, 0.02); }
+            
             death() {
-                this.playTone(200, 'sawtooth', 0.3, 0.1);
-                setTimeout(() => this.playTone(150, 'sawtooth', 0.3, 0.1), 200);
-                setTimeout(() => this.playTone(100, 'sawtooth', 0.8, 0.1), 400);
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.8);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.8);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(now + 0.8);
             }
             
             startBGM() {
-                if (!this.ctx || this.bgmOsc) return;
-                this.bgmOsc = this.ctx.createOscillator();
-                this.bgmGain = this.ctx.createGain();
-                this.bgmOsc.type = 'triangle';
-                this.bgmOsc.frequency.value = 55; // Мрачный бас
-                this.bgmGain.gain.value = 0.05;
-                this.bgmOsc.connect(this.bgmGain);
-                this.bgmGain.connect(this.ctx.destination);
-                this.bgmOsc.start();
+                if (!this.ctx || this.bgmStarted) return;
+                this.bgmStarted = true;
+                
+                const playStep = (time, freq, vol) => {
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    g.gain.setValueAtTime(vol, time);
+                    g.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                    osc.connect(g); g.connect(this.ctx.destination);
+                    osc.start(time); osc.stop(time + 0.1);
+                };
 
-                // Пульсация баса
-                this.lfo = this.ctx.createOscillator();
-                this.lfo.type = 'sine';
-                this.lfo.frequency.value = 2; // 2 Гц
-                const lfoGain = this.ctx.createGain();
-                lfoGain.gain.value = 0.04;
-                this.lfo.connect(lfoGain);
-                lfoGain.connect(this.bgmGain.gain);
-                this.lfo.start();
-            }
-            stopBGM() {
-                if(this.bgmOsc && this.ctx) {
-                    this.bgmGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1);
-                    setTimeout(() => {
-                        if(this.bgmOsc) { this.bgmOsc.stop(); this.bgmOsc = null; }
-                        if(this.lfo) { this.lfo.stop(); this.lfo = null; }
-                    }, 1000);
-                }
+                let step = 0;
+                setInterval(() => {
+                    const now = this.ctx.currentTime;
+                    // Басовая линия (ритм)
+                    if (step % 2 === 0) playStep(now, 55, 0.05); // Ля
+                    if (step % 4 === 2) playStep(now, 41, 0.05); // Ми
+                    
+                    // Легкая мелодия
+                    if (step % 8 === 0) playStep(now, 220, 0.02);
+                    if (step % 8 === 3) playStep(now, 330, 0.02);
+                    
+                    step = (step + 1) % 16;
+                }, 200);
             }
         }
         const sfx = new SoundEngine();
@@ -181,7 +192,7 @@
             if (totalCoins >= 200 && !hasJetpack) {
                 totalCoins -= 200; hasJetpack = true;
                 localStorage.setItem('neonCoins', totalCoins); localStorage.setItem('hasJetpack', 'true');
-                sfx.powerup(); // Звук покупки!
+                sfx.powerup(); 
                 updateCoinUI(); updateShopButtons();
             }
         }
@@ -214,8 +225,7 @@
             }
             update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
             draw(ctx) { 
-                ctx.globalAlpha = Math.max(0, this.life); 
-                ctx.fillStyle = this.color; 
+                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
                 ctx.fillRect(this.x, this.y, this.size, this.size); 
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
@@ -297,7 +307,7 @@
                 
                 if (this.jetpackTimer > 0) { 
                     this.vy = -18; this.jetpackTimer--; 
-                    if(this.jetpackTimer % 3 === 0) sfx.thrust(); // Звук двигателя
+                    sfx.thrust(); // Звук джетпака
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); 
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff0055', true)); 
                 } else { this.vy += 0.8; }
@@ -308,10 +318,10 @@
                         if (p.type === 'finish') return;
                         if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
                             if (this.y + 30 - this.vy <= p.y + 20) { 
-                                this.y = p.y - 30; 
-                                p.flashTimer = 5; 
-                                if (p.type === 'spring') { this.vy = -26; sfx.jump(true); this.createJumpDust('#00ff00', 1.5); } 
-                                else { this.vy = -17; sfx.jump(false); this.createJumpDust('#ffffff', 1); } 
+                                this.y = p.y - 30; p.flashTimer = 5; 
+                                sfx.jump(); // Всегда одинаковый сочный прыжок
+                                if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
+                                else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
                             }
                         }
                     });
@@ -341,7 +351,6 @@
                     let r = Math.random(); let type = 'normal';
                     if (r > 0.85) type = 'spring'; else if (r > 0.65) type = 'moving';
                     this.platforms.push(new Platform(x, this.platformY, w, type));
-                    
                     let ri = Math.random();
                     if (ri > 0.96) this.items.push(new Item(x + w/2 - 12, this.platformY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.platformY - 35, 'coin'));
@@ -353,24 +362,13 @@
                 this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
                 this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
                 this.cameraY += (this.player.y - canvas.height/2 - this.cameraY) * 0.1; 
-                
-                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
-                    for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
-                    gameOver("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
-                }
+                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) gameOver("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
                 this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) winLevel(); });
                 this.items.forEach(item => {
                     if (!item.markedForDeletion && this.player.x < item.x+24 && this.player.x+30 > item.x && this.player.y < item.y+24 && this.player.y+30 > item.y) {
                         item.markedForDeletion = true;
-                        if (item.type === 'coin') { 
-                            totalCoins++; localStorage.setItem('neonCoins', totalCoins); 
-                            sfx.coin(); // ЗВУК МОНЕТЫ
-                            for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
-                        } else if (item.type === 'jetpack') { 
-                            this.player.jetpackTimer = 180; 
-                            sfx.powerup(); // ЗВУК ДЖЕТПАКА
-                            for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
-                        }
+                        if (item.type === 'coin') { totalCoins++; localStorage.setItem('neonCoins', totalCoins); sfx.coin(); for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); }
+                        else if (item.type === 'jetpack') { this.player.jetpackTimer = 180; sfx.powerup(); for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); }
                     }
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
@@ -382,7 +380,6 @@
                 this.hunter.draw(ctx); if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') this.player.draw(ctx);
                 this.particles.forEach(p => p.draw(ctx));
                 ctx.restore();
-                
                 if (gameState === 'PLAYING') {
                     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, canvas.width, 50);
                     ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.fillText(`УРОВЕНЬ ${currentLevel}`, 20, 32);
@@ -398,9 +395,9 @@
         function animate() { game.update(); game.draw(ctx); requestAnimationFrame(animate); }
         
         function pressStart() {
+            sfx.init(); // Запуск звука при нажатии на Старт
             if (gameState === 'GAMEOVER') game = new Game(currentLevel);
             gameState = 'PLAYING'; uiOverlay.style.display = 'none';
-            sfx.init(); sfx.startBGM(); // ВКЛЮЧАЕМ МУЗЫКУ
             if (hasJetpack) { game.player.jetpackTimer = 180; sfx.powerup(); }
             if (game.player.vy === 0) game.player.vy = -17; 
             game.hunter.startTimer();
@@ -408,12 +405,12 @@
 
         function gameOver(t) { 
             gameState = 'GAMEOVER'; 
-            sfx.stopBGM(); sfx.death(); // ЗВУК СМЕРТИ
+            sfx.death(); 
             setTimeout(() => { uiOverlay.style.display = 'flex'; document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`; document.getElementById('menuTitle').innerText = t; updateCoinUI(); }, 800); 
         }
         function winLevel() { 
             gameState = 'GAMEOVER'; 
-            sfx.stopBGM(); sfx.coin(); // ЗВУК ПОБЕДЫ
+            sfx.coin(); 
             uiOverlay.style.display = 'flex'; currentLevel++; document.getElementById('menuLevel').innerText = `ПОБЕДА!`; document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`; updateCoinUI(); 
         }
         function updateCoinUI() { document.getElementById('totalCoinsUI').innerText = `💰 ${totalCoins}`; }
