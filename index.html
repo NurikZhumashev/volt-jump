@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Platformer TMA</title>
+    <title>Neon Jumper TMA</title>
     <style>
         body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; user-select: none; }
-        canvas { display: block; background: #000; }
+        canvas { display: block; background: #0b0b1a; } /* Сделал фон чуть темнее (ночное небо) */
         
-        /* Кнопки остались на месте */
         .controls {
             position: fixed;
-            bottom: 100px; 
+            bottom: 80px; /* Чуть опустил кнопки для удобства */
             width: 100%;
             display: flex;
             justify-content: space-around;
@@ -20,7 +19,7 @@
         .btn {
             width: 70px;
             height: 70px;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.1);
             border: 2px solid #444;
             border-radius: 50%;
             display: flex;
@@ -28,10 +27,12 @@
             align-items: center;
             color: white;
             font-weight: bold;
+            font-size: 20px;
             pointer-events: auto;
             touch-action: manipulation;
         }
-        .btn:active { background: #00d2ff; }
+        .btn:active { background: #00d2ff; border-color: #00d2ff; }
+        #jumpBtn { width: 90px; border-radius: 20px; }
     </style>
 </head>
 <body>
@@ -40,7 +41,7 @@
 
     <div class="controls">
         <div class="btn" id="leftBtn">←</div>
-        <div class="btn" id="jumpBtn" style="width: 100px; border-radius: 20px;">JUMP</div>
+        <div class="btn" id="jumpBtn">UP</div>
         <div class="btn" id="rightBtn">→</div>
     </div>
 
@@ -51,10 +52,10 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Землю подняли еще выше (было 150, стало 250)
-        const GROUND_Y = canvas.height - 250; 
+        // Базовая высота для платформ
+        const BASE_Y = canvas.height - 250; 
 
-        // --- ОБРАБОТКА ВВОДА ---
+        // --- ВВОД ---
         class InputHandler {
             constructor() {
                 this.keys = [];
@@ -76,24 +77,23 @@
             }
         }
 
-        // --- ЧАСТИЦЫ ДЛЯ ВЗРЫВА ---
+        // --- ЧАСТИЦЫ ---
         class Particle {
             constructor(x, y, color) {
                 this.x = x;
                 this.y = y;
                 this.color = color;
-                this.size = Math.random() * 8 + 2;
-                // Разлетаются в разные стороны
-                this.vx = (Math.random() - 0.5) * 15;
-                this.vy = (Math.random() - 1) * 15;
-                this.gravity = 0.8;
-                this.life = 1.0; // Время жизни от 1 до 0
+                this.size = Math.random() * 6 + 2;
+                this.vx = (Math.random() - 0.5) * 12;
+                this.vy = (Math.random() - 1) * 12;
+                this.gravity = 0.6;
+                this.life = 1.0;
             }
             update() {
                 this.vy += this.gravity;
                 this.x += this.vx;
                 this.y += this.vy;
-                this.life -= 0.02; // Частица исчезает
+                this.life -= 0.02;
             }
             draw(ctx) {
                 ctx.globalAlpha = Math.max(0, this.life);
@@ -103,54 +103,82 @@
             }
         }
 
+        // --- ПЛАТФОРМА ---
+        class Platform {
+            constructor(x, y, width) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = 40; // Толщина платформы
+            }
+            draw(ctx) {
+                ctx.fillStyle = '#222';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                // Верхняя неоновая кромка
+                ctx.fillStyle = '#00ffcc';
+                ctx.fillRect(this.x, this.y, this.width, 4);
+            }
+        }
+
         // --- ИГРОК ---
         class Player {
             constructor(game) {
                 this.game = game;
-                this.width = 40;
-                this.height = 40;
-                this.reset();
+                this.width = 30;  // УМЕНЬШИЛИ ДО 30
+                this.height = 30; // УМЕНЬШИЛИ ДО 30
                 this.color = '#00d2ff';
-                this.weight = 1;
-                this.visible = true; // Скрываем при смерти
+                this.weight = 0.9;
+                this.reset();
             }
             reset() {
                 this.x = 100;
-                this.y = GROUND_Y - 40;
+                this.y = BASE_Y - 100; // Падаем сверху на первую платформу
                 this.vx = 0;
                 this.vy = 0;
-                this.onGround = true;
+                this.onGround = false;
                 this.visible = true;
             }
             update(input) {
-                if (!this.visible) return; // Если мертв, не двигаемся
+                if (!this.visible) return;
 
-                // Прыжок
+                // Управление
                 if (input.keys.includes(' ') && this.onGround) {
-                    this.vy = -18;
+                    this.vy = -16; // Чуть слабее прыжок, так как мы меньше
                     this.onGround = false;
                 }
-                
-                // Движение (теперь игрок сам идет по миру)
-                if (input.keys.includes('ArrowRight')) this.vx = 7;
-                else if (input.keys.includes('ArrowLeft')) this.vx = -7;
-                else this.vx *= 0.8; // Трение
+                if (input.keys.includes('ArrowRight')) this.vx = 6;
+                else if (input.keys.includes('ArrowLeft')) this.vx = -6;
+                else this.vx *= 0.8;
 
-                this.x += this.vx;
+                // Применяем гравитацию
+                this.vy += this.weight;
+                
+                // Двигаем по Y
                 this.y += this.vy;
-
-                // Гравитация
-                if (this.y + this.height < GROUND_Y) {
-                    this.vy += this.weight;
-                    this.onGround = false;
-                } else {
-                    this.y = GROUND_Y - this.height;
-                    this.vy = 0;
-                    this.onGround = true;
-                }
                 
-                // Не даем уйти левее старта
+                // Проверка платформ
+                this.onGround = false;
+                this.game.platforms.forEach(plat => {
+                    if (this.x < plat.x + plat.width && this.x + this.width > plat.x &&
+                        this.y < plat.y + plat.height && this.y + this.height > plat.y) {
+                        
+                        // Если падаем сверху на платформу
+                        if (this.vy > 0 && this.y + this.height - this.vy <= plat.y + 10) {
+                            this.onGround = true;
+                            this.vy = 0;
+                            this.y = plat.y - this.height;
+                        }
+                    }
+                });
+
+                // Двигаем по X
+                this.x += this.vx;
                 if (this.x < 0) this.x = 0;
+
+                // ПРОВАЛ В ПРОПАСТЬ (Смерть)
+                if (this.y > canvas.height + 100) {
+                    this.game.die();
+                }
             }
             draw(ctx) {
                 if (!this.visible) return;
@@ -162,16 +190,16 @@
             }
         }
 
-        // --- ПРЕПЯТСТВИЕ ---
+        // --- ШИПЫ ---
         class Obstacle {
-            constructor(x) {
+            constructor(x, y) {
+                this.width = 30;
+                this.height = 30; // Уменьшили шипы
                 this.x = x;
-                this.width = 40;
-                this.height = 40 + Math.random() * 40; // Разная высота
-                this.y = GROUND_Y - this.height;
+                this.y = y - this.height; // Стоят на платформе
             }
             draw(ctx) {
-                ctx.fillStyle = '#ff3366';
+                ctx.fillStyle = '#ff0055';
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y + this.height);
                 ctx.lineTo(this.x + this.width / 2, this.y);
@@ -180,28 +208,27 @@
             }
         }
 
-        // --- ДВЕРЬ (ФИНИШ) ---
+        // --- ДВЕРЬ ---
         class Door {
-            constructor(x) {
+            constructor(x, y) {
+                this.width = 40;  // УМЕНЬШИЛИ ДВЕРЬ
+                this.height = 60; // УМЕНЬШИЛИ ДВЕРЬ
                 this.x = x;
-                this.width = 60;
-                this.height = 100;
-                this.y = GROUND_Y - this.height;
+                this.y = y - this.height;
             }
             draw(ctx) {
                 ctx.fillStyle = '#ffffff';
-                ctx.shadowBlur = 20;
+                ctx.shadowBlur = 15;
                 ctx.shadowColor = 'white';
                 ctx.fillRect(this.x, this.y, this.width, this.height);
                 
-                // Дверная ручка
                 ctx.fillStyle = '#000';
-                ctx.fillRect(this.x + 10, this.y + 50, 10, 10);
+                ctx.fillRect(this.x + 8, this.y + 30, 8, 8); // Ручка
                 ctx.shadowBlur = 0;
             }
         }
 
-        // --- ДВИЖОК ИГРЫ ---
+        // --- ДВИЖОК ---
         class Game {
             constructor() {
                 this.player = new Player(this);
@@ -209,37 +236,65 @@
                 this.level = 1;
                 this.particles = [];
                 this.cameraX = 0;
+                this.platforms = [];
+                this.obstacles = [];
                 this.loadLevel();
             }
 
             loadLevel() {
+                this.platforms = [];
                 this.obstacles = [];
-                // Длина уровня растет с каждым новым уровнем
-                const levelLength = 1500 + (this.level * 500); 
-                
-                // Расставляем шипы
-                for (let i = 400; i < levelLength - 300; i += 250 + Math.random() * 200) {
-                    this.obstacles.push(new Obstacle(i));
-                }
-                
-                // Ставим белую дверь в самом конце
-                this.door = new Door(levelLength);
-                
-                this.player.reset();
                 this.particles = [];
+                
+                let currentX = 0;
+                
+                // 1. Стартовая длинная платформа (чтобы безопасно появиться)
+                this.platforms.push(new Platform(currentX, BASE_Y, 500));
+                currentX += 500;
+
+                // 2. Генерация трассы (чем больше уровень, тем больше прыжков)
+                const jumpsCount = 5 + (this.level * 3);
+                
+                for (let i = 0; i < jumpsCount; i++) {
+                    // Пропасть
+                    let gap = 80 + Math.random() * 80; // Расстояние от 80 до 160 пикселей
+                    currentX += gap;
+                    
+                    // Платформа
+                    let platWidth = 150 + Math.random() * 200;
+                    // Платформы могут быть чуть выше или ниже
+                    let platY = BASE_Y - 40 + Math.random() * 80; 
+                    
+                    this.platforms.push(new Platform(currentX, platY, platWidth));
+
+                    // Случайно ставим шипы на платформу (но не на самые короткие)
+                    if (Math.random() > 0.4 && platWidth > 200) {
+                        let spikeX = currentX + platWidth / 2 - 15;
+                        this.obstacles.push(new Obstacle(spikeX, platY));
+                    }
+                    
+                    currentX += platWidth;
+                }
+
+                // 3. Финальная платформа с дверью
+                currentX += 100;
+                this.platforms.push(new Platform(currentX, BASE_Y, 300));
+                this.door = new Door(currentX + 150, BASE_Y);
+
+                this.player.reset();
             }
 
             die() {
                 if (!this.player.visible) return;
                 
-                // Создаем 30 кусочков при смерти
+                // Спавним частицы там, где умер игрок
                 for (let i = 0; i < 30; i++) {
-                    this.particles.push(new Particle(this.player.x + 20, this.player.y + 20, this.player.color));
+                    this.particles.push(new Particle(this.player.x + 15, this.player.y + 15, this.player.color));
                 }
                 
-                this.player.visible = false; // Прячем игрока
+                this.player.visible = false;
                 
-                // Через 1 секунду возвращаем в начало
+                // Ждем секунду и перерождаемся
                 setTimeout(() => {
                     this.player.reset();
                 }, 1000);
@@ -248,64 +303,55 @@
             update() {
                 this.player.update(this.input);
 
-                // Обновляем частицы
                 this.particles.forEach(p => p.update());
                 this.particles = this.particles.filter(p => p.life > 0);
 
                 if (this.player.visible) {
-                    // Коллизия с шипами
+                    // Смерть от шипов
                     this.obstacles.forEach(obs => {
                         if (this.checkCollision(this.player, obs)) {
                             this.die();
                         }
                     });
 
-                    // Коллизия с дверью (Победа!)
+                    // Победа
                     if (this.checkCollision(this.player, this.door)) {
                         this.level++;
                         this.loadLevel();
                     }
                 }
 
-                // КАМЕРА: следит за игроком, держа его левее центра
+                // Камера следит за игроком
                 this.cameraX = this.player.x - canvas.width / 3;
-                if (this.cameraX < 0) this.cameraX = 0; // Камера не уходит за старт
+                if (this.cameraX < 0) this.cameraX = 0;
             }
 
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // Смещаем весь мир на позицию камеры
                 ctx.save();
                 ctx.translate(-this.cameraX, 0);
 
-                // Рисуем бесконечную землю
-                ctx.strokeStyle = '#555';
-                ctx.lineWidth = 5;
-                ctx.beginPath();
-                ctx.moveTo(this.cameraX, GROUND_Y); // Линия рисуется там, где камера
-                ctx.lineTo(this.cameraX + canvas.width, GROUND_Y);
-                ctx.stroke();
-
+                // Отрисовка мира
+                this.platforms.forEach(plat => plat.draw(ctx));
                 this.door.draw(ctx);
                 this.obstacles.forEach(obs => obs.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
                 this.player.draw(ctx);
 
-                ctx.restore(); // Возвращаем координаты обратно для UI
+                ctx.restore();
 
-                // UI (Интерфейс рисуется поверх камеры)
+                // Отрисовка UI
                 ctx.fillStyle = 'white';
                 ctx.font = '24px Arial';
                 ctx.fillText(`Уровень: ${this.level}`, 20, 40);
             }
 
             checkCollision(p, o) {
-                // Уменьшаем хитбокс игрока на пару пикселей, чтобы было честнее
-                return (p.x + 5 < o.x + o.width &&
-                        p.x + p.width - 5 > o.x &&
-                        p.y + 5 < o.y + o.height &&
-                        p.y + p.height - 5 > o.y);
+                return (p.x + 4 < o.x + o.width &&
+                        p.x + p.width - 4 > o.x &&
+                        p.y + 4 < o.y + o.height &&
+                        p.y + p.height - 4 > o.y);
             }
         }
 
