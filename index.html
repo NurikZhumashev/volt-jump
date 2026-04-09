@@ -178,18 +178,26 @@
                 this.reset();
             }
             reset() {
-                this.x = canvas.width / 2 - this.width / 2;
-                this.y = canvas.height - 30; // Находится внизу
+                // Спавним на платформе, чуть правее игрока
+                this.x = canvas.width / 2 + 20;
+                this.y = canvas.height - 50 - this.height; 
+                this.baseY = this.y; // Базовая точка для анимации левитации
                 this.vx = 0; 
                 this.vy = 0;
                 this.active = false; 
+                this.angle = 0;
             }
             update() {
+                // Если игра не идет, он просто висит
                 if (gameState !== 'PLAYING') return;
 
-                // Плавно просыпается, как только игрок прыгнул (убрал взрыв частиц)
+                // Плавно покачивается, ожидая, пока игрок прыгнет наверх
                 if (!this.active) {
-                    if (this.game.player.y < canvas.height - 150) {
+                    this.angle += 0.05;
+                    this.y = this.baseY + Math.sin(this.angle) * 5;
+                    
+                    // Активируется, когда игрок заберется повыше
+                    if (this.game.player.y < canvas.height - 200) {
                         this.active = true;
                     }
                     return; 
@@ -206,15 +214,15 @@
                 let speed = 3.5 + (this.game.level * 0.3); 
 
                 // МЕХАНИКА "РЕЗИНКИ" (Rubber-banding)
-                // Если призрак отстает больше чем на 250 пикселей по Y, он начинает ускоряться
-                if (dy < -250) { 
-                    // Пропорциональное ускорение: чем больше dy, тем выше speed
-                    let catchUpSpeed = Math.abs(dy + 250) * 0.02; 
+                // Если призрак отстает больше чем на 200 пикселей по Y, он начинает ускоряться
+                if (dy < -200) { 
+                    // Пропорциональное ускорение: чем дальше, тем быстрее
+                    let catchUpSpeed = Math.abs(dy + 200) * 0.04; 
                     speed += catchUpSpeed;
                 }
                 
-                // Ставим лимит скорости, чтобы он летел быстро, но не телепортировался
-                if (speed > 13) speed = 13;
+                // Лимит скорости, чтобы он успевал за джетпаком, но не мгновенно
+                if (speed > 19) speed = 19;
 
                 // Движение по вектору
                 if (distance > 0) {
@@ -236,7 +244,7 @@
             }
             
             draw(ctx) {
-                // Отрисовка призрака
+                // ТЕПЕРЬ ОН РИСУЕТСЯ ВСЕГДА! (Убрал баг с исчезновением)
                 ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 25; ctx.shadowColor = '#ff0033';
                 
@@ -267,7 +275,7 @@
                 this.reset();
             }
             reset() {
-                this.x = canvas.width / 2 - 15; 
+                this.x = canvas.width / 2 - 25; 
                 this.y = canvas.height - 50 - this.height; 
                 this.vx = 0; this.vy = 0;
                 this.jetpackTimer = 0;
@@ -375,7 +383,7 @@
                 let targetCamera = this.player.y - canvas.height / 2;
                 this.cameraY += (targetCamera - this.cameraY) * 0.1; 
 
-                // КОЛЛИЗИЯ С ПРИЗРАКОМ 
+                // КОЛЛИЗИЯ С ПРИЗРАКОМ
                 if (this.monster.active && 
                     this.player.x < this.monster.x + this.monster.width - 5 && 
                     this.player.x + this.player.width > this.monster.x + 5 &&
@@ -413,8 +421,8 @@
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
                 
-                // УПАЛ В ПРОПАСТЬ (если улетел на два экрана вниз)
-                if (this.player.y > this.cameraY + canvas.height + 200) {
+                // УПАЛ В ПРОПАСТЬ
+                if (this.player.y > (canvas.height - 50) + 200) {
                     gameOver("УПАЛ В БЕЗДНУ!");
                 }
             }
@@ -428,6 +436,7 @@
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
                 
+                // Призрак рисуется ПОВЕРХ платформ
                 this.monster.draw(ctx); 
                 
                 if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
