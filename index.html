@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: The Shadow Clone</title>
+    <title>Neon Tower: The Perfect Hunter</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -30,9 +30,9 @@
 
     <div id="uiOverlay">
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
-        <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px; text-align: center;">ТЕНЕВОЙ КЛОН</h1>
+        <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px; text-align: center;">АВТО-ПРЫЖОК</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 18px; color: #ccc;">
-            Жми в левую часть экрана — летишь влево.<br>Красная Тень повторяет твои шаги. Не останавливайся!
+            Жми в левую часть экрана — летишь влево.<br>Красный Охотник выйдет на след через 2 секунды.
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <p id="totalCoinsUI" style="color: #FFD700; margin-top: 20px; font-size: 22px; font-weight: bold;">💰 0</p>
@@ -168,74 +168,71 @@
             }
         }
 
-        // --- ИДЕАЛЬНЫЙ ТЕНЕВОЙ КЛОН ---
-        // Он больше не вычисляет путь. Он просто идет по твоим записанным следам!
-        class ShadowClone {
+        // --- БЕЗОТКАЗНЫЙ ОХОТНИК ---
+        class Hunter {
             constructor(game) {
                 this.game = game;
-                this.width = 30; // Такой же размер, как у игрока
-                this.height = 30;
+                this.width = 38; 
+                this.height = 38;
                 this.color = '#ff0033'; 
                 this.reset();
             }
             reset() {
-                // Стоит на старте
-                this.x = canvas.width / 2 - 15; 
-                this.y = canvas.height - 50 - this.height; 
+                this.x = canvas.width / 2 + 30; // Спавн чуть правее игрока
+                this.y = canvas.height - 50 - this.height; // Стоит на стартовой платформе
                 this.active = false; 
+                this.timer = 120; // Ждет ровно 120 кадров (2 секунды)
             }
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                // Записываем каждый шаг игрока в историю
-                this.game.playerHistory.push({
-                    x: this.game.player.x,
-                    y: this.game.player.y
-                });
+                // 1. Ждем 2 секунды
+                if (this.timer > 0) {
+                    this.timer--;
+                    return; 
+                }
+                this.active = true;
 
-                // Чем выше уровень, тем быстрее Тень догоняет
-                let catchUpRate = 0.04 + (this.game.level * 0.01);
-                this.game.historyDelay -= catchUpRate; 
+                // 2. Идеальное и простое наведение на игрока
+                let targetX = this.game.player.x;
                 
-                // Тень не может приблизиться ближе, чем на 15 кадров (четверть секунды)
-                if (this.game.historyDelay < 15) this.game.historyDelay = 15;
+                // Плавное слежение по оси X
+                this.x += (targetX - this.x) * 0.05;
 
-                // Если накопилось достаточно истории (сначала 2 секунды = 120 кадров)
-                if (this.game.playerHistory.length > this.game.historyDelay) {
-                    this.active = true;
-                    
-                    let historicalPos;
-                    // Сдвигаем историю, пока длина массива не сравняется с нужной задержкой
-                    while (this.game.playerHistory.length > this.game.historyDelay) {
-                        historicalPos = this.game.playerHistory.shift();
-                    }
-                    
-                    // Перемещаем Тень в точку, где игрок был в прошлом!
-                    if (historicalPos) {
-                        this.x = historicalPos.x;
-                        this.y = historicalPos.y;
-                    }
+                // Непрерывный подъем вверх (скорость растет с уровнями)
+                let speedY = 4.0 + (this.game.level * 0.5); 
+                this.y -= speedY;
 
-                    // Красные искры при движении
-                    if (Math.random() > 0.4) {
-                        this.game.particles.push(new Particle(this.x + 15, this.y + 15, '#ff0033'));
-                    }
+                // 3. АБСОЛЮТНАЯ ЗАЩИТА ОТ ИСЧЕЗНОВЕНИЯ!
+                // Находим нижнюю границу видимого экрана (камеры)
+                let screenBottom = this.game.cameraY + canvas.height;
+                
+                // Если Охотник оказался ниже камеры, мы просто притягиваем его к ней
+                if (this.y > screenBottom - this.height) {
+                    this.y = screenBottom - this.height; // Он всегда скользит по нижнему краю!
+                }
+
+                // Кровавые частицы
+                if (Math.random() > 0.3) {
+                    this.game.particles.push(new Particle(this.x + Math.random() * this.width, this.y + this.height, this.color));
                 }
             }
             
             draw(ctx) {
                 ctx.fillStyle = this.color; 
-                ctx.shadowBlur = 20; ctx.shadowColor = '#ff0033';
+                ctx.shadowBlur = 20; ctx.shadowColor = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
                 
-                // Зловещие глаза
+                // Злые глаза, которые смотрят на тебя
+                let lookX = (this.game.player.x - this.x) > 0 ? 3 : -3;
+                
                 ctx.fillStyle = '#fff';
-                ctx.fillRect(this.x + 4, this.y + 8, 8, 6);
-                ctx.fillRect(this.x + 18, this.y + 8, 8, 6);
+                ctx.fillRect(this.x + 6 + lookX, this.y + 10, 8, 8);
+                ctx.fillRect(this.x + 24 + lookX, this.y + 10, 8, 8);
                 
                 ctx.fillStyle = '#000';
-                ctx.fillRect(this.x + 6, this.y + 10, 4, 4);
-                ctx.fillRect(this.x + 20, this.y + 10, 4, 4);
+                ctx.fillRect(this.x + 8 + lookX, this.y + 12, 4, 4);
+                ctx.fillRect(this.x + 26 + lookX, this.y + 12, 4, 4);
                 
                 ctx.shadowBlur = 0;
             }
@@ -322,11 +319,7 @@
                 this.buildLevel();
 
                 this.player = new Player(this);
-                
-                // Инициализация системы записи истории (Теневой Клон)
-                this.playerHistory = [];
-                this.historyDelay = 120; // 120 кадров = ровно 2 секунды задержки
-                this.monster = new ShadowClone(this);
+                this.monster = new Hunter(this);
             }
 
             buildLevel() {
@@ -353,7 +346,7 @@
                 if (gameState !== 'PLAYING') return;
 
                 this.player.update(this.input);
-                this.monster.update(); // Тень обновляется после игрока
+                this.monster.update(); 
                 
                 this.items.forEach(i => i.update());
                 this.particles.forEach(p => p.update());
@@ -362,7 +355,7 @@
                 let targetCamera = this.player.y - canvas.height / 2;
                 this.cameraY += (targetCamera - this.cameraY) * 0.1; 
 
-                // КОЛЛИЗИЯ С ТЕНЬЮ
+                // КОЛЛИЗИЯ С ОХОТНИКОМ
                 if (this.monster.active && 
                     this.player.x < this.monster.x + this.monster.width - 5 && 
                     this.player.x + this.player.width > this.monster.x + 5 &&
@@ -370,7 +363,7 @@
                     this.player.y + this.player.height > this.monster.y + 5) {
                     
                     for(let i=0; i<30; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033'));
-                    gameOver("ТЕНЬ ДОГНАЛА ТЕБЯ!");
+                    gameOver("ОХОТНИК ДОГНАЛ ТЕБЯ!");
                 }
 
                 this.platforms.forEach(plat => {
@@ -415,7 +408,7 @@
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
                 
-                // Отрисовка Тени
+                // Отрисовка Охотника
                 this.monster.draw(ctx); 
                 
                 if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
@@ -463,7 +456,7 @@
                 uiOverlay.style.display = 'flex';
                 document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`;
                 document.getElementById('menuTitle').innerText = reasonText; 
-                document.getElementById('menuInfo').innerText = `Твоя Тень всегда найдет тебя.`;
+                document.getElementById('menuInfo').innerText = `Он всё равно тебя достанет.`;
                 document.getElementById('startBtn').innerText = `ИГРАТЬ СНОВА`; 
                 updateCoinUI();
             }, 500);
@@ -475,7 +468,7 @@
             currentLevel++;
             document.getElementById('menuLevel').innerText = `ПОБЕДА!`;
             document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`;
-            document.getElementById('menuInfo').innerText = `Тень становится быстрее...`;
+            document.getElementById('menuInfo').innerText = `С каждым уровнем он всё быстрее...`;
             document.getElementById('startBtn').innerText = `СЛЕДУЮЩИЙ УРОВЕНЬ`; 
             updateCoinUI();
         }
