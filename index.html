@@ -32,7 +32,7 @@
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
         <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px; text-align: center;">АВТО-ПРЫЖОК</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 18px; color: #ccc;">
-            Жми в левую часть экрана — летишь влево.<br>Красный Охотник всегда будет дышать в спину.
+            Жми в левую часть экрана — летишь влево.<br>Красный Охотник ждет 2 секунды и летит за тобой.
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <p id="totalCoinsUI" style="color: #FFD700; margin-top: 20px; font-size: 22px; font-weight: bold;">💰 0</p>
@@ -168,7 +168,7 @@
             }
         }
 
-        // --- НОВЫЙ БЕЗОТКАЗНЫЙ МОНСТР ---
+        // --- МОНСТР САМОНАВОДЯЩИЙСЯ ---
         class Monster {
             constructor(game) {
                 this.game = game;
@@ -178,61 +178,71 @@
                 this.reset();
             }
             reset() {
-                this.x = canvas.width / 2 + 30; // Чуть правее игрока
-                this.y = canvas.height - 50 - this.height; // На одной платформе с игроком
+                this.x = canvas.width / 2 + 30; // Спавним на старте правее игрока
+                this.y = canvas.height - 50 - this.height; 
                 this.active = false; 
+                this.startDelay = 120; // 60 кадров в сек * 2 секунды = 120 кадров задержки
             }
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                // 1. Пробуждение: ждем пока игрок чуть поднимется
+                // 1. Ждем ровно 2 секунды
+                if (this.startDelay > 0) {
+                    this.startDelay--;
+                    return; // Стоит на месте и ничего не делает
+                }
+
                 if (!this.active) {
-                    if (this.game.player.y < canvas.height - 200) {
-                        this.active = true;
-                    }
-                    return; 
+                    this.active = true; // Активируем коллизию
                 }
 
-                // 2. Идеальная погоня (Smooth Lerp)
-                let targetX = this.game.player.x;
-                let dy = this.game.player.y - this.y;
+                // 2. Высчитываем вектор строго к центру игрока
+                let targetX = this.game.player.x + this.game.player.width / 2 - this.width / 2;
+                let targetY = this.game.player.y + this.game.player.height / 2 - this.height / 2;
 
-                // Плавное следование по оси X
-                this.x += (targetX - this.x) * 0.04;
+                let dx = targetX - this.x;
+                let dy = targetY - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
 
-                // Движение по оси Y
-                let baseSpeed = 4.0 + (this.game.level * 0.4); 
+                // Базовая скорость
+                let speed = 4.0 + (this.game.level * 0.4); 
 
-                if (dy < -250) { 
-                    // Если игрок улетел слишком высоко (резинка натягивается)
-                    this.y += dy * 0.06; 
-                } else {
-                    // Обычный подъем вверх
-                    this.y -= baseSpeed; 
+                // Если игрок улетел на ракете далеко, монстр ускоряется
+                if (distance > 250) { 
+                    speed += (distance - 250) * 0.03; 
+                }
+                
+                // Ограничение максимальной скорости
+                if (speed > 16) speed = 16;
+
+                // 3. Летим по прямой к цели
+                if (distance > 0) {
+                    this.x += (dx / distance) * speed;
+                    this.y += (dy / distance) * speed;
                 }
 
-                // Частицы
+                // Частицы огня
                 if (Math.random() > 0.5) {
                     this.game.particles.push(new Particle(this.x + Math.random() * this.width, this.y + this.height, '#ff0033'));
                 }
             }
             
             draw(ctx) {
-                // Он рисуется абсолютно всегда!
                 ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 20; ctx.shadowColor = '#ff0033';
                 ctx.fillRect(this.x, this.y, this.width, this.height);
                 
-                // Глаза всегда смотрят на игрока
+                // Глаза смотрят в сторону движения
                 let lookX = (this.game.player.x - this.x) > 0 ? 3 : -3;
+                let lookY = (this.game.player.y - this.y) > 0 ? 2 : -2;
                 
                 ctx.fillStyle = '#fff';
-                ctx.fillRect(this.x + 6 + lookX, this.y + 10, 8, 8);
-                ctx.fillRect(this.x + 24 + lookX, this.y + 10, 8, 8);
+                ctx.fillRect(this.x + 6 + lookX, this.y + 10 + lookY, 8, 8);
+                ctx.fillRect(this.x + 24 + lookX, this.y + 10 + lookY, 8, 8);
                 
                 ctx.fillStyle = '#000';
-                ctx.fillRect(this.x + 8 + lookX, this.y + 12, 4, 4);
-                ctx.fillRect(this.x + 26 + lookX, this.y + 12, 4, 4);
+                ctx.fillRect(this.x + 8 + lookX, this.y + 12 + lookY, 4, 4);
+                ctx.fillRect(this.x + 26 + lookX, this.y + 12 + lookY, 4, 4);
                 
                 ctx.shadowBlur = 0;
             }
@@ -354,7 +364,7 @@
                 let targetCamera = this.player.y - canvas.height / 2;
                 this.cameraY += (targetCamera - this.cameraY) * 0.1; 
 
-                // КОЛЛИЗИЯ С МОНСТРОМ
+                // КОЛЛИЗИЯ С МОНСТРОМ (Работает только если он активен)
                 if (this.monster.active && 
                     this.player.x < this.monster.x + this.monster.width - 5 && 
                     this.player.x + this.player.width > this.monster.x + 5 &&
@@ -392,8 +402,7 @@
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
                 
-                // УПАЛ В ПРОПАСТЬ
-                if (this.player.y > (canvas.height - 50) + 200) {
+                if (this.player.y > this.cameraY + canvas.height + 200) {
                     gameOver("УПАЛ В БЕЗДНУ!");
                 }
             }
@@ -407,7 +416,7 @@
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
                 
-                // Отрисовка монстра ПОВЕРХ всего
+                // Отрисовка монстра
                 this.monster.draw(ctx); 
                 
                 if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
@@ -455,7 +464,7 @@
                 uiOverlay.style.display = 'flex';
                 document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`;
                 document.getElementById('menuTitle').innerText = reasonText; 
-                document.getElementById('menuInfo').innerText = `Не дай ему себя догнать!`;
+                document.getElementById('menuInfo').innerText = `Охотник настиг тебя.`;
                 document.getElementById('startBtn').innerText = `ИГРАТЬ СНОВА`; 
                 updateCoinUI();
             }, 500);
