@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Final Build</title>
+    <title>Neon Tower: The True Nemesis</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -168,7 +168,7 @@
             }
         }
 
-        // --- МОНСТР САМОНАВОДЯЩИЙСЯ ---
+        // --- ТОТ САМЫЙ ОХОТНИК ---
         class Monster {
             constructor(game) {
                 this.game = game;
@@ -178,25 +178,23 @@
                 this.reset();
             }
             reset() {
-                this.x = canvas.width / 2 + 30; // Спавним на старте правее игрока
-                this.y = canvas.height - 50 - this.height; 
+                this.x = canvas.width / 2 + 30; // Чуть правее игрока
+                this.y = canvas.height - 50 - this.height; // На одной платформе с игроком
                 this.active = false; 
-                this.startDelay = 120; // 60 кадров в сек * 2 секунды = 120 кадров задержки
+                this.timer = 120; // Ждет ровно 120 кадров (2 секунды)
             }
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                // 1. Ждем ровно 2 секунды
-                if (this.startDelay > 0) {
-                    this.startDelay--;
-                    return; // Стоит на месте и ничего не делает
+                // 1. Ждем 2 секунды
+                if (this.timer > 0) {
+                    this.timer--;
+                    return; 
                 }
 
-                if (!this.active) {
-                    this.active = true; // Активируем коллизию
-                }
+                this.active = true;
 
-                // 2. Высчитываем вектор строго к центру игрока
+                // 2. Вектор к игроку
                 let targetX = this.game.player.x + this.game.player.width / 2 - this.width / 2;
                 let targetY = this.game.player.y + this.game.player.height / 2 - this.height / 2;
 
@@ -204,24 +202,29 @@
                 let dy = targetY - this.y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
 
-                // Базовая скорость
-                let speed = 4.0 + (this.game.level * 0.4); 
-
-                // Если игрок улетел на ракете далеко, монстр ускоряется
-                if (distance > 250) { 
-                    speed += (distance - 250) * 0.03; 
-                }
-                
-                // Ограничение максимальной скорости
-                if (speed > 16) speed = 16;
-
-                // 3. Летим по прямой к цели
+                // Защита от NaN (деления на ноль)
                 if (distance > 0) {
+                    let speed = 4.0 + (this.game.level * 0.4); 
+
+                    // ТА САМАЯ ПРОВЕРКА НА ВЫХОД ЗА ЭКРАН
+                    let screenBottom = this.game.cameraY + canvas.height;
+                    
+                    if (this.y > screenBottom) {
+                        // Если монстр глубоко внизу за экраном — включаем турбо!
+                        speed = 22; 
+                    } else if (distance > 250) {
+                        // Механика резинки, если он в кадре, но слегка отстал
+                        speed += (distance - 250) * 0.02; 
+                    }
+                    
+                    // Жесткий лимит скорости
+                    if (speed > 22) speed = 22;
+
                     this.x += (dx / distance) * speed;
                     this.y += (dy / distance) * speed;
                 }
 
-                // Частицы огня
+                // Частицы огня сзади
                 if (Math.random() > 0.5) {
                     this.game.particles.push(new Particle(this.x + Math.random() * this.width, this.y + this.height, '#ff0033'));
                 }
@@ -232,7 +235,7 @@
                 ctx.shadowBlur = 20; ctx.shadowColor = '#ff0033';
                 ctx.fillRect(this.x, this.y, this.width, this.height);
                 
-                // Глаза смотрят в сторону движения
+                // Жуткие глаза, всегда смотрящие на цель
                 let lookX = (this.game.player.x - this.x) > 0 ? 3 : -3;
                 let lookY = (this.game.player.y - this.y) > 0 ? 2 : -2;
                 
@@ -364,7 +367,7 @@
                 let targetCamera = this.player.y - canvas.height / 2;
                 this.cameraY += (targetCamera - this.cameraY) * 0.1; 
 
-                // КОЛЛИЗИЯ С МОНСТРОМ (Работает только если он активен)
+                // КОЛЛИЗИЯ С ОХОТНИКОМ
                 if (this.monster.active && 
                     this.player.x < this.monster.x + this.monster.width - 5 && 
                     this.player.x + this.player.width > this.monster.x + 5 &&
@@ -402,6 +405,7 @@
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
                 
+                // УПАЛ В БЕЗДНУ
                 if (this.player.y > this.cameraY + canvas.height + 200) {
                     gameOver("УПАЛ В БЕЗДНУ!");
                 }
@@ -416,7 +420,7 @@
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
                 
-                // Отрисовка монстра
+                // Рисуем охотника
                 this.monster.draw(ctx); 
                 
                 if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
