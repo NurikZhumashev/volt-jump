@@ -2,28 +2,76 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Volt Jump</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jump Game TMA</title>
     <style>
-        /* Убираем отступы и запрещаем выделение текста при кликах */
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #000;
-            overflow: hidden;
-            touch-action: none; 
-            user-select: none;
-        }
-        /* Центрируем игру на экране */
-        canvas {
-            display: block;
-            margin: 0 auto;
-        }
+        body { margin: 0; overflow: hidden; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { background: #333; border: 2px solid #555; display: block; }
     </style>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 </head>
 <body>
-    <script src="game.js"></script>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Адаптация под размер экрана
+        canvas.width = window.innerWidth > 500 ? 400 : window.innerWidth - 20;
+        canvas.height = 500;
+
+        // Параметры игрока
+        const player = {
+            x: 50,
+            y: 400,
+            size: 40,
+            color: '#0088ff',
+            dy: 0,
+            jumpForce: 12,
+            gravity: 0.6,
+            grounded: false
+        };
+
+        function jump() {
+            if (player.grounded) {
+                player.dy = -player.jumpForce;
+                player.grounded = false;
+            }
+        }
+
+        // Управление: Пробел и касание экрана
+        window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
+
+        function update() {
+            // Физика
+            player.dy += player.gravity;
+            player.y += player.dy;
+
+            // Касание земли
+            if (player.y + player.size > canvas.height - 20) {
+                player.y = canvas.height - 20 - player.size;
+                player.dy = 0;
+                player.grounded = true;
+            }
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Рисуем «пол»
+            ctx.fillStyle = '#555';
+            ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+
+            // Рисуем игрока
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.size, player.size);
+        }
+
+        update();
+    </script>
 </body>
 </html>
