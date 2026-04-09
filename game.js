@@ -1,188 +1,142 @@
 const config = {
     type: Phaser.AUTO,
-    scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 360,
-        height: 640
-    },
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 360, height: 640 },
     backgroundColor: '#0a0a1a',
-    physics: {
-        default: 'arcade',
-        arcade: {
-            gravity: { y: 1200 },
-            debug: false 
-        }
-    },
-    scene: {
-        create: create,
-        update: update
-    }
+    physics: { default: 'arcade', arcade: { gravity: { y: 1200 } } },
+    scene: { create: create, update: update }
 };
 
 const game = new Phaser.Game(config);
 
-// Переменные
-let player;
-let movingLeft = false;
-let movingRight = false;
-let score = 0;
-let scoreText;
-let isDead = false; // Флаг смерти, чтобы отключить управление
-let movingPlatforms = []; // Список всех движущихся платформ
+// Переменные состояния
+let player, scoreText, isDead = false, movingPlatforms = [];
+let currentLevelIndex = 0; // Номер текущего уровня
+
+// --- СПИСОК УРОВНЕЙ ---
+const levels = [
+    [ // УРОВЕНЬ 1: Обучение
+        "         ",
+        "         ",
+        "      3  ", // Монетка
+        "    111  ",
+        "         ",
+        "         ",
+        "  11     ",
+        "         ",
+        "     5   ", // ДВЕРЬ (ФИНИШ)
+        "111111111"
+    ],
+    [ // УРОВЕНЬ 2: Опасность
+        "      5  ",
+        "    111  ",
+        "         ",
+        "  3      ",
+        " 111     ",
+        "     222 ", // Шипы
+        "         ",
+        " 11      ",
+        "         ",
+        "111111111"
+    ],
+    [ // УРОВЕНЬ 3: Движение
+        " 5       ",
+        " 11      ",
+        "      4  ", // Платформа
+        "         ",
+        "    3    ",
+        "   111   ",
+        "         ",
+        " 4       ",
+        "         ",
+        "111111111"
+    ]
+];
 
 function create() {
     isDead = false;
-    movingPlatforms = []; // Очищаем список при рестарте
-
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.expand();
-    }
-
-    // --- 1. ГЕНЕРАЦИЯ ТЕКСТУРЫ ДЛЯ ФЕЙЕРВЕРКА ---
-    // Phaser требует картинку для частиц, мы рисуем ее кодом (маленький квадрат)
+    movingPlatforms = [];
+    
+    // Рисуем текстуру искры (если вдруг забыли)
     let graphics = this.add.graphics();
     graphics.fillStyle(0x00aaff, 1);
     graphics.fillRect(0, 0, 6, 6);
     graphics.generateTexture('spark', 6, 6);
-    graphics.destroy(); // Удаляем кисть, текстура сохранилась в памяти
+    graphics.destroy();
 
-    // --- 2. КАРТА УРОВНЯ (ГРИД) ---
-    // Размер одного блока будет 40x40 пикселей (360 ширина / 9 блоков)
-    const levelMap = [
-        "         ", // 0
-        "         ", // 1
-        "         ", // 2
-        "         ", // 3
-        "      3  ", // 4  (Цель - 3)
-        "    111  ", // 5  (Обычный пол - 1)
-        "         ", // 6
-        "  4      ", // 7  (Движущаяся платформа - 4)
-        "         ", // 8
-        "         ", // 9
-        " 11      ", // 10
-        "         ", // 11
-        "         ", // 12
-        "      2  ", // 13 (Шипы - 2)
-        "111111111"  // 14
-    ];
-
+    const levelMap = levels[currentLevelIndex]; // Берем карту текущего уровня
     let platforms = this.physics.add.staticGroup();
     let dangers = this.physics.add.staticGroup();
     let cells = this.physics.add.staticGroup();
+    let door = this.physics.add.staticGroup();
 
-    // Цикл: перебираем строки и символы в карте
+    // Генерация из массива
     for (let y = 0; y < levelMap.length; y++) {
         for (let x = 0; x < levelMap[y].length; x++) {
             let char = levelMap[y][x];
-            let posX = x * 40 + 20; // +20 чтобы центр блока был по сетке
-            let posY = y * 40 + 20;
+            let px = x * 40 + 20; let py = y * 40 + 20;
 
-            if (char === '1') {
-                platforms.add(this.add.rectangle(posX, posY, 40, 40, 0x004400));
-            } else if (char === '2') {
-                dangers.add(this.add.rectangle(posX, posY, 40, 40, 0xff0000));
-            } else if (char === '3') {
-                cells.add(this.add.rectangle(posX, posY, 20, 20, 0xffff00));
-            } else if (char === '4') {
-                // Движущаяся платформа (особая физика)
-                let mPlatform = this.add.rectangle(posX, posY, 80, 20, 0x008800);
-                this.physics.add.existing(mPlatform);
-                mPlatform.body.setAllowGravity(false); // Не падает
-                mPlatform.body.setImmovable(true);     // Не прогибается под игроком
-                mPlatform.body.setVelocityX(100);      // Едет вправо со старта
-                movingPlatforms.push(mPlatform);       // Запоминаем ее
+            if (char === '1') platforms.add(this.add.rectangle(px, py, 40, 40, 0x004400));
+            if (char === '2') dangers.add(this.add.rectangle(px, py, 40, 40, 0xff0000));
+            if (char === '3') cells.add(this.add.rectangle(px, py, 20, 20, 0xffff00));
+            if (char === '4') {
+                let mp = this.add.rectangle(px, py, 80, 20, 0x008800);
+                this.physics.add.existing(mp);
+                mp.body.setAllowGravity(false).setImmovable(true).setVelocityX(100);
+                movingPlatforms.push(mp);
             }
+            if (char === '5') door.add(this.add.rectangle(px, py, 30, 50, 0xffffff)); // Белая дверь
         }
     }
 
-    // --- 3. СОЗДАЕМ ИГРОКА ---
-    player = this.add.rectangle(40, 450, 30, 30, 0x00aaff);
+    player = this.add.rectangle(40, 560, 30, 30, 0x00aaff);
     this.physics.add.existing(player);
     player.body.setCollideWorldBounds(true);
 
-    // --- 4. НАСТРОЙКА СТОЛКНОВЕНИЙ ---
     this.physics.add.collider(player, platforms);
-    
-    // Столкновение с движущимися платформами
-    movingPlatforms.forEach(plat => {
-        this.physics.add.collider(player, plat);
-    });
+    movingPlatforms.forEach(p => this.physics.add.collider(player, p));
 
-    // Сбор ячейки
-    this.physics.add.overlap(player, cells, (p, cell) => {
-        cell.destroy(); 
-        score += 1;
-        scoreText.setText('Заряд: ' + score + '/3');
-    }, null, this);
+    // Сбор монетки
+    this.physics.add.overlap(player, cells, (p, c) => c.destroy());
 
-    // --- 5. ЭМИТТЕР ЧАСТИЦ И СМЕРТЬ ---
-    let particleEmitter = this.add.particles(0, 0, 'spark', {
-        speed: { min: 100, max: 400 },
-        angle: { min: 0, max: 360 },
-        gravityY: 600,
-        lifespan: 800,
-        quantity: 40,   // 40 искр за раз
-        emitting: false // Выключен, пока не позовем
-    });
-
-    this.physics.add.overlap(player, dangers, () => {
-        if (isDead) return; // Если уже умерли, игнорируем
-        isDead = true;      // Блокируем управление
-        score = 0;          // Сбрасываем счет
-        
-        player.setVisible(false); // Прячем героя
-        player.body.setVelocity(0, 0); // Останавливаем его
-        player.body.setAllowGravity(false);
-
-        // Взрыв фейерверка в координатах игрока!
-        particleEmitter.emitParticleAt(player.x, player.y);
-
-        // Ждем 1 секунду и перезапускаем сцену
-        this.time.delayedCall(1000, () => {
-            this.scene.restart();
-        });
-    }, null, this);
-
-    scoreText = this.add.text(10, 10, 'Заряд: ' + score + '/3', { fontSize: '20px', fill: '#00aaff' });
-
-    // --- 6. МОБИЛЬНЫЕ КНОПКИ ---
-    let btnLeft = this.add.rectangle(60, 600, 80, 60, 0x333333).setInteractive();
-    btnLeft.on('pointerdown', () => movingLeft = true);
-    btnLeft.on('pointerup', () => movingLeft = false);
-    btnLeft.on('pointerout', () => movingLeft = false);
-
-    let btnRight = this.add.rectangle(160, 600, 80, 60, 0x333333).setInteractive();
-    btnRight.on('pointerdown', () => movingRight = true);
-    btnRight.on('pointerup', () => movingRight = false);
-    btnRight.on('pointerout', () => movingRight = false);
-
-    let btnJump = this.add.rectangle(300, 600, 80, 60, 0x333333).setInteractive();
-    btnJump.on('pointerdown', () => {
-        if (!isDead && player.body.touching.down) {
-            player.body.setVelocityY(-650);
+    // Касание двери - ПЕРЕХОД НА СЛЕДУЮЩИЙ УРОВЕНЬ
+    this.physics.add.overlap(player, door, () => {
+        currentLevelIndex++; // Прибавляем номер уровня
+        if (currentLevelIndex >= levels.length) {
+            currentLevelIndex = 0; // Если уровни кончились - на первый
+            alert("Поздравляю! Ты прошел все уровни!");
         }
+        this.scene.restart();
     });
+
+    // Смерть
+    this.physics.add.overlap(player, dangers, () => {
+        if (isDead) return;
+        isDead = true;
+        this.add.particles(player.x, player.y, 'spark', { speed: 200, lifespan: 600, quantity: 30, emitting: false }).explode();
+        player.setVisible(false);
+        this.time.delayedCall(800, () => this.scene.restart());
+    });
+
+    // Кнопки (упрощено для понимания)
+    createButton(this, 60, 600, "<-", () => movingLeft = true, () => movingLeft = false);
+    createButton(this, 160, 600, "->", () => movingRight = true, () => movingRight = false);
+    createButton(this, 300, 600, "UP", () => { if(player.body.touching.down) player.body.setVelocityY(-600) });
+}
+
+let movingLeft = false, movingRight = false;
+
+function createButton(scene, x, y, text, downFn, upFn) {
+    let btn = scene.add.rectangle(x, y, 70, 50, 0x333333).setInteractive();
+    scene.add.text(x-10, y-10, text);
+    btn.on('pointerdown', downFn);
+    if(upFn) { btn.on('pointerup', upFn); btn.on('pointerout', upFn); }
 }
 
 function update() {
-    if (isDead) return; // Если умерли - не двигаемся
-
-    // Управление
-    if (movingLeft) {
-        player.body.setVelocityX(-200);
-    } else if (movingRight) {
-        player.body.setVelocityX(200);
-    } else {
-        player.body.setVelocityX(0);
-    }
-
-    // Логика движущихся платформ (заставляем их ездить туда-сюда)
-    movingPlatforms.forEach(plat => {
-        if (plat.x > 300) {
-            plat.body.setVelocityX(-100); // Доехала до правого края - едет влево
-        } else if (plat.x < 60) {
-            plat.body.setVelocityX(100);  // Доехала до левого края - едет вправо
-        }
+    if (isDead) return;
+    player.body.setVelocityX(movingLeft ? -200 : (movingRight ? 200 : 0));
+    movingPlatforms.forEach(p => {
+        if (p.x > 300) p.body.setVelocityX(-100);
+        else if (p.x < 60) p.body.setVelocityX(100);
     });
 }
