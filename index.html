@@ -3,65 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower & Coins TMA</title>
+    <title>Neon Glitch TMA</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); }
         
         .controls {
             position: fixed;
-            bottom: 60px; 
+            bottom: 40px; 
             width: 100%;
             display: flex;
             justify-content: space-around;
             pointer-events: none;
+            z-index: 10;
         }
         .btn {
             width: 70px;
             height: 70px;
             background: rgba(255, 255, 255, 0.1);
-            border: 2px solid #444;
+            border: 2px solid rgba(255,255,255,0.2);
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             color: white;
             font-weight: bold;
-            font-size: 20px;
+            font-size: 24px;
             pointer-events: auto;
             touch-action: manipulation;
+            backdrop-filter: blur(5px);
         }
-        .btn:active { background: #00d2ff; border-color: #00d2ff; }
-        #jumpBtn { width: 90px; border-radius: 20px; }
+        .btn:active { background: rgba(0, 210, 255, 0.5); border-color: #00d2ff; }
+        #jumpBtn { width: 100px; border-radius: 25px; background: rgba(0, 210, 255, 0.15); border-color: #00d2ff;}
+
+        /* UI Поверх экрана (Магазин и Рейтинг) */
+        #uiOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.85);
+            z-index: 20;
+            color: white;
+        }
+        .ui-btn {
+            padding: 15px 40px;
+            margin: 10px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            color: white;
+            cursor: pointer;
+            text-transform: uppercase;
+            width: 250px;
+        }
+        .btn-play { background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 15px #00d2ff;}
+        .btn-shop { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f5af19;}
+        .btn-rank { background: linear-gradient(45deg, #8E2DE2, #4A00E0); box-shadow: 0 0 15px #8E2DE2;}
     </style>
 </head>
 <body>
 
     <canvas id="gameCanvas"></canvas>
 
-    <div class="controls">
+    <div class="controls" id="gameControls">
         <div class="btn" id="leftBtn">←</div>
         <div class="btn" id="jumpBtn">UP</div>
         <div class="btn" id="rightBtn">→</div>
     </div>
 
+    <div id="uiOverlay">
+        <h1 id="scoreTitle" style="font-size: 40px; margin-bottom: 5px; color: #00d2ff; text-shadow: 0 0 10px #00d2ff;">0m</h1>
+        <p id="coinsTitle" style="color: #FFD700; font-size: 20px; margin-bottom: 40px;">💰 0</p>
+        
+        <button class="ui-btn btn-play" onclick="startGame()">ИГРАТЬ СНОВА</button>
+        <button class="ui-btn btn-shop" onclick="alert('Тут будет магазин за монеты и Stars!')">🛒 МАГАЗИН</button>
+        <button class="ui-btn btn-rank" onclick="alert('Тут будет таблица лидеров Telegram!')">🏆 РЕЙТИНГ</button>
+    </div>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const uiOverlay = document.getElementById('uiOverlay');
+        const gameControls = document.getElementById('gameControls');
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // --- ВВОД ---
+        let totalCoins = parseInt(localStorage.getItem('neonCoins')) || 0;
+        let isGameOver = false;
+
         class InputHandler {
             constructor() {
                 this.keys = [];
-                window.addEventListener('keydown', e => {
-                    if (!this.keys.includes(e.key)) this.keys.push(e.key);
-                });
-                window.addEventListener('keyup', e => {
-                    this.keys = this.keys.filter(k => k !== e.key);
-                });
+                window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
+                window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
 
                 this.bindTouch('leftBtn', 'ArrowLeft');
                 this.bindTouch('rightBtn', 'ArrowRight');
@@ -74,336 +113,195 @@
             }
         }
 
-        // --- ЧАСТИЦЫ ---
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.size = Math.random() * 6 + 2;
-                this.vx = (Math.random() - 0.5) * 12;
-                this.vy = (Math.random() - 1) * 12;
-                this.gravity = 0.6;
-                this.life = 1.0;
-            }
-            update() {
-                this.vy += this.gravity;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= 0.02;
-            }
-            draw(ctx) {
-                ctx.globalAlpha = Math.max(0, this.life);
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.size, this.size);
-                ctx.globalAlpha = 1.0;
-            }
-        }
-
-        // --- ПЛАТФОРМА ---
         class Platform {
-            constructor(x, y, width, isMoving) {
-                this.x = x;
-                this.y = y;
-                this.width = width;
-                this.height = 30; 
-                
-                this.isMoving = isMoving;
-                this.vx = isMoving ? (Math.random() > 0.5 ? 2 : -2) : 0; 
-                this.startX = x;
-                this.moveRange = 100; 
-            }
-            update() {
-                if (this.isMoving) {
-                    this.x += this.vx;
-                    if (this.x > this.startX + this.moveRange || this.x < this.startX - this.moveRange) {
-                        this.vx *= -1; 
-                    }
-                }
+            constructor(x, y, width) {
+                this.x = x; this.y = y; this.width = width; this.height = 20;
             }
             draw(ctx) {
                 ctx.fillStyle = '#222';
                 ctx.fillRect(this.x, this.y, this.width, this.height);
-                ctx.fillStyle = this.isMoving ? '#ffcc00' : '#00ffcc';
-                ctx.fillRect(this.x, this.y, this.width, 4);
+                ctx.fillStyle = '#00ffcc';
+                ctx.fillRect(this.x, this.y, this.width, 3);
             }
         }
 
-        // --- МОНЕТА ---
         class Coin {
             constructor(x, y) {
-                this.width = 20; // Для хитбокса
-                this.height = 20;
-                this.x = x;
-                this.y = y;
-                this.baseY = y;
-                this.angle = Math.random() * Math.PI * 2; // Для анимации покачивания
+                this.x = x; this.y = y; this.baseY = y;
+                this.angle = Math.random() * Math.PI * 2;
                 this.markedForDeletion = false;
             }
-            update() {
-                // Плавное покачивание вверх-вниз
-                this.angle += 0.05;
-                this.y = this.baseY + Math.sin(this.angle) * 5;
-            }
+            update() { this.angle += 0.05; this.y = this.baseY + Math.sin(this.angle) * 5; }
             draw(ctx) {
-                ctx.fillStyle = '#FFD700'; // Золотой цвет
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#FFD700';
-                
-                ctx.beginPath();
-                // Рисуем круг (смещаем на половину ширины/высоты для центровки)
-                ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 10, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700';
+                ctx.beginPath(); ctx.arc(this.x + 10, this.y + 10, 8, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
             }
         }
 
-        // --- ИГРОК ---
         class Player {
             constructor(game) {
                 this.game = game;
-                this.width = 30;
-                this.height = 30;
+                this.width = 30; this.height = 30;
                 this.color = '#00d2ff';
                 this.weight = 0.8; 
                 this.reset();
             }
             reset() {
-                this.x = 100;
-                this.y = 0; 
-                this.vx = 0;
-                this.vy = 0;
-                this.onGround = false;
-                this.visible = true;
-                this.currentPlatform = null; 
+                this.x = canvas.width / 2 - 15; this.y = canvas.height - 100; 
+                this.vx = 0; this.vy = 0; this.onGround = false;
             }
             update(input) {
-                if (!this.visible) return;
-
-                if (input.keys.includes(' ') && this.onGround) {
-                    this.vy = -16;
-                    this.onGround = false;
-                    this.currentPlatform = null;
-                }
-                
-                if (input.keys.includes('ArrowRight')) this.vx = 6;
-                else if (input.keys.includes('ArrowLeft')) this.vx = -6;
+                if (input.keys.includes(' ') && this.onGround) { this.vy = -16; this.onGround = false; }
+                if (input.keys.includes('ArrowRight')) this.vx = 7;
+                else if (input.keys.includes('ArrowLeft')) this.vx = -7;
                 else this.vx *= 0.8;
 
-                let platformSpeed = this.currentPlatform ? this.currentPlatform.vx : 0;
-
-                this.vy += this.weight;
-                this.y += this.vy;
-                
+                this.vy += this.weight; this.y += this.vy;
                 this.onGround = false;
-                this.currentPlatform = null;
                 
                 this.game.platforms.forEach(plat => {
                     if (this.x < plat.x + plat.width && this.x + this.width > plat.x &&
                         this.y < plat.y + plat.height && this.y + this.height > plat.y) {
-                        
-                        if (this.vy > 0 && this.y + this.height - this.vy <= plat.y + 12) {
-                            this.onGround = true;
-                            this.vy = 0;
-                            this.y = plat.y - this.height;
-                            this.currentPlatform = plat; 
+                        if (this.vy > 0 && this.y + this.height - this.vy <= plat.y + 15) {
+                            this.onGround = true; this.vy = 0; this.y = plat.y - this.height;
                         }
                     }
                 });
 
-                this.x += this.vx + platformSpeed;
-                if (this.x < 0) this.x = 0;
-
-                if (this.y > this.game.cameraY + canvas.height + 100) {
-                    this.game.die();
-                }
+                this.x += this.vx;
+                // Игрок может проходить сквозь стены (выходить слева, появляться справа)
+                if (this.x > canvas.width) this.x = -this.width;
+                if (this.x < -this.width) this.x = canvas.width;
             }
             draw(ctx) {
-                if (!this.visible) return;
-                ctx.fillStyle = this.color;
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-                ctx.shadowBlur = 0;
+                ctx.fillStyle = this.color; ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height); ctx.shadowBlur = 0;
             }
         }
 
-        // --- ДВЕРЬ ---
-        class Door {
-            constructor(x, y) {
-                this.width = 40;
-                this.height = 60;
-                this.x = x;
-                this.y = y - this.height;
-            }
-            draw(ctx) {
-                ctx.fillStyle = '#ffffff';
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = 'white';
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-                
-                ctx.fillStyle = '#000';
-                ctx.fillRect(this.x + 8, this.y + 30, 8, 8);
-                ctx.shadowBlur = 0;
-            }
-        }
-
-        // --- ДВИЖОК ---
         class Game {
             constructor() {
                 this.player = new Player(this);
                 this.input = new InputHandler();
-                this.level = 1;
-                
-                // Загружаем монеты из памяти устройства (если они там есть)
-                this.totalCoins = parseInt(localStorage.getItem('neonCoins')) || 0;
-                
-                this.particles = [];
-                this.cameraX = 0;
+                this.platforms = []; this.coins = [];
                 this.cameraY = 0;
-                this.platforms = [];
-                this.coins = [];
-                this.loadLevel();
+                this.maxHeight = 0;
+                this.glitchY = canvas.height; // Лава начинается в самом низу
+                this.glitchSpeed = 1.5;
+                this.platformY = canvas.height - 50;
+                
+                // Стартовая платформа
+                this.platforms.push(new Platform(0, this.platformY, canvas.width));
             }
 
-            loadLevel() {
-                this.platforms = [];
-                this.coins = [];
-                this.particles = [];
-                
-                let currentX = 0;
-                let currentY = canvas.height - 100; 
-                
-                this.platforms.push(new Platform(currentX, currentY, 400, false));
+            generatePlatforms() {
+                // Генерируем платформы на лету вверх
+                while (this.platformY > this.cameraY - canvas.height) {
+                    this.platformY -= 70 + Math.random() * 40;
+                    let width = 70 + Math.random() * 100;
+                    let x = Math.random() * (canvas.width - width);
+                    this.platforms.push(new Platform(x, this.platformY, width));
 
-                const jumpsCount = 8 + (this.level * 3);
-                
-                for (let i = 0; i < jumpsCount; i++) {
-                    currentY -= 60 + Math.random() * 50;
-                    currentX += 30 + Math.random() * 120;
-                    
-                    let platWidth = 100 + Math.random() * 100;
-                    let isMoving = Math.random() > (0.8 - this.level * 0.05); 
-                    
-                    this.platforms.push(new Platform(currentX, currentY, platWidth, isMoving));
-
-                    // Случайный спавн монет над платформой (вероятность 50%)
-                    if (Math.random() > 0.5) {
-                        // Располагаем по центру платформы и чуть выше неё
-                        let coinX = currentX + platWidth / 2 - 10;
-                        let coinY = currentY - 40;
-                        this.coins.push(new Coin(coinX, coinY));
+                    if (Math.random() > 0.6) {
+                        this.coins.push(new Coin(x + width/2 - 10, this.platformY - 30));
                     }
                 }
-
-                currentX += 50;
-                currentY -= 80;
-                this.platforms.push(new Platform(currentX, currentY, 200, false));
-                this.door = new Door(currentX + 80, currentY);
-
-                this.player.reset();
-                this.player.y = canvas.height - 200;
-                this.player.x = 100;
-            }
-
-            die() {
-                if (!this.player.visible) return;
-                
-                for (let i = 0; i < 30; i++) {
-                    // Создаем частицы цвета игрока
-                    this.particles.push(new Particle(this.player.x + 15, this.player.y + 15, this.player.color));
-                }
-                
-                this.player.visible = false;
-                
-                setTimeout(() => {
-                    this.loadLevel(); 
-                }, 1000);
             }
 
             update() {
-                this.platforms.forEach(plat => plat.update());
-                
-                // Обновляем монеты
-                this.coins.forEach(coin => coin.update());
-                
+                if (isGameOver) return;
+
                 this.player.update(this.input);
+                this.coins.forEach(c => c.update());
 
-                this.particles.forEach(p => p.update());
-                this.particles = this.particles.filter(p => p.life > 0);
+                // Поднимаем лаву
+                this.glitchY -= this.glitchSpeed;
+                // Ускоряем лаву со временем
+                this.glitchSpeed += 0.001;
 
-                if (this.player.visible) {
-                    
-                    // Проверка сбора монет
-                    this.coins.forEach(coin => {
-                        if (!coin.markedForDeletion && this.checkCollision(this.player, coin)) {
-                            coin.markedForDeletion = true;
-                            this.totalCoins++;
-                            // Сохраняем в память устройства
-                            localStorage.setItem('neonCoins', this.totalCoins);
-                            
-                            // Эффект сбора (золотые искры)
-                            for(let i=0; i<10; i++){
-                                this.particles.push(new Particle(coin.x + 10, coin.y + 10, '#FFD700'));
-                            }
-                        }
-                    });
-                    // Удаляем собранные монеты из массива
-                    this.coins = this.coins.filter(coin => !coin.markedForDeletion);
-
-                    if (this.checkCollision(this.player, this.door)) {
-                        this.level++;
-                        this.loadLevel();
-                    }
+                // Камера плавно следует за игроком вверх
+                if (this.player.y < this.cameraY + canvas.height / 2) {
+                    this.cameraY = this.player.y - canvas.height / 2;
                 }
 
-                this.cameraX = this.player.x - canvas.width / 3;
-                this.cameraY = this.player.y - canvas.height / 1.5;
+                // Считаем высоту (рекорд)
+                let currentHeight = Math.floor(Math.abs(this.player.y - (canvas.height - 100)) / 10);
+                if (currentHeight > this.maxHeight) this.maxHeight = currentHeight;
+
+                this.generatePlatforms();
+
+                // Сбор монет
+                this.coins.forEach(coin => {
+                    if (!coin.markedForDeletion && 
+                        this.player.x < coin.x + 20 && this.player.x + this.player.width > coin.x &&
+                        this.player.y < coin.y + 20 && this.player.y + this.player.height > coin.y) {
+                        coin.markedForDeletion = true;
+                        totalCoins++;
+                        localStorage.setItem('neonCoins', totalCoins);
+                    }
+                });
+                this.coins = this.coins.filter(c => !c.markedForDeletion);
                 
-                if (this.cameraX < 0) this.cameraX = 0;
+                // Удаляем старые платформы внизу
+                this.platforms = this.platforms.filter(p => p.y < this.cameraY + canvas.height + 100);
+
+                // СМЕРТЬ: упал в лаву или улетел за экран
+                if (this.player.y + this.player.height > this.glitchY || this.player.y > this.cameraY + canvas.height) {
+                    gameOver(this.maxHeight);
+                }
             }
 
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-
                 ctx.save();
-                ctx.translate(-this.cameraX, -this.cameraY);
+                ctx.translate(0, -this.cameraY); // Двигаем камеру только по вертикали
 
-                this.platforms.forEach(plat => plat.draw(ctx));
-                this.coins.forEach(coin => coin.draw(ctx));
-                this.door.draw(ctx);
-                this.particles.forEach(p => p.draw(ctx));
+                this.platforms.forEach(p => p.draw(ctx));
+                this.coins.forEach(c => c.draw(ctx));
                 this.player.draw(ctx);
+
+                // Рисуем Глитч (Лаву)
+                ctx.fillStyle = 'rgba(255, 0, 50, 0.6)';
+                ctx.fillRect(0, this.glitchY, canvas.width, canvas.height * 2); // Огромный квадрат вниз
+                ctx.fillStyle = '#ff0033'; // Яркая кромка лавы
+                ctx.fillRect(0, this.glitchY, canvas.width, 10);
 
                 ctx.restore();
 
                 // UI
-                ctx.fillStyle = 'white';
-                ctx.font = '24px Arial';
-                ctx.fillText(`Уровень: ${this.level}`, 20, 40);
-                
-                // Отображение монет в правом верхнем углу
-                ctx.fillStyle = '#FFD700';
-                ctx.textAlign = 'right';
-                ctx.fillText(`Монеты: ${this.totalCoins}`, canvas.width - 20, 40);
-                ctx.textAlign = 'left'; // Возвращаем обратно, чтобы не сломать другой текст
-            }
-
-            checkCollision(p, o) {
-                return (p.x + 4 < o.x + o.width &&
-                        p.x + p.width - 4 > o.x &&
-                        p.y + 4 < o.y + o.height &&
-                        p.y + p.height - 4 > o.y);
+                if (!isGameOver) {
+                    ctx.fillStyle = 'white'; ctx.font = 'bold 24px Arial';
+                    ctx.fillText(`${this.maxHeight} m`, 20, 40);
+                    ctx.fillStyle = '#FFD700'; ctx.textAlign = 'right';
+                    ctx.fillText(`💰 ${totalCoins}`, canvas.width - 20, 40);
+                    ctx.textAlign = 'left';
+                }
             }
         }
 
-        const game = new Game();
+        let game = new Game();
+
         function animate() {
             game.update();
             game.draw(ctx);
             requestAnimationFrame(animate);
         }
+
+        function gameOver(score) {
+            isGameOver = true;
+            gameControls.style.display = 'none'; // Прячем кнопки управления
+            uiOverlay.style.display = 'flex'; // Показываем красивое меню
+            document.getElementById('scoreTitle').innerText = `${score} METERS`;
+            document.getElementById('coinsTitle').innerText = `💰 ${totalCoins} (Всего)`;
+        }
+
+        function startGame() {
+            isGameOver = false;
+            gameControls.style.display = 'flex';
+            uiOverlay.style.display = 'none';
+            game = new Game(); // Пересоздаем игру
+        }
+
         animate();
 
         window.addEventListener('resize', () => {
