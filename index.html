@@ -435,11 +435,10 @@
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 
-                // ИСПРАВЛЕНИЕ СКОРОСТИ
-                let baseSpeed = this.game.isHard ? 2.1 : 1.6; // Немного замедлен
+                let baseSpeed = this.game.isHard ? 2.1 : 1.6; 
                 let speed = baseSpeed + (this.game.level * 0.1); 
                 if (dist > 300) speed += (dist - 300) * 0.005; 
-                let maxSpeed = this.game.isHard ? 10 : 8; // Снижен лимит
+                let maxSpeed = this.game.isHard ? 10 : 8;
                 if (speed > maxSpeed) speed = maxSpeed;
                 
                 if (dist > 0) { this.x += (dx/dist)*speed; this.y += (dy/dist)*speed; }
@@ -534,8 +533,8 @@
                     this.platforms.push(new Platform(x, this.highestY, w, type));
                     
                     let ri = Math.random();
-                    // ИСПРАВЛЕНИЕ: Джетпаки не спавнятся в хардкоре
-                    if (ri > 0.98 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
+                    // Джетпак спавнится гораздо реже
+                    if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
                 }
             }
