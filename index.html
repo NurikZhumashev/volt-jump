@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Vector Engine</title>
+    <title>Neon Tower: Balanced Hunter</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -172,7 +172,7 @@
             }
         }
 
-        // --- ИДЕАЛЬНЫЙ ВЕКТОРНЫЙ ОХОТНИК ---
+        // --- ОХОТНИК С БАЛАНСИРОВАННОЙ СКОРОСТЬЮ ---
         class Hunter {
             constructor(game) {
                 this.game = game;
@@ -182,29 +182,25 @@
                 this.reset();
             }
             reset() {
-                // Ставим его ровно посередине стартовой платформы
                 this.x = canvas.width / 2 - this.width / 2; 
                 this.y = canvas.height - 50 - this.height; 
                 this.active = false; 
                 this.startTime = 0; 
             }
             startTimer() {
-                this.startTime = Date.now(); // Фиксируем точное время старта
+                this.startTime = Date.now(); 
             }
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                // 1. Проверка таймера (ровно 2000 миллисекунд)
                 if (!this.active) {
                     if (Date.now() - this.startTime > 2000) {
                         this.active = true;
-                        // Эффект пробуждения
                         for(let i=0; i<15; i++) this.game.particles.push(new Particle(this.x+19, this.y+19, '#ff0033', true));
                     }
-                    return; // Пока таймер идет, стоит на месте
+                    return; 
                 }
 
-                // 2. Векторная математика (наведение)
                 let targetX = this.game.player.x + (this.game.player.width / 2) - (this.width / 2);
                 let targetY = this.game.player.y + (this.game.player.height / 2) - (this.height / 2);
 
@@ -212,37 +208,42 @@
                 let dy = targetY - this.y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
 
-                // Базовая скорость
-                let speed = 4.5 + (this.game.level * 0.4); 
+                // --- ЛОГИКА СКОРОСТИ ---
+                // Базовая скорость (чуть медленнее игрока)
+                let speed = 2.8 + (this.game.level * 0.2); 
 
-                // Движение строго по прямой к цели
+                // Если игрок улетел далеко (на джетпаке), охотник начинает разгоняться
+                if (distance > 300) {
+                    speed += (distance - 300) * 0.015; 
+                }
+                
+                // Максимальный предел скорости, чтобы он не телепортировался
+                let maxSpeed = 14 + (this.game.level * 0.5);
+                if (speed > maxSpeed) speed = maxSpeed;
+
+                // Движение по вектору
                 if (distance > 0) {
                     this.x += (dx / distance) * speed;
                     this.y += (dy / distance) * speed;
                 }
 
-                // 3. ЭКРАННЫЕ ТИСКИ (ЗАЩИТА ОТ ИСЧЕЗНОВЕНИЯ)
-                // Высчитываем нижний пиксель видимой камеры
+                // --- МЯГКИЕ ТИСКИ ЭКРАНА ---
                 let screenBottom = this.game.cameraY + canvas.height - this.height - 10;
-                
-                // Если математика утянула Охотника ниже экрана - жестко прибиваем его к низу
                 if (this.y > screenBottom) {
-                    this.y = screenBottom;
+                    // Плавно подтягиваем его к низу экрана, а не жестко телепортируем
+                    this.y -= (this.y - screenBottom) * 0.15;
                 }
 
-                // Частицы
                 if (Math.random() > 0.4) {
                     this.game.particles.push(new Particle(this.x + Math.random() * this.width, this.y + this.height/2, this.color));
                 }
             }
             
             draw(ctx) {
-                // Он отрисовывается всегда
                 ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 20; ctx.shadowColor = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
                 
-                // Глаза смотрят на игрока
                 let lookX = (this.game.player.x - this.x) > 0 ? 3 : -3;
                 let lookY = (this.game.player.y - this.y) > 0 ? 3 : -3;
                 
@@ -426,7 +427,6 @@
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
                 
-                // Рисуем охотника ПОВЕРХ всего
                 this.hunter.draw(ctx); 
                 
                 if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
@@ -466,7 +466,6 @@
             gameState = 'PLAYING';
             uiOverlay.style.display = 'none';
             if (game.player.vy === 0) game.player.vy = -17; 
-            // Запускаем таймер охотника
             game.hunter.startTimer();
         }
 
