@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Glitch TMA</title>
+    <title>Neon Tower: Level Up</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); }
@@ -36,15 +36,15 @@
         .btn:active { background: rgba(0, 210, 255, 0.5); border-color: #00d2ff; }
         #jumpBtn { width: 100px; border-radius: 25px; background: rgba(0, 210, 255, 0.15); border-color: #00d2ff;}
 
-        /* UI Поверх экрана (Магазин и Рейтинг) */
+        /* Интерфейс меню и проигрыша */
         #uiOverlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            display: none;
+            display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.8);
             z-index: 20;
             color: white;
         }
@@ -52,36 +52,36 @@
             padding: 15px 40px;
             margin: 10px;
             border-radius: 30px;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             border: none;
             color: white;
             cursor: pointer;
             text-transform: uppercase;
-            width: 250px;
+            width: 260px;
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5);
+            box-shadow: 0 0 15px #00d2ff;
         }
-        .btn-play { background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 15px #00d2ff;}
-        .btn-shop { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f5af19;}
-        .btn-rank { background: linear-gradient(45deg, #8E2DE2, #4A00E0); box-shadow: 0 0 15px #8E2DE2;}
+        .ui-btn:active { transform: scale(0.95); }
+        h2 { color: #FFD700; text-shadow: 0 0 10px #FFD700; margin-top: 0; }
     </style>
 </head>
 <body>
 
     <canvas id="gameCanvas"></canvas>
 
-    <div class="controls" id="gameControls">
+    <div class="controls" id="gameControls" style="display: none;">
         <div class="btn" id="leftBtn">←</div>
         <div class="btn" id="jumpBtn">UP</div>
         <div class="btn" id="rightBtn">→</div>
     </div>
 
     <div id="uiOverlay">
-        <h1 id="scoreTitle" style="font-size: 40px; margin-bottom: 5px; color: #00d2ff; text-shadow: 0 0 10px #00d2ff;">0m</h1>
-        <p id="coinsTitle" style="color: #FFD700; font-size: 20px; margin-bottom: 40px;">💰 0</p>
-        
-        <button class="ui-btn btn-play" onclick="startGame()">ИГРАТЬ СНОВА</button>
-        <button class="ui-btn btn-shop" onclick="alert('Тут будет магазин за монеты и Stars!')">🛒 МАГАЗИН</button>
-        <button class="ui-btn btn-rank" onclick="alert('Тут будет таблица лидеров Telegram!')">🏆 РЕЙТИНГ</button>
+        <h2 id="menuLevel">УРОВЕНЬ 1</h2>
+        <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px;">NEON GLITCH</h1>
+        <p id="menuInfo" style="margin-bottom: 30px; text-align: center;">Доберись до Золотой Платформы!<br>Остерегайся красного глитча снизу.</p>
+        <button class="ui-btn" onclick="pressStart()">ПОЕХАЛИ!</button>
+        <p id="totalCoinsUI" style="color: #FFD700; margin-top: 20px;">💰 Монеты: 0</p>
     </div>
 
     <script>
@@ -94,14 +94,14 @@
         canvas.height = window.innerHeight;
 
         let totalCoins = parseInt(localStorage.getItem('neonCoins')) || 0;
-        let isGameOver = false;
+        let currentLevel = 1;
+        let gameState = 'START'; // START, PLAYING, GAMEOVER
 
         class InputHandler {
             constructor() {
                 this.keys = [];
                 window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
                 window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
-
                 this.bindTouch('leftBtn', 'ArrowLeft');
                 this.bindTouch('rightBtn', 'ArrowRight');
                 this.bindTouch('jumpBtn', ' ');
@@ -114,14 +114,21 @@
         }
 
         class Platform {
-            constructor(x, y, width) {
-                this.x = x; this.y = y; this.width = width; this.height = 20;
+            constructor(x, y, width, isFinish = false) {
+                this.x = x; this.y = y; this.width = width; this.height = 25;
+                this.isFinish = isFinish;
             }
             draw(ctx) {
-                ctx.fillStyle = '#222';
+                if (this.isFinish) {
+                    ctx.fillStyle = '#FFD700'; // Золотой финиш
+                    ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700';
+                } else {
+                    ctx.fillStyle = '#222';
+                }
                 ctx.fillRect(this.x, this.y, this.width, this.height);
-                ctx.fillStyle = '#00ffcc';
-                ctx.fillRect(this.x, this.y, this.width, 3);
+                ctx.fillStyle = this.isFinish ? '#FFF' : '#00ffcc';
+                ctx.fillRect(this.x, this.y, this.width, 4);
+                ctx.shadowBlur = 0;
             }
         }
 
@@ -151,6 +158,7 @@
                 this.vx = 0; this.vy = 0; this.onGround = false;
             }
             update(input) {
+                if (gameState !== 'PLAYING') return;
                 if (input.keys.includes(' ') && this.onGround) { this.vy = -16; this.onGround = false; }
                 if (input.keys.includes('ArrowRight')) this.vx = 7;
                 else if (input.keys.includes('ArrowLeft')) this.vx = -7;
@@ -164,12 +172,12 @@
                         this.y < plat.y + plat.height && this.y + this.height > plat.y) {
                         if (this.vy > 0 && this.y + this.height - this.vy <= plat.y + 15) {
                             this.onGround = true; this.vy = 0; this.y = plat.y - this.height;
+                            if (plat.isFinish) { winLevel(); }
                         }
                     }
                 });
 
                 this.x += this.vx;
-                // Игрок может проходить сквозь стены (выходить слева, появляться справа)
                 if (this.x > canvas.width) this.x = -this.width;
                 if (this.x < -this.width) this.x = canvas.width;
             }
@@ -180,55 +188,51 @@
         }
 
         class Game {
-            constructor() {
+            constructor(level) {
                 this.player = new Player(this);
                 this.input = new InputHandler();
                 this.platforms = []; this.coins = [];
                 this.cameraY = 0;
-                this.maxHeight = 0;
-                this.glitchY = canvas.height; // Лава начинается в самом низу
-                this.glitchSpeed = 1.5;
+                this.levelHeight = 1500 + (level * 800); // Высота уровня растет
+                this.glitchY = canvas.height + 100;
+                this.glitchSpeed = 1.2 + (level * 0.2); // Лава ускоряется с уровнем
                 this.platformY = canvas.height - 50;
                 
                 // Стартовая платформа
                 this.platforms.push(new Platform(0, this.platformY, canvas.width));
+                this.buildLevel();
             }
 
-            generatePlatforms() {
-                // Генерируем платформы на лету вверх
-                while (this.platformY > this.cameraY - canvas.height) {
-                    this.platformY -= 70 + Math.random() * 40;
+            buildLevel() {
+                // Генерируем платформы до цели
+                let targetY = -this.levelHeight;
+                while (this.platformY > targetY) {
+                    this.platformY -= 90 + Math.random() * 40;
                     let width = 70 + Math.random() * 100;
                     let x = Math.random() * (canvas.width - width);
                     this.platforms.push(new Platform(x, this.platformY, width));
 
                     if (Math.random() > 0.6) {
-                        this.coins.push(new Coin(x + width/2 - 10, this.platformY - 30));
+                        this.coins.push(new Coin(x + width/2 - 10, this.platformY - 35));
                     }
                 }
+                // Последняя золотая платформа
+                this.platforms.push(new Platform(0, targetY - 100, canvas.width, true));
             }
 
             update() {
-                if (isGameOver) return;
+                if (gameState !== 'PLAYING') return;
 
                 this.player.update(this.input);
                 this.coins.forEach(c => c.update());
 
-                // Поднимаем лаву
+                // Лава ползет вверх
                 this.glitchY -= this.glitchSpeed;
-                // Ускоряем лаву со временем
-                this.glitchSpeed += 0.001;
 
-                // Камера плавно следует за игроком вверх
+                // Камера следует за игроком
                 if (this.player.y < this.cameraY + canvas.height / 2) {
                     this.cameraY = this.player.y - canvas.height / 2;
                 }
-
-                // Считаем высоту (рекорд)
-                let currentHeight = Math.floor(Math.abs(this.player.y - (canvas.height - 100)) / 10);
-                if (currentHeight > this.maxHeight) this.maxHeight = currentHeight;
-
-                this.generatePlatforms();
 
                 // Сбор монет
                 this.coins.forEach(coin => {
@@ -242,44 +246,48 @@
                 });
                 this.coins = this.coins.filter(c => !c.markedForDeletion);
                 
-                // Удаляем старые платформы внизу
-                this.platforms = this.platforms.filter(p => p.y < this.cameraY + canvas.height + 100);
-
-                // СМЕРТЬ: упал в лаву или улетел за экран
-                if (this.player.y + this.player.height > this.glitchY || this.player.y > this.cameraY + canvas.height) {
-                    gameOver(this.maxHeight);
+                // СМЕРТЬ
+                if (this.player.y + this.player.height > this.glitchY || this.player.y > this.cameraY + canvas.height + 200) {
+                    gameOver();
                 }
             }
 
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.save();
-                ctx.translate(0, -this.cameraY); // Двигаем камеру только по вертикали
+                ctx.translate(0, -this.cameraY);
 
                 this.platforms.forEach(p => p.draw(ctx));
                 this.coins.forEach(c => c.draw(ctx));
                 this.player.draw(ctx);
 
-                // Рисуем Глитч (Лаву)
+                // Лава
                 ctx.fillStyle = 'rgba(255, 0, 50, 0.6)';
-                ctx.fillRect(0, this.glitchY, canvas.width, canvas.height * 2); // Огромный квадрат вниз
-                ctx.fillStyle = '#ff0033'; // Яркая кромка лавы
+                ctx.fillRect(0, this.glitchY, canvas.width, canvas.height * 2);
+                ctx.fillStyle = '#ff0033';
                 ctx.fillRect(0, this.glitchY, canvas.width, 10);
 
                 ctx.restore();
 
-                // UI
-                if (!isGameOver) {
-                    ctx.fillStyle = 'white'; ctx.font = 'bold 24px Arial';
-                    ctx.fillText(`${this.maxHeight} m`, 20, 40);
+                // UI во время игры
+                if (gameState === 'PLAYING') {
+                    ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial';
+                    ctx.fillText(`УРОВЕНЬ ${currentLevel}`, 20, 40);
                     ctx.fillStyle = '#FFD700'; ctx.textAlign = 'right';
                     ctx.fillText(`💰 ${totalCoins}`, canvas.width - 20, 40);
                     ctx.textAlign = 'left';
+                    
+                    // Индикатор прогресса (сколько осталось до верха)
+                    let progress = Math.min(1, Math.abs(this.player.y - (canvas.height - 100)) / (this.levelHeight + canvas.height));
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fillRect(canvas.width/2 - 50, 25, 100, 10);
+                    ctx.fillStyle = '#00d2ff';
+                    ctx.fillRect(canvas.width/2 - 50, 25, 100 * progress, 10);
                 }
             }
         }
 
-        let game = new Game();
+        let game = new Game(currentLevel);
 
         function animate() {
             game.update();
@@ -287,21 +295,39 @@
             requestAnimationFrame(animate);
         }
 
-        function gameOver(score) {
-            isGameOver = true;
-            gameControls.style.display = 'none'; // Прячем кнопки управления
-            uiOverlay.style.display = 'flex'; // Показываем красивое меню
-            document.getElementById('scoreTitle').innerText = `${score} METERS`;
-            document.getElementById('coinsTitle').innerText = `💰 ${totalCoins} (Всего)`;
-        }
-
-        function startGame() {
-            isGameOver = false;
-            gameControls.style.display = 'flex';
+        function pressStart() {
+            gameState = 'PLAYING';
             uiOverlay.style.display = 'none';
-            game = new Game(); // Пересоздаем игру
+            gameControls.style.display = 'flex';
         }
 
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            gameControls.style.display = 'none';
+            uiOverlay.style.display = 'flex';
+            document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`;
+            document.getElementById('menuTitle').innerText = `ИГРА ОКОНЧЕНА`;
+            document.getElementById('menuInfo').innerText = `Тебя поглотил глитч!`;
+            updateCoinUI();
+        }
+
+        function winLevel() {
+            gameState = 'GAMEOVER';
+            gameControls.style.display = 'none';
+            uiOverlay.style.display = 'flex';
+            currentLevel++;
+            document.getElementById('menuLevel').innerText = `ПОБЕДА!`;
+            document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`;
+            document.getElementById('menuInfo').innerText = `Готов к уровню ${currentLevel}?`;
+            updateCoinUI();
+            game = new Game(currentLevel); // Готовим следующий уровень
+        }
+
+        function updateCoinUI() {
+            document.getElementById('totalCoinsUI').innerText = `💰 Монеты: ${totalCoins}`;
+        }
+
+        updateCoinUI();
         animate();
 
         window.addEventListener('resize', () => {
