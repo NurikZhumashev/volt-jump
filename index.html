@@ -3,39 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Engine TMA</title>
+    <title>Neon Runner TMA</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; user-select: none; }
         canvas { display: block; background: #000; }
         
-        /* Стили для мобильных кнопок */
+        /* Кнопки теперь выше (bottom: 100px) */
         .controls {
             position: fixed;
-            bottom: 20px;
+            bottom: 100px; 
             width: 100%;
             display: flex;
             justify-content: space-around;
-            padding: 0 10px;
-            box-sizing: border-box;
-            pointer-events: none; /* Чтобы не мешали кликам по экрану, если нужно */
+            pointer-events: none;
         }
         .btn {
             width: 70px;
             height: 70px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid #444;
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             color: white;
-            font-size: 24px;
             font-weight: bold;
-            pointer-events: auto; /* Включаем клики обратно для кнопок */
+            pointer-events: auto;
             touch-action: manipulation;
         }
-        .btn:active { background: rgba(0, 210, 255, 0.4); border-color: #00d2ff; }
-        #jumpBtn { width: 100px; background: rgba(0, 210, 255, 0.2); }
+        .btn:active { background: #00d2ff; }
     </style>
 </head>
 <body>
@@ -44,7 +40,7 @@
 
     <div class="controls">
         <div class="btn" id="leftBtn">←</div>
-        <div class="btn" id="jumpBtn">UP</div>
+        <div class="btn" id="jumpBtn" style="width: 100px; border-radius: 20px;">JUMP</div>
         <div class="btn" id="rightBtn">→</div>
     </div>
 
@@ -55,26 +51,23 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // --- ДВИЖОК: ОБРАБОТКА ВВОДА ---
+        // --- НАСТРОЙКИ УРОВНЯ ---
+        const GROUND_Y = canvas.height - 150; // Подняли землю выше
+
         class InputHandler {
             constructor() {
                 this.keys = [];
-                // Клавиатура
                 window.addEventListener('keydown', e => {
-                    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') && !this.keys.includes(e.key)) {
-                        this.keys.push(e.key);
-                    }
+                    if (!this.keys.includes(e.key)) this.keys.push(e.key);
                 });
                 window.addEventListener('keyup', e => {
                     this.keys = this.keys.filter(k => k !== e.key);
                 });
 
-                // Сенсорные кнопки
                 this.bindTouch('leftBtn', 'ArrowLeft');
                 this.bindTouch('rightBtn', 'ArrowRight');
                 this.bindTouch('jumpBtn', ' ');
             }
-
             bindTouch(id, key) {
                 const btn = document.getElementById(id);
                 btn.addEventListener('touchstart', (e) => { e.preventDefault(); if (!this.keys.includes(key)) this.keys.push(key); });
@@ -82,113 +75,151 @@
             }
         }
 
-        // --- ДВИЖОК: ИГРОК ---
         class Player {
-            constructor(gameWidth, gameHeight) {
-                this.gameWidth = gameWidth;
-                this.gameHeight = gameHeight;
+            constructor(game) {
+                this.game = game;
                 this.width = 40;
                 this.height = 40;
                 this.x = 50;
-                this.y = this.gameHeight - this.height - 60;
-                this.color = '#00d2ff';
-                
-                // Физика
-                this.vx = 0;       // Горизонтальная скорость
-                this.vy = 0;       // Вертикальная скорость
-                this.weight = 0.8; // Гравитация
-                this.speed = 5;    // Макс. скорость
-                this.friction = 0.9; // Трение (плавное торможение)
+                this.y = GROUND_Y - this.height;
+                this.vx = 0;
+                this.vy = 0;
+                this.weight = 1;
+                this.onGround = false;
             }
-
-            draw(context) {
-                context.fillStyle = this.color;
-                context.shadowBlur = 15;
-                context.shadowColor = this.color;
-                context.fillRect(this.x, this.y, this.width, this.height);
-                context.shadowBlur = 0;
-            }
-
             update(input) {
                 // Прыжок
-                if (input.keys.includes(' ') && this.onGround()) {
-                    this.vy = -18;
+                if (input.keys.includes(' ') && this.onGround) {
+                    this.vy = -20;
+                    this.onGround = false;
                 }
-
-                // Горизонтальное движение
-                if (input.keys.includes('ArrowRight')) {
-                    this.vx = this.speed;
-                } else if (input.keys.includes('ArrowLeft')) {
-                    this.vx = -this.speed;
-                } else {
-                    this.vx *= this.friction; // Замедление при отпускании кнопок
-                }
+                // Горизонталь
+                if (input.keys.includes('ArrowRight')) this.vx = 6;
+                else if (input.keys.includes('ArrowLeft')) this.vx = -6;
+                else this.vx *= 0.8;
 
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // Гравитация
-                if (!this.onGround()) {
+                // Гравитация и земля
+                if (this.y + this.height < GROUND_Y) {
                     this.vy += this.weight;
+                    this.onGround = false;
                 } else {
+                    this.y = GROUND_Y - this.height;
                     this.vy = 0;
+                    this.onGround = true;
+                }
+                
+                // Границы
+                if (this.x < 0) this.x = 0;
+                if (this.x > canvas.width - this.width) this.x = canvas.width - this.width;
+            }
+            draw(ctx) {
+                ctx.fillStyle = '#00d2ff';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+        class Obstacle {
+            constructor(game) {
+                this.game = game;
+                this.width = 30 + Math.random() * 30;
+                this.height = 40;
+                this.x = canvas.width;
+                this.y = GROUND_Y - this.height;
+                this.speed = 5 + (this.game.score / 5); // Скорость растет со счетом
+                this.markedForDeletion = false;
+            }
+            update() {
+                this.x -= this.speed;
+                if (this.x + this.width < 0) {
+                    this.markedForDeletion = true;
+                    this.game.score++;
+                }
+            }
+            draw(ctx) {
+                ctx.fillStyle = '#ff3366';
+                ctx.beginPath(); // Рисуем треугольник
+                ctx.moveTo(this.x, this.y + this.height);
+                ctx.lineTo(this.x + this.width / 2, this.y);
+                ctx.lineTo(this.x + this.width, this.y + this.height);
+                ctx.fill();
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.player = new Player(this);
+                this.input = new InputHandler();
+                this.obstacles = [];
+                this.score = 0;
+                this.timer = 0;
+                this.gameOver = false;
+            }
+            update() {
+                if (this.gameOver) return;
+                this.player.update(this.input);
+
+                // Спавн врагов
+                this.timer++;
+                if (this.timer > 100) {
+                    this.obstacles.push(new Obstacle(this));
+                    this.timer = 0;
                 }
 
-                // Границы экрана
-                if (this.x < 0) this.x = 0;
-                if (this.x > this.gameWidth - this.width) this.x = this.gameWidth - this.width;
-                if (this.y > this.gameHeight - this.height - 60) this.y = this.gameHeight - this.height - 60;
+                this.obstacles.forEach(obs => {
+                    obs.update();
+                    // Проверка коллизии
+                    if (this.checkCollision(this.player, obs)) {
+                        this.gameOver = true;
+                    }
+                });
+                this.obstacles = this.obstacles.filter(obs => !obs.markedForDeletion);
             }
-
-            onGround() {
-                return this.y >= this.gameHeight - this.height - 60;
-            }
-        }
-
-        // --- ГЛАВНЫЙ КЛАСС ИГРЫ ---
-        class Game {
-            constructor(width, height) {
-                this.width = width;
-                this.height = height;
-                this.player = new Player(this.width, this.height);
-                this.input = new InputHandler();
-            }
-
-            update() {
-                this.player.update(this.input);
-            }
-
-            draw(context) {
-                context.clearRect(0, 0, this.width, this.height);
+            draw(ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // Рисуем пол (неоновую линию)
-                context.strokeStyle = '#333';
-                context.lineWidth = 4;
-                context.beginPath();
-                context.moveTo(0, this.height - 60);
-                context.lineTo(this.width, this.height - 60);
-                context.stroke();
+                // Рисуем землю
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(0, GROUND_Y);
+                ctx.lineTo(canvas.width, GROUND_Y);
+                ctx.stroke();
 
-                this.player.draw(context);
+                this.player.draw(ctx);
+                this.obstacles.forEach(obs => obs.draw(ctx));
+
+                ctx.fillStyle = 'white';
+                ctx.font = '24px Arial';
+                ctx.fillText(`Score: ${this.score}`, 20, 50);
+
+                if (this.gameOver) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                    ctx.fillRect(0,0,canvas.width, canvas.height);
+                    ctx.fillStyle = 'white';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2);
+                    ctx.font = '16px Arial';
+                    ctx.fillText('Refresh page to restart', canvas.width/2, canvas.height/2 + 40);
+                }
+            }
+            checkCollision(p, o) {
+                return (p.x < o.x + o.width &&
+                        p.x + p.width > o.x &&
+                        p.y < o.y + o.height &&
+                        p.y + p.height > o.y);
             }
         }
 
-        const game = new Game(canvas.width, canvas.height);
-
+        const game = new Game();
         function animate() {
             game.update();
             game.draw(ctx);
             requestAnimationFrame(animate);
         }
-
         animate();
-
-        // Ресайз окна
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            // Здесь можно добавить обновление размеров в объекте game
-        });
     </script>
 </body>
 </html>
