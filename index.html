@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Nemesis Fix</title>
+    <title>Neon Tower: Smart Nemesis</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -178,7 +178,6 @@
                 this.reset();
             }
             reset() {
-                // Ставим монстра ровно на стартовую платформу, чуть правее игрока
                 this.x = canvas.width / 2 + 20;
                 this.y = canvas.height - 50 - this.height; 
                 this.vx = 0; 
@@ -188,22 +187,45 @@
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                // Пробуждение: если игрок поднялся на 250 пикселей от старта
+                // Пробуждение
                 if (!this.active) {
                     if (this.game.player.y < canvas.height - 250) {
                         this.active = true;
-                        this.vy = -20; // Эпичный прыжок пробуждения
+                        this.vy = -20; 
                         for(let i=0; i<20; i++) this.game.particles.push(new Particle(this.x+17, this.y+17, '#ff0033'));
                     }
                     return; 
                 }
 
-                // СТРАХОВКА: Если монстр упал за экран, он делает супер-прыжок из пропасти
+                // СТРАХОВКА ОТ ПАДЕНИЯ В ПРОПАСТЬ (ИСПРАВЛЕНО!)
+                // Если монстр упал ниже камеры, мы не даем ему бесконечно падать и взрываться.
                 if (this.y > this.game.cameraY + canvas.height + 50) {
-                    this.y = this.game.cameraY + canvas.height;
-                    this.x = this.game.player.x; // Появляется прямо под игроком
-                    this.vy = -30; // Мощнейший прыжок обратно в кадр
-                    for(let i=0; i<10; i++) this.game.particles.push(new Particle(this.x+17, this.y+34, '#ff0033', true));
+                    let safePlat = null;
+                    let minDist = Infinity;
+                    
+                    // Ищем самую близкую платформу прямо ПОД игроком
+                    for (let p of this.game.platforms) {
+                        if (p.y > this.game.player.y + 80) { 
+                            let dist = p.y - this.game.player.y;
+                            if (dist < minDist) {
+                                minDist = dist;
+                                safePlat = p;
+                            }
+                        }
+                    }
+                    
+                    // Если нашли безопасную платформу, телепортируем его туда
+                    if (safePlat) {
+                        this.x = safePlat.x + safePlat.width / 2 - this.width / 2;
+                        this.y = safePlat.y - this.height;
+                    } else {
+                        // Резервный вариант, если платформ нет
+                        this.x = this.game.player.x;
+                        this.y = this.game.player.y + 200;
+                    }
+                    
+                    this.vy = -20; // Выпрыгивает из-под земли
+                    for(let i=0; i<15; i++) this.game.particles.push(new Particle(this.x+17, this.y+34, '#ff0033', true));
                 }
 
                 // ИИ: Поиск пути
@@ -221,7 +243,8 @@
                     }
                 }
 
-                if (this.game.player.y >= this.y - 50) {
+                // Логика преследования
+                if (this.game.player.y >= this.y - 150) {
                     targetX = this.game.player.x + this.game.player.width/2 - this.width/2;
                 } else if (nextPlat) {
                     targetX = nextPlat.x + nextPlat.width / 2 - this.width / 2;
@@ -229,10 +252,10 @@
                     targetX = this.game.player.x;
                 }
 
-                // Движение
-                let speed = 5.5 + (this.game.level * 0.4); 
-                if (this.x < targetX - 10) this.vx = speed;
-                else if (this.x > targetX + 10) this.vx = -speed;
+                // Движение монстра
+                let speed = 6.5 + (this.game.level * 0.3); // Сделал его чуть шустрее
+                if (this.x < targetX - 5) this.vx = speed;
+                else if (this.x > targetX + 5) this.vx = -speed;
                 else this.vx = 0;
 
                 this.vy += 0.8; // Гравитация
@@ -252,9 +275,9 @@
                                 if (plat.type === 'spring') {
                                     this.vy = -26; 
                                 } else {
-                                    this.vy = -17; 
+                                    this.vy = -18; // Прыжок монстра чуть сильнее, чтобы не застревал
                                 }
-                                for(let i=0; i<2; i++) this.game.particles.push(new Particle(this.x+17, this.y+34, '#ff0033'));
+                                for(let i=0; i<3; i++) this.game.particles.push(new Particle(this.x+17, this.y+34, '#ff0033'));
                             }
                         }
                     });
@@ -264,8 +287,8 @@
                 if (this.x > canvas.width) this.x = -this.width;
                 if (this.x < -this.width) this.x = canvas.width;
             }
+            
             draw(ctx) {
-                // Теперь монстр рисуется всегда, даже если спит!
                 ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 20; ctx.shadowColor = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height); 
@@ -365,7 +388,7 @@
                 this.platforms.push(new Platform(0, this.platformY, canvas.width, 'normal'));
                 this.buildLevel();
 
-                // Инициализируем персонажей ПОСЛЕ создания платформ, чтобы они стояли на первой
+                // Инициализируем персонажей
                 this.player = new Player(this);
                 this.monster = new Monster(this);
             }
@@ -411,7 +434,6 @@
                     this.player.y < this.monster.y + this.monster.height && 
                     this.player.y + this.player.height > this.monster.y) {
                     
-                    // Эффект крови/искр при смерти
                     for(let i=0; i<30; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033'));
                     gameOver("СЪЕДЕН МОНСТРОМ!");
                 }
@@ -459,7 +481,6 @@
                 
                 this.monster.draw(ctx); 
                 
-                // Если игрок умер, не рисуем его в последнем кадре
                 if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
                     this.player.draw(ctx);
                 }
@@ -496,17 +517,16 @@
             }
             gameState = 'PLAYING';
             uiOverlay.style.display = 'none';
-            // Даем импульс при первом касании экрана, чтобы не ждать гравитации
             if (game.player.vy === 0) game.player.vy = -17; 
         }
 
         function gameOver(reasonText) {
             gameState = 'GAMEOVER';
-            setTimeout(() => { // Задержка в полсекунды, чтобы увидеть частицы смерти
+            setTimeout(() => { 
                 uiOverlay.style.display = 'flex';
                 document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`;
                 document.getElementById('menuTitle').innerText = reasonText; 
-                document.getElementById('menuInfo').innerText = `Быстрее перебирай пальцами!`;
+                document.getElementById('menuInfo').innerText = `Красный Куб не прощает ошибок.`;
                 document.getElementById('startBtn').innerText = `ИГРАТЬ СНОВА`; 
                 updateCoinUI();
             }, 500);
