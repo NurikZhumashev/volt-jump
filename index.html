@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: The Perfect Phantom</title>
+    <title>Neon Tower: Final Build</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -32,7 +32,7 @@
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
         <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px; text-align: center;">АВТО-ПРЫЖОК</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 18px; color: #ccc;">
-            Жми в левую часть экрана — летишь влево.<br>Красный Призрак всегда будет дышать в спину.
+            Жми в левую часть экрана — летишь влево.<br>Красный Охотник всегда будет дышать в спину.
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <p id="totalCoinsUI" style="color: #FFD700; margin-top: 20px; font-size: 22px; font-weight: bold;">💰 0</p>
@@ -168,101 +168,72 @@
             }
         }
 
-        // --- ИДЕАЛЬНЫЙ НЕОТСТАЮЩИЙ ПРИЗРАК ---
+        // --- НОВЫЙ БЕЗОТКАЗНЫЙ МОНСТР ---
         class Monster {
             constructor(game) {
                 this.game = game;
                 this.width = 38; 
                 this.height = 38;
-                this.color = 'rgba(255, 0, 50, 0.9)'; 
+                this.color = '#ff0033'; 
                 this.reset();
             }
             reset() {
-                // Спавним на платформе, чуть правее игрока
-                this.x = canvas.width / 2 + 20;
-                this.y = canvas.height - 50 - this.height; 
-                this.baseY = this.y; // Базовая точка для анимации левитации
-                this.vx = 0; 
-                this.vy = 0;
+                this.x = canvas.width / 2 + 30; // Чуть правее игрока
+                this.y = canvas.height - 50 - this.height; // На одной платформе с игроком
                 this.active = false; 
-                this.angle = 0;
             }
             update() {
-                // Если игра не идет, он просто висит
                 if (gameState !== 'PLAYING') return;
 
-                // Плавно покачивается, ожидая, пока игрок прыгнет наверх
+                // 1. Пробуждение: ждем пока игрок чуть поднимется
                 if (!this.active) {
-                    this.angle += 0.05;
-                    this.y = this.baseY + Math.sin(this.angle) * 5;
-                    
-                    // Активируется, когда игрок заберется повыше
                     if (this.game.player.y < canvas.height - 200) {
                         this.active = true;
                     }
                     return; 
                 }
 
-                let targetX = this.game.player.x + this.game.player.width / 2 - this.width / 2;
-                let targetY = this.game.player.y + this.game.player.height / 2 - this.height / 2;
+                // 2. Идеальная погоня (Smooth Lerp)
+                let targetX = this.game.player.x;
+                let dy = this.game.player.y - this.y;
 
-                let dx = targetX - this.x;
-                let dy = targetY - this.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
+                // Плавное следование по оси X
+                this.x += (targetX - this.x) * 0.04;
 
-                // Базовая скорость
-                let speed = 3.5 + (this.game.level * 0.3); 
+                // Движение по оси Y
+                let baseSpeed = 4.0 + (this.game.level * 0.4); 
 
-                // МЕХАНИКА "РЕЗИНКИ" (Rubber-banding)
-                // Если призрак отстает больше чем на 200 пикселей по Y, он начинает ускоряться
-                if (dy < -200) { 
-                    // Пропорциональное ускорение: чем дальше, тем быстрее
-                    let catchUpSpeed = Math.abs(dy + 200) * 0.04; 
-                    speed += catchUpSpeed;
-                }
-                
-                // Лимит скорости, чтобы он успевал за джетпаком, но не мгновенно
-                if (speed > 19) speed = 19;
-
-                // Движение по вектору
-                if (distance > 0) {
-                    this.vx = (dx / distance) * speed;
-                    this.vy = (dy / distance) * speed;
+                if (dy < -250) { 
+                    // Если игрок улетел слишком высоко (резинка натягивается)
+                    this.y += dy * 0.06; 
+                } else {
+                    // Обычный подъем вверх
+                    this.y -= baseSpeed; 
                 }
 
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // След призрака (редкие частицы для эффекта полета)
-                if (Math.random() > 0.4) {
-                    this.game.particles.push(new Particle(
-                        this.x + Math.random() * this.width, 
-                        this.y + this.height - 5, 
-                        '#ff0033'
-                    ));
+                // Частицы
+                if (Math.random() > 0.5) {
+                    this.game.particles.push(new Particle(this.x + Math.random() * this.width, this.y + this.height, '#ff0033'));
                 }
             }
             
             draw(ctx) {
-                // ТЕПЕРЬ ОН РИСУЕТСЯ ВСЕГДА! (Убрал баг с исчезновением)
+                // Он рисуется абсолютно всегда!
                 ctx.fillStyle = this.color; 
-                ctx.shadowBlur = 25; ctx.shadowColor = '#ff0033';
+                ctx.shadowBlur = 20; ctx.shadowColor = '#ff0033';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
                 
-                ctx.beginPath();
-                ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
-                ctx.fill();
+                // Глаза всегда смотрят на игрока
+                let lookX = (this.game.player.x - this.x) > 0 ? 3 : -3;
                 
                 ctx.fillStyle = '#fff';
-                let eyeOffsetX = (this.vx / 5) * 4; 
-                let eyeOffsetY = (this.vy / 5) * 4; 
-
-                ctx.beginPath(); ctx.arc(this.x + 12 + eyeOffsetX, this.y + 16 + eyeOffsetY, 5, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(this.x + 26 + eyeOffsetX, this.y + 16 + eyeOffsetY, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillRect(this.x + 6 + lookX, this.y + 10, 8, 8);
+                ctx.fillRect(this.x + 24 + lookX, this.y + 10, 8, 8);
                 
                 ctx.fillStyle = '#000';
-                ctx.beginPath(); ctx.arc(this.x + 12 + eyeOffsetX * 1.5, this.y + 16 + eyeOffsetY * 1.5, 2, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(this.x + 26 + eyeOffsetX * 1.5, this.y + 16 + eyeOffsetY * 1.5, 2, 0, Math.PI * 2); ctx.fill();
-
+                ctx.fillRect(this.x + 8 + lookX, this.y + 12, 4, 4);
+                ctx.fillRect(this.x + 26 + lookX, this.y + 12, 4, 4);
+                
                 ctx.shadowBlur = 0;
             }
         }
@@ -275,7 +246,7 @@
                 this.reset();
             }
             reset() {
-                this.x = canvas.width / 2 - 25; 
+                this.x = canvas.width / 2 - 15; 
                 this.y = canvas.height - 50 - this.height; 
                 this.vx = 0; this.vy = 0;
                 this.jetpackTimer = 0;
@@ -383,7 +354,7 @@
                 let targetCamera = this.player.y - canvas.height / 2;
                 this.cameraY += (targetCamera - this.cameraY) * 0.1; 
 
-                // КОЛЛИЗИЯ С ПРИЗРАКОМ
+                // КОЛЛИЗИЯ С МОНСТРОМ
                 if (this.monster.active && 
                     this.player.x < this.monster.x + this.monster.width - 5 && 
                     this.player.x + this.player.width > this.monster.x + 5 &&
@@ -391,7 +362,7 @@
                     this.player.y + this.player.height > this.monster.y + 5) {
                     
                     for(let i=0; i<30; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033'));
-                    gameOver("ПОГЛОЩЕН ПРИЗРАКОМ!");
+                    gameOver("СЪЕДЕН ОХОТНИКОМ!");
                 }
 
                 this.platforms.forEach(plat => {
@@ -436,7 +407,7 @@
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
                 
-                // Призрак рисуется ПОВЕРХ платформ
+                // Отрисовка монстра ПОВЕРХ всего
                 this.monster.draw(ctx); 
                 
                 if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
