@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: The Masterpiece</title>
+    <title>Neon Tower: Perfect Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
-        /* Экраны интерфейса */
         .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -41,7 +40,6 @@
         .ui-btn:active { transform: scale(0.95); }
         .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 
-        /* Сетка уровней */
         #levelGrid {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
             width: 90%; max-width: 400px; max-height: 50vh; overflow-y: auto;
@@ -56,18 +54,19 @@
         .lvl-btn.hard { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f12711; color: #fff; }
         .lvl-btn:active { transform: scale(0.9); }
 
-        /* Магазин */
-        #shopList { display: flex; flex-direction: column; width: 90%; max-width: 350px; max-height: 60vh; overflow-y: auto; gap: 15px; }
+        #shopList { display: flex; flex-direction: column; width: 90%; max-width: 350px; max-height: 60vh; overflow-y: auto; gap: 15px; padding: 10px; }
         .shop-card {
             background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px;
             border: 1px solid rgba(255,255,255,0.1); text-align: center;
-            display: flex; flex-direction: column; align-items: center;
+            display: flex; flex-direction: column; align-items: center; position: relative;
         }
         .shop-card h3 { margin: 0 0 5px 0; font-size: 22px; }
         .shop-card p { font-size: 14px; color: #aaa; margin: 0 0 10px 0; line-height: 1.3; }
         .shop-btn { padding: 10px 20px; width: 100%; border-radius: 10px; font-size: 16px; border: none; cursor: pointer; font-weight: bold; color: white; background: #4caf50; transition: 0.2s; }
         .shop-btn:disabled { background: #555; color: #888; }
         .shop-btn.equip { background: #00d2ff; }
+        
+        .lvl-badge { position: absolute; top: 10px; right: 10px; background: #ff0055; color: white; font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
 
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
@@ -82,18 +81,18 @@
     <div class="top-hud" id="gameHud" style="display:none;">
         <div>
             <div class="hud-text" id="hudLeft">УРОВЕНЬ 1</div>
-            <div class="lives-hud" id="hudLives">❤️ 0</div>
+            <div class="lives-hud" id="hudLives"></div>
         </div>
         <div class="hud-text coin-hud" id="hudCoins">💰 0</div>
     </div>
 
     <div id="mainMenu" class="overlay active">
         <h1>NEON RUN</h1>
-        <p style="color: #ccc; margin-bottom: 20px;">Включи звук 🔊</p>
+        <p style="color: #ccc; margin-bottom: 20px;">Нажми на экран для звука 🔊</p>
         <button class="ui-btn" onclick="showState('LEVELS')">КАМПАНИЯ</button>
         <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕСКОНЕЧНЫЙ</button>
         <button class="ui-btn btn-shop" onclick="showState('SHOP')">МАГАЗИН</button>
-        <p class="coin-hud" style="font-size: 24px; margin-top: 20px;" id="menuCoins">💰 0</p>
+        <p class="coin-hud" style="font-size: 26px; margin-top: 20px;" id="menuCoins">💰 0</p>
         <p class="hud-text" style="font-size: 16px; color: #888;" id="menuScore">Рекорд: 0 м</p>
     </div>
 
@@ -105,9 +104,8 @@
 
     <div id="shopMenu" class="overlay">
         <h2 style="margin-bottom: 10px;">АРСЕНАЛ</h2>
-        <p class="coin-hud" style="font-size: 20px; margin-top: 0;" id="shopCoins">💰 0</p>
-        <div id="shopList">
-            </div>
+        <p class="coin-hud" style="font-size: 22px; margin-top: 0;" id="shopCoins">💰 0</p>
+        <div id="shopList"></div>
         <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
     </div>
 
@@ -119,12 +117,12 @@
     </div>
 
     <script>
-        // --- СИСТЕМА СОХРАНЕНИЙ И ДАННЫХ ---
+        // --- 1. АБСОЛЮТНО ЧИСТАЯ СИСТЕМА СОХРАНЕНИЙ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
             maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
             highScore: parseInt(localStorage.getItem('neonScore')) || 0,
-            jetpack: localStorage.getItem('hasJetpack') === 'true',
+            jetpackLevel: parseInt(localStorage.getItem('neonJetpackLvl')) || 1,
             lives: parseInt(localStorage.getItem('neonLives')) || 0,
             skin: localStorage.getItem('neonSkin') || '#00d2ff',
             ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff']
@@ -134,14 +132,14 @@
             localStorage.setItem('neonCoins', SAVE.coins);
             localStorage.setItem('neonMaxLevel', SAVE.maxLevel);
             localStorage.setItem('neonScore', SAVE.highScore);
-            localStorage.setItem('hasJetpack', SAVE.jetpack);
+            localStorage.setItem('neonJetpackLvl', SAVE.jetpackLevel);
             localStorage.setItem('neonLives', SAVE.lives);
             localStorage.setItem('neonSkin', SAVE.skin);
             localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
             updateUI();
         }
 
-        // --- УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ ---
+        // --- УПРАВЛЕНИЕ UI ---
         const overlays = {
             MAIN: document.getElementById('mainMenu'),
             LEVELS: document.getElementById('levelMenu'),
@@ -160,7 +158,7 @@
 
         function updateUI() {
             document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('shopCoins').innerText = `💰 Доступно: ${SAVE.coins}`;
+            document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`;
             document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
             document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
@@ -168,14 +166,12 @@
             renderLevels();
         }
 
-        // Генерация уровней (до 100)
         function renderLevels() {
             const grid = document.getElementById('levelGrid');
             grid.innerHTML = '';
             for (let i = 1; i <= 100; i++) {
                 let btn = document.createElement('button');
-                btn.className = 'lvl-btn';
-                btn.innerText = i;
+                btn.className = 'lvl-btn'; btn.innerText = i;
                 if (i <= SAVE.maxLevel) {
                     if (i % 5 === 0) btn.classList.add('hard');
                     else btn.classList.add('unlocked');
@@ -187,36 +183,46 @@
             }
         }
 
-        // Генерация магазина
-        const SHOP_ITEMS = [
-            { id: 'jetpack', name: 'JETPACK 🚀', desc: 'Ускорение на 3 сек. в начале каждого забега. Навсегда.', price: 200, type: 'perm' },
-            { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Спасает от одной смерти. Расходуется автоматически.', price: 50, type: 'consumable' },
-            { id: '#39ff14', name: 'Скин: ТОКСИК 🟢', desc: 'Радиоактивно зеленый цвет куба.', price: 300, type: 'skin' },
-            { id: '#FFD700', name: 'Скин: ЗОЛОТО 🟡', desc: 'Элитный золотой цвет куба.', price: 1000, type: 'skin' }
-        ];
-
+        // МАГАЗИН: Джетпак теперь прокачивается!
         function renderShop() {
             const list = document.getElementById('shopList');
             list.innerHTML = '';
-            SHOP_ITEMS.forEach(item => {
-                let isOwned = false;
-                let isEquipped = false;
+            
+            // Расчет цены джетпака (каждый уровень на 100 дороже)
+            let jpPrice = SAVE.jetpackLevel * 100;
+            let jpMaxed = SAVE.jetpackLevel >= 10; // Пусть 10 будет макс уровнем
+
+            const items = [
+                { id: 'jetpack', name: 'JETPACK 🚀', desc: 'Увеличивает длительность полета ракеты на уровне.', price: jpPrice, type: 'upgrade', maxed: jpMaxed },
+                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Автоматически спасает от смерти (откидывает вверх).', price: 50, type: 'consumable' },
+                { id: '#39ff14', name: 'Скин: ТОКСИК 🟢', desc: 'Радиоактивно зеленый куб.', price: 300, type: 'skin' },
+                { id: '#FFD700', name: 'Скин: ЗОЛОТО 🟡', desc: 'Элитный золотой куб.', price: 1000, type: 'skin' }
+            ];
+
+            items.forEach(item => {
                 let actionText = `КУПИТЬ (${item.price} 💰)`;
                 let btnClass = 'shop-btn';
                 let disabled = SAVE.coins < item.price;
+                let badge = '';
 
-                if (item.type === 'perm' && SAVE.jetpack) { isOwned = true; actionText = 'КУПЛЕНО'; disabled = true; }
-                if (item.type === 'consumable') { actionText = `КУПИТЬ (${item.price} 💰) У вас: ${SAVE.lives}`; disabled = SAVE.coins < item.price; }
+                if (item.type === 'upgrade') {
+                    badge = `<div class="lvl-badge">LVL ${SAVE.jetpackLevel}</div>`;
+                    if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
+                }
+                if (item.type === 'consumable') { 
+                    badge = `<div class="lvl-badge">У ВАС: ${SAVE.lives}</div>`;
+                }
                 if (item.type === 'skin') {
                     if (SAVE.ownedSkins.includes(item.id)) {
-                        isOwned = true; disabled = false;
-                        if (SAVE.skin === item.id) { isEquipped = true; actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
+                        disabled = false;
+                        if (SAVE.skin === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
                         else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
                     }
                 }
 
                 list.innerHTML += `
                     <div class="shop-card">
+                        ${badge}
                         <h3 style="color:${item.type==='skin'?item.id:'#ff0055'}">${item.name}</h3>
                         <p>${item.desc}</p>
                         <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price})">${actionText}</button>
@@ -231,7 +237,7 @@
             }
             if (SAVE.coins >= price) {
                 SAVE.coins -= price;
-                if (type === 'perm') SAVE.jetpack = true;
+                if (type === 'upgrade') SAVE.jetpackLevel++;
                 if (type === 'consumable') SAVE.lives++;
                 if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
                 sfx.purchase(); saveGame();
@@ -382,7 +388,7 @@
                 else if (this.flashTimer > 0) { ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; } 
                 else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
                 else if (this.type === 'spring') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ff00'; }
-                else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00d2ff'; } // Изменил цвет обычных
+                else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00d2ff'; }
                 
                 if(this.type !== 'finish' && this.flashTimer === 0) ctx.fillRect(this.x, this.y, this.width, 4); 
                 else ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -412,7 +418,6 @@
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 
-                // В хардкор режиме он быстрее
                 let baseSpeed = this.game.isHard ? 2.5 : 1.6;
                 let speed = baseSpeed + (this.game.level * 0.1); 
                 if (dist > 300) speed += (dist - 300) * 0.005; 
@@ -472,14 +477,16 @@
 
         class Game {
             constructor(mode, level) {
-                this.mode = mode; // 'campaign' или 'endless'
+                this.mode = mode; 
                 this.level = level || 1;
                 this.isHard = (this.mode === 'campaign' && this.level % 5 === 0);
                 
                 this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = [];
                 this.cameraY = 0; this.highestY = canvas.height - 50;
                 
-                // В кампании фиксированная высота, в бесконечном - нет
+                // РЕКОРД: Запоминаем точную высоту для честного счета
+                this.maxReachedY = this.player ? this.player.y : canvas.height - 50;
+                
                 this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
                 this.finishSpawned = false;
 
@@ -487,32 +494,20 @@
                 this.player = new Player(this); this.hunter = new Hunter(this);
             }
 
-            // Динамическая генерация чанков
             generateChunk() {
                 while (this.highestY > this.cameraY - canvas.height * 2) {
                     if (this.mode === 'campaign' && this.highestY <= this.targetY) {
-                        if (!this.finishSpawned) {
-                            this.platforms.push(new Platform(0, this.targetY - 100, canvas.width, 'finish'));
-                            this.finishSpawned = true;
-                        }
+                        if (!this.finishSpawned) { this.platforms.push(new Platform(0, this.targetY - 100, canvas.width, 'finish')); this.finishSpawned = true; }
                         break;
                     }
-
-                    // Усложнение: в хардкоре больше расстояние между платформами
                     let gap = 90 + Math.random() * (this.isHard ? 60 : 40);
                     this.highestY -= gap;
-                    
                     let w = 70 + Math.random() * (this.isHard ? 60 : 100); 
                     let x = Math.random() * (canvas.width - w);
                     
-                    let type = 'normal';
-                    let r = Math.random();
-                    // В хардкоре почти нет пружин, но много движущихся
-                    if (this.isHard) {
-                        if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving';
-                    } else {
-                        if (r > 0.85) type = 'spring'; else if (r > 0.65) type = 'moving';
-                    }
+                    let type = 'normal'; let r = Math.random();
+                    if (this.isHard) { if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; } 
+                    else { if (r > 0.85) type = 'spring'; else if (r > 0.65) type = 'moving'; }
                     
                     this.platforms.push(new Platform(x, this.highestY, w, type));
                     
@@ -525,19 +520,19 @@
             useExtraLife() {
                 SAVE.lives--; saveGame(); sfx.powerup();
                 for(let i=0; i<50; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ffffff', false, 2));
-                this.player.vy = -35; // Мощный отскок вверх
+                this.player.vy = -35; 
                 this.player.y -= 100;
-                this.hunter.y = this.cameraY + canvas.height + 200; // Отбрасываем охотника далеко вниз
-                this.hunter.active = false; // Усыпляем его
-                this.hunter.startTimer(); // Даем еще 2 секунды форы
+                this.hunter.y = this.cameraY + canvas.height + 200; 
+                this.hunter.active = false; this.hunter.startTimer(); 
             }
 
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                this.generateChunk(); // Генерируем по мере подъема
+                // ЧЕСТНЫЙ РЕКОРД (по координате игрока, а не камеры)
+                if (this.player.y < this.maxReachedY) this.maxReachedY = this.player.y;
 
-                // Очистка старых платформ (оптимизация)
+                this.generateChunk(); 
                 let cleanupY = this.cameraY + canvas.height + 300;
                 this.platforms = this.platforms.filter(p => p.y < cleanupY);
                 this.items = this.items.filter(i => i.y < cleanupY);
@@ -547,14 +542,12 @@
                 
                 this.cameraY += (this.player.y - canvas.height/2 - this.cameraY) * 0.1; 
 
-                // Обновление рекорда в бесконечном режиме
                 if (this.mode === 'endless') {
-                    let score = Math.floor(Math.max(0, -this.cameraY / 10));
+                    let score = Math.floor(Math.max(0, ((canvas.height - 50) - this.maxReachedY) / 10));
                     document.getElementById('hudLeft').innerText = `${score} м`;
-                    if (score > SAVE.highScore) SAVE.highScore = score;
+                    if (score > SAVE.highScore) SAVE.highScore = score; // Сохраним при смерти
                 }
                 
-                // СМЕРТЬ ОТ ОХОТНИКА
                 if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
                     if (SAVE.lives > 0) { this.useExtraLife(); } 
                     else {
@@ -563,28 +556,31 @@
                     }
                 }
 
-                // СМЕРТЬ ОТ ПАДЕНИЯ
                 if (this.player.y > this.cameraY + canvas.height + 100) {
                     if (SAVE.lives > 0) { this.useExtraLife(); } 
                     else { triggerGameOver("УПАЛ В БЕЗДНУ"); }
                 }
 
-                // ФИНИШ
                 if (this.mode === 'campaign') {
                     this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) triggerWin(); });
                 }
 
-                // ПРЕДМЕТЫ
+                // ИДЕАЛЬНЫЙ СБОР ПРЕДМЕТОВ (Хитбоксы расширены)
                 this.items.forEach(item => {
-                    if (!item.markedForDeletion && this.player.x < item.x+24 && this.player.x+30 > item.x && this.player.y < item.y+24 && this.player.y+30 > item.y) {
+                    if (!item.markedForDeletion && 
+                        this.player.x < item.x + 30 && this.player.x + 30 > item.x - 10 && 
+                        this.player.y < item.y + 30 && this.player.y + 30 > item.y - 10) {
+                        
                         item.markedForDeletion = true;
                         if (item.type === 'coin') { 
-                            let reward = this.isHard ? 3 : 1; // Утроенное золото на харде
+                            let reward = this.isHard ? 3 : 1; 
                             SAVE.coins += reward; sfx.coin(); 
+                            saveGame(); // Моментальное сохранение!
                             for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
-                            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
                         } else if (item.type === 'jetpack') { 
-                            this.player.jetpackTimer = 180; sfx.powerup(); 
+                            // Прокачиваемый джетпак! Уровень 1 дает 120 кадров, дальше +30 за левел
+                            this.player.jetpackTimer = 90 + (SAVE.jetpackLevel * 30); 
+                            sfx.powerup(); 
                             for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
                         }
                     }
@@ -592,7 +588,6 @@
             }
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                // Багровый фон на хардкорном уровне
                 if (this.isHard) { ctx.fillStyle = 'rgba(50, 0, 10, 0.3)'; ctx.fillRect(0,0,canvas.width, canvas.height); }
 
                 ctx.save(); ctx.translate(0, -this.cameraY);
@@ -601,9 +596,9 @@
                 this.particles.forEach(p => p.draw(ctx));
                 ctx.restore();
                 
-                // Рендер полосы прогресса джетпака
                 if (gameState === 'PLAYING' && this.player.jetpackTimer > 0) {
-                    let prog = this.player.jetpackTimer / 180;
+                    let maxTimer = 90 + (SAVE.jetpackLevel * 30);
+                    let prog = this.player.jetpackTimer / maxTimer;
                     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 50, 100, 6);
                     ctx.fillStyle = '#ff0055'; ctx.fillRect(canvas.width/2 - 50, 50, 100 * prog, 6);
                 }
@@ -624,21 +619,19 @@
             game = new Game(mode, level);
             gameState = 'PLAYING'; 
             
-            // Настройка HUD
             document.getElementById('hudLeft').innerText = mode === 'campaign' ? `УРОВЕНЬ ${level}` : `0 м`;
             document.getElementById('hudLeft').style.color = game.isHard ? '#ff0055' : 'white';
             updateUI();
             
-            showState('NONE'); // Скрываем меню
+            showState('NONE'); 
             gameHud.style.display = 'flex';
 
-            if (SAVE.jetpack) { game.player.jetpackTimer = 180; sfx.powerup(); }
             if (game.player.vy === 0) game.player.vy = -17; 
             game.hunter.startTimer();
         }
 
         function triggerGameOver(reason) { 
-            gameState = 'END'; sfx.death(); saveGame();
+            gameState = 'END'; sfx.death(); saveGame(); // Сохраняем рекорд при смерти
             setTimeout(() => { 
                 document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; 
                 document.getElementById('endTitle').style.color = "#ff0055";
@@ -653,7 +646,6 @@
             gameState = 'END'; sfx.coin(); 
             if (lastPlayedLevel === SAVE.maxLevel && SAVE.maxLevel < 100) SAVE.maxLevel++;
             saveGame();
-            
             setTimeout(() => { 
                 document.getElementById('endTitle').innerText = "УРОВЕНЬ ПРОЙДЕН"; 
                 document.getElementById('endTitle').style.color = "#00ff00";
@@ -664,7 +656,7 @@
             }, 500); 
         }
         
-        showState('MAIN'); // Запуск
+        showState('MAIN'); 
         animate();
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
     </script>
