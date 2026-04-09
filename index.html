@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Clean Touch</title>
+    <title>Neon Tower: The Chaser</title>
     <style>
-        /* Убрали стили кнопок, оставили только чистый экран и меню */
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
         
@@ -33,7 +32,7 @@
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
         <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px; text-align: center;">АВТО-ПРЫЖОК</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 18px; color: #ccc;">
-            Жми в левую часть экрана — летишь влево.<br>Жми в правую — летишь вправо!
+            Жми в левую часть экрана — летишь влево.<br>Красный Куб уже идет за тобой. Беги.
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <p id="totalCoinsUI" style="color: #FFD700; margin-top: 20px; font-size: 22px; font-weight: bold;">💰 0</p>
@@ -55,18 +54,13 @@
             constructor() {
                 this.keys = [];
                 
-                // Клавиатура для тестов на ПК
                 window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
                 window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
                 
-                // Обработка касаний экрана (Тачскрин)
                 const handleTouch = (e) => {
-                    if (gameState !== 'PLAYING') return; // Если в меню, не реагируем на нажатия
+                    if (gameState !== 'PLAYING') return; 
                     e.preventDefault(); 
-                    
-                    this.keys = []; // Очищаем предыдущие направления
-                    
-                    // Проверяем, где находится палец (или пальцы)
+                    this.keys = []; 
                     for (let i = 0; i < e.touches.length; i++) {
                         if (e.touches[i].clientX < canvas.width / 2) {
                             if (!this.keys.includes('ArrowLeft')) this.keys.push('ArrowLeft');
@@ -78,19 +72,17 @@
 
                 const handleTouchEnd = (e) => {
                     if (e.touches.length === 0) {
-                        this.keys = []; // Отпустили все пальцы
+                        this.keys = []; 
                     } else {
-                        handleTouch(e); // Если отпустили один палец, но второй остался
+                        handleTouch(e); 
                     }
                 };
 
-                // Вешаем слушатели прямо на холст игры
                 canvas.addEventListener('touchstart', handleTouch, {passive: false});
                 canvas.addEventListener('touchmove', handleTouch, {passive: false});
                 canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
                 canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false});
 
-                // Обработка мышки (для тестов на ПК без клавиатуры)
                 let isMouseDown = false;
                 canvas.addEventListener('mousedown', (e) => {
                     if (gameState !== 'PLAYING') return;
@@ -176,6 +168,118 @@
             }
         }
 
+        // --- УМНЫЙ МОНСТР ---
+        class Monster {
+            constructor(game) {
+                this.game = game;
+                this.width = 34; // Чуть больше игрока, чтобы пугал
+                this.height = 34;
+                this.color = '#ff0033'; // Агрессивный красный
+                this.reset();
+            }
+            reset() {
+                this.x = canvas.width / 2 - 17;
+                this.y = canvas.height - 100; // Спавнится там же, где игрок
+                this.vx = 0; 
+                this.vy = 0;
+                this.active = false; // Ждет, пока игрок отойдет
+            }
+            update() {
+                if (gameState !== 'PLAYING') return;
+
+                // Активация: если игрок упрыгал на 300 пикселей вверх
+                if (!this.active) {
+                    if (this.game.player.y < canvas.height - 400) {
+                        this.active = true;
+                        this.vy = -17; // Первый прыжок
+                        // Эффект пробуждения
+                        for(let i=0; i<10; i++) this.game.particles.push(new Particle(this.x+17, this.y+17, '#ff0033'));
+                    }
+                    return; // Пока не активен, стоит на месте
+                }
+
+                // ИИ: Поиск следующей платформы
+                let targetX = this.x;
+                let nextPlat = null;
+                let minDist = Infinity;
+
+                // Ищем самую близкую платформу, которая находится ВЫШЕ монстра
+                for (let p of this.game.platforms) {
+                    if (p.y < this.y - 10) {
+                        let dist = (this.y - 10) - p.y;
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nextPlat = p;
+                        }
+                    }
+                }
+
+                // Если игрок находится ниже монстра (или на том же уровне), монстр бросает платформы и летит прямо на него
+                if (this.game.player.y >= this.y - 50) {
+                    targetX = this.game.player.x + this.game.player.width/2 - this.width/2;
+                } 
+                // Иначе бежит к центру следующей найденной платформы
+                else if (nextPlat) {
+                    targetX = nextPlat.x + nextPlat.width / 2 - this.width / 2;
+                } else {
+                    targetX = this.game.player.x;
+                }
+
+                // Движение к цели
+                let speed = 5.5 + (this.game.level * 0.3); // Скорость растет с уровнем
+                if (this.x < targetX - 10) this.vx = speed;
+                else if (this.x > targetX + 10) this.vx = -speed;
+                else this.vx = 0;
+
+                this.vy += 0.8; // Гравитация
+                this.y += this.vy;
+                
+                // Авто-прыжок монстра по платформам
+                if (this.vy > 0) {
+                    this.game.platforms.forEach(plat => {
+                        if (plat.type === 'finish') return; 
+
+                        if (this.x < plat.x + plat.width && this.x + this.width > plat.x &&
+                            this.y < plat.y + plat.height && this.y + this.height > plat.y) {
+                            
+                            if (this.y + this.height - this.vy <= plat.y + 20) {
+                                this.y = plat.y - this.height;
+                                
+                                if (plat.type === 'spring') {
+                                    this.vy = -26; 
+                                } else {
+                                    this.vy = -17; 
+                                }
+                                // След монстра
+                                for(let i=0; i<2; i++) this.game.particles.push(new Particle(this.x+17, this.y+34, '#ff0033'));
+                            }
+                        }
+                    });
+                }
+
+                this.x += this.vx;
+                if (this.x > canvas.width) this.x = -this.width;
+                if (this.x < -this.width) this.x = canvas.width;
+            }
+            draw(ctx) {
+                if (!this.active && gameState !== 'START') return;
+                
+                ctx.fillStyle = this.color; 
+                ctx.shadowBlur = 20; ctx.shadowColor = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height); 
+                
+                // Рисуем злобные глаза
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(this.x + 6, this.y + 8, 8, 6);
+                ctx.fillRect(this.x + 20, this.y + 8, 8, 6);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(this.x + 8, this.y + 10, 4, 4);
+                ctx.fillRect(this.x + 22, this.y + 10, 4, 4);
+                
+                ctx.shadowBlur = 0;
+            }
+        }
+
         class Player {
             constructor(game) {
                 this.game = game;
@@ -187,7 +291,7 @@
                 this.x = canvas.width / 2 - 15; this.y = canvas.height - 100; 
                 this.vx = 0; this.vy = 0;
                 this.jetpackTimer = 0;
-                this.vy = -17; // Даем начальный импульс
+                this.vy = -17; 
             }
             update(input) {
                 if (gameState !== 'PLAYING') return;
@@ -249,11 +353,10 @@
             constructor(level) {
                 this.player = new Player(this);
                 this.input = new InputHandler();
+                this.monster = new Monster(this); // Инициализация Монстра
                 this.platforms = []; this.items = []; this.particles = [];
                 this.cameraY = 0;
                 this.levelHeight = 1500 + (level * 1000); 
-                this.glitchY = canvas.height + 100;
-                this.glitchSpeed = 1.5 + (level * 0.3); 
                 this.platformY = canvas.height - 50;
                 
                 this.platforms.push(new Platform(0, this.platformY, canvas.width, 'normal'));
@@ -284,15 +387,23 @@
                 if (gameState !== 'PLAYING') return;
 
                 this.player.update(this.input);
+                this.monster.update(); // Обновление Монстра
                 this.items.forEach(i => i.update());
                 this.particles.forEach(p => p.update());
                 this.particles = this.particles.filter(p => p.life > 0);
 
-                this.glitchY -= this.glitchSpeed;
-
                 let targetCamera = this.player.y - canvas.height / 2;
                 if (this.player.y < this.cameraY + canvas.height / 2) {
                     this.cameraY += (targetCamera - this.cameraY) * 0.1; 
+                }
+
+                // КОЛЛИЗИЯ: МОНСТР СЪЕЛ ИГРОКА
+                if (this.monster.active && 
+                    this.player.x < this.monster.x + this.monster.width && 
+                    this.player.x + this.player.width > this.monster.x &&
+                    this.player.y < this.monster.y + this.monster.height && 
+                    this.player.y + this.player.height > this.monster.y) {
+                    gameOver("СЪЕДЕН МОНСТРОМ!");
                 }
 
                 // ПРОВЕРКА ФИНИША
@@ -323,8 +434,9 @@
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
                 
-                if (this.player.y + this.player.height > this.glitchY || this.player.y > this.cameraY + canvas.height + 200) {
-                    gameOver();
+                // ПРОВАЛ В ПРОПАСТЬ (упал слишком низко от камеры)
+                if (this.player.y > this.cameraY + canvas.height + 200) {
+                    gameOver("УПАЛ В ПРОПАСТЬ!");
                 }
             }
 
@@ -336,12 +448,9 @@
                 this.platforms.forEach(p => p.draw(ctx));
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
+                
+                this.monster.draw(ctx); // Отрисовка Монстра
                 this.player.draw(ctx);
-
-                ctx.fillStyle = 'rgba(255, 0, 50, 0.7)';
-                ctx.fillRect(0, this.glitchY, canvas.width, canvas.height * 2);
-                ctx.fillStyle = '#ff0033';
-                ctx.fillRect(0, this.glitchY, canvas.width, 15);
 
                 ctx.restore();
 
@@ -377,11 +486,11 @@
             uiOverlay.style.display = 'none';
         }
 
-        function gameOver() {
+        function gameOver(reasonText) {
             gameState = 'GAMEOVER';
             uiOverlay.style.display = 'flex';
             document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`;
-            document.getElementById('menuTitle').innerText = `СГОРЕЛ В ГЛИТЧЕ`;
+            document.getElementById('menuTitle').innerText = reasonText; // Показываем причину смерти
             document.getElementById('menuInfo').innerText = `Быстрее перебирай пальцами!`;
             document.getElementById('startBtn').innerText = `ИГРАТЬ СНОВА`; 
             updateCoinUI();
@@ -393,7 +502,7 @@
             currentLevel++;
             document.getElementById('menuLevel').innerText = `ПОБЕДА!`;
             document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`;
-            document.getElementById('menuInfo').innerText = `Следующий уровень будет сложнее...`;
+            document.getElementById('menuInfo').innerText = `Монстр становится быстрее...`;
             document.getElementById('startBtn').innerText = `СЛЕДУЮЩИЙ УРОВЕНЬ`; 
             updateCoinUI();
         }
