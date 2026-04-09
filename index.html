@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: The Phantom</title>
+    <title>Neon Tower: The Perfect Phantom</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -32,7 +32,7 @@
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
         <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px; text-align: center;">АВТО-ПРЫЖОК</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 18px; color: #ccc;">
-            Жми в левую часть экрана — летишь влево.<br>Красный Призрак летит за тобой сквозь стены.
+            Жми в левую часть экрана — летишь влево.<br>Красный Призрак всегда будет дышать в спину.
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <p id="totalCoinsUI" style="color: #FFD700; margin-top: 20px; font-size: 22px; font-weight: bold;">💰 0</p>
@@ -168,7 +168,7 @@
             }
         }
 
-        // --- ЛЕТАЮЩИЙ ПРИЗРАК (БЕЗ ТЕЛЕПОРТОВ) ---
+        // --- ИДЕАЛЬНЫЙ НЕОТСТАЮЩИЙ ПРИЗРАК ---
         class Monster {
             constructor(game) {
                 this.game = game;
@@ -179,7 +179,7 @@
             }
             reset() {
                 this.x = canvas.width / 2 - this.width / 2;
-                this.y = canvas.height - 30; // Прячется в самом низу экрана на старте
+                this.y = canvas.height - 30; // Находится внизу
                 this.vx = 0; 
                 this.vy = 0;
                 this.active = false; 
@@ -187,17 +187,14 @@
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                // Пробуждение: если игрок поднялся на 300 пикселей от старта
+                // Плавно просыпается, как только игрок прыгнул (убрал взрыв частиц)
                 if (!this.active) {
-                    if (this.game.player.y < canvas.height - 300) {
+                    if (this.game.player.y < canvas.height - 150) {
                         this.active = true;
-                        // Эпичный взрыв частиц при пробуждении
-                        for(let i=0; i<30; i++) this.game.particles.push(new Particle(this.x + this.width/2, this.y + this.height/2, '#ff0033'));
                     }
                     return; 
                 }
 
-                // Логика полета (Поиск вектора к игроку)
                 let targetX = this.game.player.x + this.game.player.width / 2 - this.width / 2;
                 let targetY = this.game.player.y + this.game.player.height / 2 - this.height / 2;
 
@@ -205,16 +202,21 @@
                 let dy = targetY - this.y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
 
-                // Базовая скорость призрака (чуть медленнее игрока, чтобы можно было убежать)
-                let speed = 4.0 + (this.game.level * 0.4); 
+                // Базовая скорость
+                let speed = 3.5 + (this.game.level * 0.3); 
 
-                // УМНАЯ СКОРОСТЬ: Если игрок улетел очень далеко вверх (на джетпаке), 
-                // призрак плавно разгоняется за кадром, чтобы честно догнать, не телепортируясь.
-                if (dy < -canvas.height) { // Если призрак отстал больше чем на экран
-                    speed *= 1.5; // Ускоряется в 1.5 раза
+                // МЕХАНИКА "РЕЗИНКИ" (Rubber-banding)
+                // Если призрак отстает больше чем на 250 пикселей по Y, он начинает ускоряться
+                if (dy < -250) { 
+                    // Пропорциональное ускорение: чем больше dy, тем выше speed
+                    let catchUpSpeed = Math.abs(dy + 250) * 0.02; 
+                    speed += catchUpSpeed;
                 }
+                
+                // Ставим лимит скорости, чтобы он летел быстро, но не телепортировался
+                if (speed > 13) speed = 13;
 
-                // Движение по вектору к цели
+                // Движение по вектору
                 if (distance > 0) {
                     this.vx = (dx / distance) * speed;
                     this.vy = (dy / distance) * speed;
@@ -223,38 +225,32 @@
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // След призрака (частицы)
+                // След призрака (редкие частицы для эффекта полета)
                 if (Math.random() > 0.4) {
                     this.game.particles.push(new Particle(
                         this.x + Math.random() * this.width, 
-                        this.y + this.height, 
+                        this.y + this.height - 5, 
                         '#ff0033'
                     ));
                 }
             }
             
             draw(ctx) {
-                if (!this.active && gameState !== 'START') return;
-
+                // Отрисовка призрака
                 ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 25; ctx.shadowColor = '#ff0033';
                 
-                // Рисуем призрачный кругяшок (летящий сгусток)
                 ctx.beginPath();
                 ctx.arc(this.x + this.width/2, this.y + this.height/2, this.width/2, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Рисуем глаза, которые смотрят в сторону полета
                 ctx.fillStyle = '#fff';
-                let eyeOffsetX = (this.vx / 5) * 4; // Смещение зрачков по X
-                let eyeOffsetY = (this.vy / 5) * 4; // Смещение зрачков по Y
+                let eyeOffsetX = (this.vx / 5) * 4; 
+                let eyeOffsetY = (this.vy / 5) * 4; 
 
-                // Левый глаз
                 ctx.beginPath(); ctx.arc(this.x + 12 + eyeOffsetX, this.y + 16 + eyeOffsetY, 5, 0, Math.PI * 2); ctx.fill();
-                // Правый глаз
                 ctx.beginPath(); ctx.arc(this.x + 26 + eyeOffsetX, this.y + 16 + eyeOffsetY, 5, 0, Math.PI * 2); ctx.fill();
                 
-                // Черные зрачки
                 ctx.fillStyle = '#000';
                 ctx.beginPath(); ctx.arc(this.x + 12 + eyeOffsetX * 1.5, this.y + 16 + eyeOffsetY * 1.5, 2, 0, Math.PI * 2); ctx.fill();
                 ctx.beginPath(); ctx.arc(this.x + 26 + eyeOffsetX * 1.5, this.y + 16 + eyeOffsetY * 1.5, 2, 0, Math.PI * 2); ctx.fill();
@@ -379,7 +375,7 @@
                 let targetCamera = this.player.y - canvas.height / 2;
                 this.cameraY += (targetCamera - this.cameraY) * 0.1; 
 
-                // КОЛЛИЗИЯ С ПРИЗРАКОМ (Хитбокс немного уменьшен, чтобы было честнее)
+                // КОЛЛИЗИЯ С ПРИЗРАКОМ 
                 if (this.monster.active && 
                     this.player.x < this.monster.x + this.monster.width - 5 && 
                     this.player.x + this.player.width > this.monster.x + 5 &&
@@ -417,8 +413,8 @@
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
                 
-                // УПАЛ В ПРОПАСТЬ
-                if (this.player.y > (canvas.height - 50) + 200) {
+                // УПАЛ В ПРОПАСТЬ (если улетел на два экрана вниз)
+                if (this.player.y > this.cameraY + canvas.height + 200) {
                     gameOver("УПАЛ В БЕЗДНУ!");
                 }
             }
@@ -432,7 +428,6 @@
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
                 
-                // Призрак рисуется ПОВЕРХ платформ, подчеркивая, что он летает сквозь них
                 this.monster.draw(ctx); 
                 
                 if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
@@ -480,7 +475,7 @@
                 uiOverlay.style.display = 'flex';
                 document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`;
                 document.getElementById('menuTitle').innerText = reasonText; 
-                document.getElementById('menuInfo').innerText = `Летающий Призрак не прощает ошибок.`;
+                document.getElementById('menuInfo').innerText = `Не дай ему себя догнать!`;
                 document.getElementById('startBtn').innerText = `ИГРАТЬ СНОВА`; 
                 updateCoinUI();
             }, 500);
@@ -492,7 +487,7 @@
             currentLevel++;
             document.getElementById('menuLevel').innerText = `ПОБЕДА!`;
             document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`;
-            document.getElementById('menuInfo').innerText = `Призрак становится быстрее...`;
+            document.getElementById('menuInfo').innerText = `С каждым уровнем он всё быстрее...`;
             document.getElementById('startBtn').innerText = `СЛЕДУЮЩИЙ УРОВЕНЬ`; 
             updateCoinUI();
         }
