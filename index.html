@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Ultimate Edition</title>
+    <title>Neon Tower: The Flawless Build</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -40,7 +40,6 @@
         .ui-btn:active { transform: scale(0.95); }
         .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 
-        /* СЕТКА УРОВНЕЙ */
         #levelGrid {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
             width: 90%; max-width: 380px; max-height: 50vh; overflow-y: auto;
@@ -57,7 +56,6 @@
         .lvl-btn.locked { background: #1a1a2e; color: #555; cursor: not-allowed; }
         .lvl-btn:active:not(:disabled) { transform: scale(0.9); }
 
-        /* МАГАЗИН GRID */
         #shopList { 
             display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
             gap: 12px; width: 95%; max-width: 500px; max-height: 65vh; overflow-y: auto; padding: 5px; 
@@ -74,7 +72,6 @@
         .shop-btn.equip { background: #00d2ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
-        /* HUD */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
@@ -124,7 +121,7 @@
     </div>
 
     <script>
-        // --- 1. СИСТЕМА СОХРАНЕНИЙ ---
+        // --- СИСТЕМА СОХРАНЕНИЙ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
             maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
@@ -150,7 +147,6 @@
             updateUI();
         }
 
-        // --- УПРАВЛЕНИЕ UI ---
         const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu') };
         const gameHud = document.getElementById('gameHud');
 
@@ -171,7 +167,6 @@
             renderShop(); renderLevels();
         }
 
-        // Блокировка пройденных уровней
         function renderLevels() {
             const grid = document.getElementById('levelGrid');
             grid.innerHTML = '';
@@ -193,16 +188,15 @@
             }
         }
 
-        // Продвинутый магазин
         function renderShop() {
             const list = document.getElementById('shopList');
             list.innerHTML = '';
             
             const items = [
                 { id: 'upg_jp', name: 'РАКЕТА 🚀', desc: '+Время полета', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
-                { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус притяжения монет', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
-                { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус притяжения джетпаков', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
-                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Авто-спасение от смерти.', price: 50, type: 'consumable', lvl: SAVE.lives },
+                { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус монет', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
+                { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус джетпаков', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
+                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Авто-спасение.', price: 50, type: 'consumable', lvl: SAVE.lives },
                 { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
                 { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' }
             ];
@@ -303,7 +297,8 @@
             }
             death() {
                 if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
                 osc.frequency.setValueAtTime(250, now + 0.2); osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
                 osc.frequency.setValueAtTime(200, now + 0.4); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
                 gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
@@ -366,6 +361,21 @@
                 ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, this.size, this.size); 
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text) {
+                this.x = x; this.y = y; this.text = text;
+                this.life = 1.0; this.vy = -1.5;
+            }
+            update() { this.y += this.vy; this.life -= 0.02; }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = '#ff0055'; ctx.font = 'bold 24px Arial';
+                ctx.shadowBlur = 10; ctx.shadowColor = '#fff';
+                ctx.fillText(this.text, this.x - 30, this.y);
+                ctx.shadowBlur = 0; ctx.globalAlpha = 1.0;
             }
         }
 
@@ -457,8 +467,10 @@
                 if (this.vy > 0) {
                     this.game.platforms.forEach(p => {
                         if (p.type === 'finish' || p.broken) return;
+                        
+                        // ИСПРАВЛЕНИЕ: ЖЕСТКАЯ ПРОВЕРКА КОЛЛИЗИИ (Чтобы не было фантомных отскоков)
                         if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
-                            if (this.y + 30 - this.vy <= p.y + 20) { 
+                            if (this.y + 30 - this.vy <= p.y + 15) { 
                                 this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
                                 if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
                                 else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
@@ -488,9 +500,8 @@
                 this.level = level || 1;
                 this.isHard = (this.mode === 'campaign' && this.level % 5 === 0);
                 
-                this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = [];
+                this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = []; this.floatingTexts = [];
                 this.cameraY = 0; this.highestY = canvas.height - 50;
-                
                 this.maxReachedY = this.highestY; 
                 
                 this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
@@ -518,7 +529,8 @@
                     this.platforms.push(new Platform(x, this.highestY, w, type));
                     
                     let ri = Math.random();
-                    if (ri > 0.98) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
+                    // В хардкоре Джетпаки НЕ спавнятся
+                    if (ri > 0.98 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
                 }
             }
@@ -526,10 +538,11 @@
             useExtraLife() {
                 SAVE.lives--; saveGame(); sfx.powerup();
                 for(let i=0; i<50; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ffffff', false, 2));
-                this.player.vy = -35; 
+                this.player.vy = -30; 
                 this.player.y -= 100;
-                this.hunter.y = this.cameraY + canvas.height + 200; 
+                this.hunter.y = this.cameraY + canvas.height + 300; 
                 this.hunter.active = false; this.hunter.startTimer(); 
+                this.floatingTexts.push(new FloatingText(this.player.x, this.player.y, "❤️ СПАСЕН!"));
             }
 
             update() {
@@ -539,13 +552,18 @@
 
                 this.generateChunk(); 
                 let cleanupY = this.cameraY + canvas.height + 300;
-                this.platforms = this.platforms.filter(p => p.y < cleanupY && !p.broken); // Удаляем сломанные
-                this.items = this.items.filter(i => i.y < cleanupY && !i.markedForDeletion); // Удаляем собранные
+                this.platforms = this.platforms.filter(p => p.y < cleanupY && !p.broken); 
+                this.items = this.items.filter(i => i.y < cleanupY && !i.markedForDeletion); 
 
                 this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
                 this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
+                this.floatingTexts.forEach(ft => ft.update()); this.floatingTexts = this.floatingTexts.filter(ft => ft.life > 0);
                 
-                this.cameraY += (this.player.y - canvas.height/2 - this.cameraY) * 0.1; 
+                // ИСПРАВЛЕНИЕ: Камера едет ТОЛЬКО вверх. Никаких случайных генераций под ногами!
+                let targetCamera = this.player.y - canvas.height / 2;
+                if (targetCamera < this.cameraY) {
+                    this.cameraY += (targetCamera - this.cameraY) * 0.15; 
+                }
 
                 if (this.mode === 'endless') {
                     let score = Math.floor(Math.max(0, ((canvas.height - 50) - this.maxReachedY) / 10));
@@ -561,6 +579,7 @@
                     }
                 }
 
+                // ЕСЛИ УПАЛ В БЕЗДНУ ЗА ЭКРАН
                 if (this.player.y > this.cameraY + canvas.height + 100) {
                     if (SAVE.lives > 0) { this.useExtraLife(); } 
                     else { triggerGameOver("УПАЛ В БЕЗДНУ"); }
@@ -571,8 +590,8 @@
                 }
 
                 // ЛОГИКА МАГНИТОВ И СБОРА
-                let magCoinRadius = SAVE.magnetCoinLvl * 60;
-                let magJpRadius = SAVE.magnetJpLvl * 60;
+                let magCoinRadius = SAVE.magnetCoinLvl * 45; // Разумный радиус
+                let magJpRadius = SAVE.magnetJpLvl * 45;
 
                 this.items.forEach(item => {
                     if (item.markedForDeletion) return;
@@ -581,14 +600,12 @@
                     let dy = (this.player.y + 15) - (item.y + 12);
                     let dist = Math.sqrt(dx*dx + dy*dy);
 
-                    // Притяжение магнитом
                     let radius = item.type === 'coin' ? magCoinRadius : (item.type === 'jetpack' ? magJpRadius : 0);
                     if (radius > 0 && dist < radius) {
                         item.x += (dx / dist) * 12;
                         item.y += (dy / dist) * 12;
                     }
 
-                    // Четкий хитбокс подбора
                     if (this.player.x < item.x + 24 && this.player.x + 30 > item.x && this.player.y < item.y + 24 && this.player.y + 30 > item.y) {
                         item.markedForDeletion = true;
                         
@@ -612,7 +629,7 @@
                 ctx.save(); ctx.translate(0, -this.cameraY);
                 this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
                 this.hunter.draw(ctx); if (gameState === 'PLAYING' || gameState === 'END') this.player.draw(ctx);
-                this.particles.forEach(p => p.draw(ctx));
+                this.particles.forEach(p => p.draw(ctx)); this.floatingTexts.forEach(ft => ft.draw(ctx));
                 ctx.restore();
                 
                 if (gameState === 'PLAYING' && this.player.jetpackTimer > 0) {
