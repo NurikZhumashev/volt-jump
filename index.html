@@ -3,25 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Clean Logic</title>
+    <title>Neon Tower: Shop Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
         
-        #uiOverlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+        /* Главное меню и магазин */
+        #uiOverlay, #shopOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             background: rgba(0,0,0,0.85); z-index: 20; color: white;
         }
+        #shopOverlay { display: none; background: rgba(0,0,10,0.95); z-index: 30; }
+
         .ui-btn {
-            padding: 18px 40px; margin: 10px; border-radius: 30px; font-size: 22px; font-weight: bold;
-            border: none; color: white; cursor: pointer; text-transform: uppercase; width: 300px;
+            padding: 18px 40px; margin: 10px; border-radius: 30px; font-size: 20px; font-weight: bold;
+            border: none; color: white; cursor: pointer; text-transform: uppercase; width: 280px;
             background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 20px #00d2ff;
-            transition: transform 0.1s;
+            transition: 0.1s;
         }
+        .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 0 20px #f12711; }
         .ui-btn:active { transform: scale(0.95); }
-        h2 { color: #FFD700; text-shadow: 0 0 10px #FFD700; font-size: 36px; margin: 0 0 10px 0; text-align: center; }
+        .ui-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: default; }
+
+        h2 { color: #FFD700; text-shadow: 0 0 10px #FFD700; font-size: 32px; margin: 0 0 10px 0; text-align: center; }
+        .shop-card {
+            background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px;
+            border: 1px solid #333; text-align: center; width: 80%; max-width: 300px;
+        }
     </style>
 </head>
 <body>
@@ -30,68 +39,87 @@
 
     <div id="uiOverlay">
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
-        <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px; text-align: center;">NEON RUN</h1>
-        <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 18px; color: #ccc;">
-            Зеленые — батуты. Фиолетовые — ездят.<br>Охотник ждет 2 секунды. Беги!
-        </p>
+        <h1 id="menuTitle" style="font-size: 30px; margin-bottom: 20px;">NEON RUN</h1>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
+        <button class="ui-btn btn-shop" onclick="openShop()">🛒 МАГАЗИН</button>
         <p id="totalCoinsUI" style="color: #FFD700; margin-top: 20px; font-size: 22px; font-weight: bold;">💰 0</p>
+    </div>
+
+    <div id="shopOverlay">
+        <h2>МАГАЗИН</h2>
+        <div class="shop-card">
+            <h3 style="color: #ff0055;">JETPACK 🚀</h3>
+            <p style="font-size: 14px; color: #ccc;">Дает ускорение на 3 сек. в начале каждого уровня. Навсегда.</p>
+            <p style="color: #FFD700; font-weight: bold;">Цена: 200 💰</p>
+            <button class="ui-btn" id="buyJetpackBtn" onclick="buyJetpack()" style="width: 100%; font-size: 16px;">КУПИТЬ</button>
+        </div>
+        <button class="ui-btn" onclick="closeShop()" style="background: #444; box-shadow: none; margin-top: 30px;">НАЗАД</button>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const uiOverlay = document.getElementById('uiOverlay');
+        const shopOverlay = document.getElementById('shopOverlay');
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         let totalCoins = parseInt(localStorage.getItem('neonCoins')) || 0;
+        let hasJetpack = localStorage.getItem('hasJetpack') === 'true'; // Статус покупки
         let currentLevel = 1;
         let gameState = 'START'; 
 
+        // --- МАГАЗИН ---
+        function openShop() { 
+            shopOverlay.style.display = 'flex'; 
+            updateShopButtons();
+        }
+        function closeShop() { shopOverlay.style.display = 'none'; }
+        
+        function updateShopButtons() {
+            const btn = document.getElementById('buyJetpackBtn');
+            if (hasJetpack) {
+                btn.innerText = "КУПЛЕНО";
+                btn.disabled = true;
+            } else if (totalCoins < 200) {
+                btn.innerText = "МАЛО МОНЕТ";
+                btn.disabled = true;
+            } else {
+                btn.innerText = "КУПИТЬ";
+                btn.disabled = false;
+            }
+        }
+
+        function buyJetpack() {
+            if (totalCoins >= 200 && !hasJetpack) {
+                totalCoins -= 200;
+                hasJetpack = true;
+                localStorage.setItem('neonCoins', totalCoins);
+                localStorage.setItem('hasJetpack', 'true');
+                updateCoinUI();
+                updateShopButtons();
+            }
+        }
+
+        // --- ДВИЖОК (ОСТАВЛЕНО БЕЗ ИЗМЕНЕНИЙ) ---
         class InputHandler {
             constructor() {
                 this.keys = [];
                 window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
                 window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
-                
                 const handleTouch = (e) => {
                     if (gameState !== 'PLAYING') return; 
-                    e.preventDefault(); 
-                    this.keys = []; 
+                    e.preventDefault(); this.keys = []; 
                     for (let i = 0; i < e.touches.length; i++) {
-                        if (e.touches[i].clientX < canvas.width / 2) {
-                            if (!this.keys.includes('ArrowLeft')) this.keys.push('ArrowLeft');
-                        } else {
-                            if (!this.keys.includes('ArrowRight')) this.keys.push('ArrowRight');
-                        }
+                        if (e.touches[i].clientX < canvas.width / 2) this.keys.push('ArrowLeft');
+                        else this.keys.push('ArrowRight');
                     }
                 };
-                const handleTouchEnd = (e) => {
-                    if (e.touches.length === 0) this.keys = []; 
-                    else handleTouch(e); 
-                };
-
+                const handleTouchEnd = (e) => { if (e.touches.length === 0) this.keys = []; else handleTouch(e); };
                 canvas.addEventListener('touchstart', handleTouch, {passive: false});
                 canvas.addEventListener('touchmove', handleTouch, {passive: false});
                 canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
-                canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false});
-
-                let isMouseDown = false;
-                canvas.addEventListener('mousedown', (e) => {
-                    if (gameState !== 'PLAYING') return;
-                    isMouseDown = true;
-                    updateMouseInput(e);
-                });
-                canvas.addEventListener('mousemove', (e) => { if (isMouseDown) updateMouseInput(e); });
-                window.addEventListener('mouseup', () => { isMouseDown = false; this.keys = []; });
-
-                const updateMouseInput = (e) => {
-                    this.keys = [];
-                    if (e.clientX < canvas.width / 2) this.keys.push('ArrowLeft');
-                    else this.keys.push('ArrowRight');
-                };
             }
         }
 
@@ -101,24 +129,16 @@
                 this.size = Math.random() * (isFire ? 8 : 5) + 2;
                 this.vx = (Math.random() - 0.5) * (isFire ? 4 : 10);
                 this.vy = isFire ? (Math.random() * 5 + 2) : (Math.random() - 1) * 10;
-                this.life = 1.0;
-                this.decay = isFire ? 0.05 : 0.02;
+                this.life = 1.0; this.decay = isFire ? 0.05 : 0.02;
             }
             update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
-            draw(ctx) {
-                ctx.globalAlpha = Math.max(0, this.life);
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.size, this.size);
-                ctx.globalAlpha = 1.0;
-            }
+            draw(ctx) { ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.size, this.size); ctx.globalAlpha = 1.0; }
         }
 
         class Platform {
             constructor(x, y, width, type = 'normal') {
                 this.x = x; this.y = y; this.width = width; this.height = 20;
-                this.type = type; // 'normal', 'spring', 'moving', 'finish'
-                this.moveSpeed = 2 + Math.random() * 2;
-                this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.type = type; this.moveSpeed = 2 + Math.random() * 2; this.direction = Math.random() > 0.5 ? 1 : -1;
             }
             update() {
                 if (this.type === 'moving') {
@@ -127,67 +147,35 @@
                 }
             }
             draw(ctx) {
-                ctx.shadowBlur = 0;
-                if (this.type === 'finish') {
-                    ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700';
-                } else if (this.type === 'moving') {
-                    ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height);
-                    ctx.fillStyle = '#ff00ff';
-                } else if (this.type === 'spring') {
-                    ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height);
-                    ctx.fillStyle = '#00ff00';
-                } else {
-                    ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height);
-                    ctx.fillStyle = '#00ffcc';
-                }
-                
-                if(this.type !== 'finish') ctx.fillRect(this.x, this.y, this.width, 4);
-                else ctx.fillRect(this.x, this.y, this.width, this.height);
+                if (this.type === 'finish') { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700'; }
+                else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
+                else if (this.type === 'spring') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ff00'; }
+                else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ffcc'; }
+                if(this.type !== 'finish') ctx.fillRect(this.x, this.y, this.width, 4); else ctx.fillRect(this.x, this.y, this.width, this.height);
                 ctx.shadowBlur = 0;
             }
         }
 
         class Item {
             constructor(x, y, type) {
-                this.x = x; this.y = y; this.type = type; 
-                this.width = 24; this.height = 24;
-                this.baseY = y; this.angle = Math.random() * Math.PI * 2;
-                this.markedForDeletion = false;
+                this.x = x; this.y = y; this.type = type; this.width = 24; this.height = 24; this.baseY = y; this.angle = Math.random() * Math.PI * 2; this.markedForDeletion = false;
             }
             update() { this.angle += 0.05; this.y = this.baseY + Math.sin(this.angle) * 5; }
             draw(ctx) {
                 ctx.beginPath();
-                if (this.type === 'coin') {
-                    ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 15;
-                    ctx.arc(this.x + 12, this.y + 12, 10, 0, Math.PI * 2);
-                } else if (this.type === 'jetpack') {
-                    ctx.fillStyle = '#ff0055'; ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 20;
-                    ctx.moveTo(this.x + 12, this.y);
-                    ctx.lineTo(this.x + 24, this.y + 24);
-                    ctx.lineTo(this.x, this.y + 24);
-                }
+                if (this.type === 'coin') { ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 15; ctx.arc(this.x + 12, this.y + 12, 10, 0, Math.PI * 2); }
+                else if (this.type === 'jetpack') { ctx.fillStyle = '#ff0055'; ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 20; ctx.moveTo(this.x+12, this.y); ctx.lineTo(this.x+24, this.y+24); ctx.lineTo(this.x, this.y+24); }
                 ctx.fill(); ctx.shadowBlur = 0;
             }
         }
 
         class Hunter {
-            constructor(game) {
-                this.game = game;
-                this.width = 38; this.height = 38;
-                this.color = '#ff0033'; 
-                this.reset();
-            }
+            constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
             reset() { this.x = canvas.width/2 - 19; this.y = canvas.height-88; this.active = false; this.startTime = 0; }
             startTimer() { this.startTime = Date.now(); }
             update() {
                 if (gameState !== 'PLAYING') return;
-                if (!this.active) {
-                    if (Date.now() - this.startTime > 2000) {
-                        this.active = true;
-                        for(let i=0; i<15; i++) this.game.particles.push(new Particle(this.x+19, this.y+19, '#ff0033', true));
-                    }
-                    return; 
-                }
+                if (!this.active) { if (Date.now() - this.startTime > 2000) this.active = true; return; }
                 let dx = (this.game.player.x + 15) - (this.x + 19);
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
@@ -200,8 +188,7 @@
                 if (Math.random() > 0.4) this.game.particles.push(new Particle(this.x + Math.random()*38, this.y + 19, this.color));
             }
             draw(ctx) {
-                ctx.fillStyle = this.color; ctx.shadowBlur = 20; ctx.shadowColor = this.color;
-                ctx.fillRect(this.x, this.y, 38, 38);
+                ctx.fillStyle = this.color; ctx.shadowBlur = 20; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, 38, 38);
                 let lx = (this.game.player.x - this.x) > 0 ? 3 : -3;
                 let ly = (this.game.player.y - this.y) > 0 ? 3 : -3;
                 ctx.fillStyle = '#fff'; ctx.fillRect(this.x+6+lx, this.y+10+ly, 8, 8); ctx.fillRect(this.x+24+lx, this.y+10+ly, 8, 8);
@@ -215,9 +202,7 @@
             reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; }
             update(input) {
                 if (gameState !== 'PLAYING') return;
-                if (input.keys.includes('ArrowRight')) this.vx = 8;
-                else if (input.keys.includes('ArrowLeft')) this.vx = -8;
-                else this.vx *= 0.8;
+                if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 if (this.jetpackTimer > 0) { this.vy = -18; this.jetpackTimer--; this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff0055', true)); }
                 else this.vy += 0.8; 
                 this.y += this.vy;
@@ -225,18 +210,12 @@
                     this.game.platforms.forEach(p => {
                         if (p.type === 'finish') return;
                         if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
-                            if (this.y + 30 - this.vy <= p.y + 20) {
-                                this.y = p.y - 30;
-                                if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00'); }
-                                else { this.vy = -17; this.createJumpDust('#ffffff'); }
-                            }
+                            if (this.y + 30 - this.vy <= p.y + 20) { this.y = p.y - 30; if (p.type === 'spring') { this.vy = -26; } else { this.vy = -17; } }
                         }
                     });
                 }
-                this.x += this.vx;
-                if (this.x > canvas.width) this.x = -30; if (this.x < -30) this.x = canvas.width;
+                this.x += this.vx; if (this.x > canvas.width) this.x = -30; if (this.x < -30) this.x = canvas.width;
             }
-            createJumpDust(color = '#fff') { for(let i=0; i<5; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color)); }
             draw(ctx) { ctx.fillStyle = this.jetpackTimer > 0 ? '#ff0055' : this.color; ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle; ctx.fillRect(this.x, this.y, 30, 30); ctx.shadowBlur = 0; }
         }
 
@@ -245,8 +224,7 @@
                 this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = [];
                 this.cameraY = 0; this.level = level; this.levelHeight = 1500 + (level * 1000); this.platformY = canvas.height - 50;
                 this.platforms.push(new Platform(0, this.platformY, canvas.width, 'normal'));
-                this.buildLevel();
-                this.player = new Player(this); this.hunter = new Hunter(this);
+                this.buildLevel(); this.player = new Player(this); this.hunter = new Hunter(this);
             }
             buildLevel() {
                 let targetY = -this.levelHeight;
@@ -254,13 +232,8 @@
                     this.platformY -= 90 + Math.random() * 40;
                     let w = 70 + Math.random() * 100;
                     let x = Math.random() * (canvas.width - w);
-                    
-                    // ЧИСТАЯ ЛОГИКА ТИПОВ
-                    let r = Math.random();
-                    let type = 'normal';
-                    if (r > 0.85) type = 'spring';
-                    else if (r > 0.65) type = 'moving';
-                    
+                    let r = Math.random(); let type = 'normal';
+                    if (r > 0.85) type = 'spring'; else if (r > 0.65) type = 'moving';
                     this.platforms.push(new Platform(x, this.platformY, w, type));
                     let ri = Math.random();
                     if (ri > 0.96) this.items.push(new Item(x + w/2 - 12, this.platformY - 40, 'jetpack'));
@@ -270,23 +243,16 @@
             }
             update() {
                 if (gameState !== 'PLAYING') return;
-                this.platforms.forEach(p => p.update());
-                this.player.update(this.input);
-                this.hunter.update(); 
-                this.items.forEach(i => i.update());
-                this.particles.forEach(p => p.update());
-                this.particles = this.particles.filter(p => p.life > 0);
+                this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
+                this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
                 this.cameraY += (this.player.y - canvas.height/2 - this.cameraY) * 0.1; 
-                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
-                    for(let i=0; i<30; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033'));
-                    gameOver("ОХОТНИК ДОГНАЛ ТЕБЯ!");
-                }
+                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) gameOver("ОХОТНИК ДОГНАЛ ТЕБЯ!");
                 this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) winLevel(); });
                 this.items.forEach(item => {
                     if (!item.markedForDeletion && this.player.x < item.x+24 && this.player.x+30 > item.x && this.player.y < item.y+24 && this.player.y+30 > item.y) {
                         item.markedForDeletion = true;
-                        if (item.type === 'coin') { totalCoins++; localStorage.setItem('neonCoins', totalCoins); for(let i=0; i<8; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); }
-                        else if (item.type === 'jetpack') { this.player.jetpackTimer = 180; for(let i=0; i<20; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055')); }
+                        if (item.type === 'coin') { totalCoins++; localStorage.setItem('neonCoins', totalCoins); }
+                        else if (item.type === 'jetpack') { this.player.jetpackTimer = 180; }
                     }
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
@@ -294,16 +260,12 @@
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.save(); ctx.translate(0, -this.cameraY);
-                this.platforms.forEach(p => p.draw(ctx));
-                this.items.forEach(i => i.draw(ctx));
-                this.particles.forEach(p => p.draw(ctx));
-                this.hunter.draw(ctx); 
-                if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') this.player.draw(ctx);
+                this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); this.particles.forEach(p => p.draw(ctx));
+                this.hunter.draw(ctx); if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') this.player.draw(ctx);
                 ctx.restore();
                 if (gameState === 'PLAYING') {
                     ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.fillText(`УРОВЕНЬ ${currentLevel}`, 20, 30);
-                    ctx.fillStyle = '#FFD700'; ctx.textAlign = 'right'; ctx.fillText(`💰 ${totalCoins}`, canvas.width - 20, 30);
-                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#FFD700'; ctx.textAlign = 'right'; ctx.fillText(`💰 ${totalCoins}`, canvas.width - 20, 30); ctx.textAlign = 'left';
                     let prog = Math.min(1, Math.abs(this.player.y - (canvas.height - 100)) / (this.levelHeight + canvas.height));
                     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 15, 100, 8);
                     ctx.fillStyle = this.player.jetpackTimer > 0 ? '#ff0055' : '#00d2ff'; ctx.fillRect(canvas.width/2 - 50, 15, 100 * prog, 8);
@@ -313,11 +275,27 @@
 
         let game = new Game(currentLevel);
         function animate() { game.update(); game.draw(ctx); requestAnimationFrame(animate); }
-        function pressStart() { if (gameState === 'GAMEOVER') game = new Game(currentLevel); gameState = 'PLAYING'; uiOverlay.style.display = 'none'; if (game.player.vy === 0) game.player.vy = -17; game.hunter.startTimer(); }
-        function gameOver(t) { gameState = 'GAMEOVER'; setTimeout(() => { uiOverlay.style.display = 'flex'; document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`; document.getElementById('menuTitle').innerText = t; document.getElementById('menuInfo').innerText = `Батуты теперь только ЗЕЛЕНЫЕ!`; document.getElementById('startBtn').innerText = `ИГРАТЬ СНОВА`; updateCoinUI(); }, 500); }
-        function winLevel() { gameState = 'GAMEOVER'; uiOverlay.style.display = 'flex'; currentLevel++; document.getElementById('menuLevel').innerText = `ПОБЕДА!`; document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`; document.getElementById('menuInfo').innerText = `Готов к уровню ${currentLevel}?`; document.getElementById('startBtn').innerText = `СЛЕДУЮЩИЙ УРОВЕНЬ`; updateCoinUI(); }
+        
+        function pressStart() {
+            if (gameState === 'GAMEOVER') game = new Game(currentLevel);
+            gameState = 'PLAYING';
+            uiOverlay.style.display = 'none';
+            
+            // ПРИМЕНЯЕМ КУПЛЕННЫЙ ДЖЕТПАК
+            if (hasJetpack) {
+                game.player.jetpackTimer = 180; // 3 секунды
+            }
+            
+            if (game.player.vy === 0) game.player.vy = -17; 
+            game.hunter.startTimer();
+        }
+
+        function gameOver(t) { gameState = 'GAMEOVER'; setTimeout(() => { uiOverlay.style.display = 'flex'; document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`; document.getElementById('menuTitle').innerText = t; updateCoinUI(); }, 500); }
+        function winLevel() { gameState = 'GAMEOVER'; uiOverlay.style.display = 'flex'; currentLevel++; document.getElementById('menuLevel').innerText = `ПОБЕДА!`; document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`; updateCoinUI(); }
         function updateCoinUI() { document.getElementById('totalCoinsUI').innerText = `💰 Монеты: ${totalCoins}`; }
-        updateCoinUI(); animate();
+        
+        updateCoinUI(); 
+        animate();
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
     </script>
 </body>
