@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Perfect Edition</title>
+    <title>Neon Tower: Ultimate Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -24,50 +24,57 @@
             100% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
         }
 
-        h1 { font-size: 46px; margin-bottom: 10px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 3px; margin-top:0;}
-        h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 32px; margin: 0 0 20px 0; text-align: center; letter-spacing: 2px; }
+        h1 { font-size: 42px; margin-bottom: 10px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 3px; margin-top:0;}
+        h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 30px; margin: 0 0 15px 0; text-align: center; letter-spacing: 2px; }
 
         .ui-btn {
-            padding: 16px 40px; margin: 10px; border-radius: 40px; font-size: 18px; font-weight: bold;
+            padding: 16px 40px; margin: 8px; border-radius: 40px; font-size: 16px; font-weight: bold;
             border: 2px solid rgba(255,255,255,0.1); color: white; cursor: pointer; text-transform: uppercase; width: 280px;
             background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 5px 20px rgba(0, 210, 255, 0.3);
             transition: all 0.2s ease;
         }
         .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 5px 20px rgba(241, 39, 17, 0.3); }
         .btn-endless { background: linear-gradient(45deg, #8A2387, #E94057, #F27121); box-shadow: 0 5px 20px rgba(233, 64, 87, 0.3); }
-        .btn-back { background: transparent; border: 2px solid #555; box-shadow: none; margin-top: 20px; }
+        .btn-back { background: transparent; border: 2px solid #555; box-shadow: none; margin-top: 15px; }
         
         .ui-btn:active { transform: scale(0.95); }
         .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 
+        /* СЕТКА УРОВНЕЙ */
         #levelGrid {
-            display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
-            width: 90%; max-width: 400px; max-height: 50vh; overflow-y: auto;
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+            width: 90%; max-width: 380px; max-height: 50vh; overflow-y: auto;
             padding: 15px; border-radius: 15px; background: rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.1);
         }
         .lvl-btn {
-            aspect-ratio: 1; border-radius: 12px; border: none; font-size: 18px; font-weight: bold;
-            color: white; background: #333; cursor: pointer; transition: 0.2s;
+            aspect-ratio: 1; border-radius: 10px; border: none; font-size: 16px; font-weight: bold;
+            color: white; background: #222; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;
         }
-        .lvl-btn.unlocked { background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 10px #00d2ff; }
-        .lvl-btn.hard { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f12711; color: #fff; }
-        .lvl-btn:active { transform: scale(0.9); }
+        .lvl-btn.completed { background: #111; color: #4caf50; border: 1px solid #4caf50; cursor: not-allowed; }
+        .lvl-btn.current { background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 10px #00d2ff; animation: neonPulse 1.5s infinite; }
+        .lvl-btn.hard { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f12711; animation: neonPulse 1s infinite;}
+        .lvl-btn.locked { background: #1a1a2e; color: #555; cursor: not-allowed; }
+        .lvl-btn:active:not(:disabled) { transform: scale(0.9); }
 
-        #shopList { display: flex; flex-direction: column; width: 90%; max-width: 350px; max-height: 60vh; overflow-y: auto; gap: 15px; padding: 10px; }
+        /* МАГАЗИН GRID */
+        #shopList { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 12px; width: 95%; max-width: 500px; max-height: 65vh; overflow-y: auto; padding: 5px; 
+        }
         .shop-card {
-            background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px;
+            background: rgba(255,255,255,0.05); padding: 12px; border-radius: 15px;
             border: 1px solid rgba(255,255,255,0.1); text-align: center;
-            display: flex; flex-direction: column; align-items: center; position: relative;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative;
         }
-        .shop-card h3 { margin: 0 0 5px 0; font-size: 22px; }
-        .shop-card p { font-size: 14px; color: #aaa; margin: 0 0 10px 0; line-height: 1.3; }
-        .shop-btn { padding: 10px 20px; width: 100%; border-radius: 10px; font-size: 16px; border: none; cursor: pointer; font-weight: bold; color: white; background: #4caf50; transition: 0.2s; }
-        .shop-btn:disabled { background: #555; color: #888; }
+        .shop-card h3 { margin: 10px 0 5px 0; font-size: 18px; }
+        .shop-card p { font-size: 12px; color: #aaa; margin: 0 0 10px 0; line-height: 1.2; flex-grow: 1; }
+        .shop-btn { padding: 8px; width: 100%; border-radius: 8px; font-size: 13px; border: none; cursor: pointer; font-weight: bold; color: white; background: #4caf50; transition: 0.2s; }
+        .shop-btn:disabled { background: #444; color: #777; }
         .shop-btn.equip { background: #00d2ff; }
-        
-        .lvl-badge { position: absolute; top: 10px; right: 10px; background: #ff0055; color: white; font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
+        .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
+        /* HUD */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
@@ -88,12 +95,12 @@
 
     <div id="mainMenu" class="overlay active">
         <h1>NEON RUN</h1>
-        <p style="color: #ccc; margin-bottom: 20px;">Нажми на экран для звука 🔊</p>
+        <p style="color: #aaa; margin-bottom: 15px; font-size: 14px;">Нажми на экран для звука 🔊</p>
         <button class="ui-btn" onclick="showState('LEVELS')">КАМПАНИЯ</button>
         <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕСКОНЕЧНЫЙ</button>
         <button class="ui-btn btn-shop" onclick="showState('SHOP')">МАГАЗИН</button>
-        <p class="coin-hud" style="font-size: 26px; margin-top: 20px;" id="menuCoins">💰 0</p>
-        <p class="hud-text" style="font-size: 16px; color: #888;" id="menuScore">Рекорд: 0 м</p>
+        <p class="coin-hud" style="font-size: 26px; margin-top: 15px;" id="menuCoins">💰 0</p>
+        <p class="hud-text" style="font-size: 14px; color: #888;" id="menuScore">Рекорд: 0 м</p>
     </div>
 
     <div id="levelMenu" class="overlay">
@@ -103,8 +110,8 @@
     </div>
 
     <div id="shopMenu" class="overlay">
-        <h2 style="margin-bottom: 10px;">АРСЕНАЛ</h2>
-        <p class="coin-hud" style="font-size: 22px; margin-top: 0;" id="shopCoins">💰 0</p>
+        <h2 style="margin-bottom: 5px;">АРСЕНАЛ</h2>
+        <p class="coin-hud" style="font-size: 22px; margin-top: 0; margin-bottom: 15px;" id="shopCoins">💰 0</p>
         <div id="shopList"></div>
         <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
     </div>
@@ -117,12 +124,14 @@
     </div>
 
     <script>
-        // --- 1. АБСОЛЮТНО ЧИСТАЯ СИСТЕМА СОХРАНЕНИЙ ---
+        // --- 1. СИСТЕМА СОХРАНЕНИЙ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
             maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
             highScore: parseInt(localStorage.getItem('neonScore')) || 0,
             jetpackLevel: parseInt(localStorage.getItem('neonJetpackLvl')) || 1,
+            magnetCoinLvl: parseInt(localStorage.getItem('neonMagCoin')) || 0,
+            magnetJpLvl: parseInt(localStorage.getItem('neonMagJp')) || 0,
             lives: parseInt(localStorage.getItem('neonLives')) || 0,
             skin: localStorage.getItem('neonSkin') || '#00d2ff',
             ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff']
@@ -133,6 +142,8 @@
             localStorage.setItem('neonMaxLevel', SAVE.maxLevel);
             localStorage.setItem('neonScore', SAVE.highScore);
             localStorage.setItem('neonJetpackLvl', SAVE.jetpackLevel);
+            localStorage.setItem('neonMagCoin', SAVE.magnetCoinLvl);
+            localStorage.setItem('neonMagJp', SAVE.magnetJpLvl);
             localStorage.setItem('neonLives', SAVE.lives);
             localStorage.setItem('neonSkin', SAVE.skin);
             localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
@@ -140,12 +151,7 @@
         }
 
         // --- УПРАВЛЕНИЕ UI ---
-        const overlays = {
-            MAIN: document.getElementById('mainMenu'),
-            LEVELS: document.getElementById('levelMenu'),
-            SHOP: document.getElementById('shopMenu'),
-            END: document.getElementById('endMenu')
-        };
+        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu') };
         const gameHud = document.getElementById('gameHud');
 
         function showState(state) {
@@ -162,41 +168,43 @@
             document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
             document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
-            renderShop();
-            renderLevels();
+            renderShop(); renderLevels();
         }
 
+        // Блокировка пройденных уровней
         function renderLevels() {
             const grid = document.getElementById('levelGrid');
             grid.innerHTML = '';
             for (let i = 1; i <= 100; i++) {
                 let btn = document.createElement('button');
-                btn.className = 'lvl-btn'; btn.innerText = i;
-                if (i <= SAVE.maxLevel) {
+                btn.className = 'lvl-btn'; 
+                
+                if (i < SAVE.maxLevel) {
+                    btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true;
+                } else if (i === SAVE.maxLevel) {
+                    btn.innerText = i;
                     if (i % 5 === 0) btn.classList.add('hard');
-                    else btn.classList.add('unlocked');
+                    else btn.classList.add('current');
                     btn.onclick = () => startGame('campaign', i);
                 } else {
-                    btn.disabled = true;
+                    btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true;
                 }
                 grid.appendChild(btn);
             }
         }
 
-        // МАГАЗИН: Джетпак теперь прокачивается!
+        // Продвинутый магазин
         function renderShop() {
             const list = document.getElementById('shopList');
             list.innerHTML = '';
             
-            // Расчет цены джетпака (каждый уровень на 100 дороже)
-            let jpPrice = SAVE.jetpackLevel * 100;
-            let jpMaxed = SAVE.jetpackLevel >= 10; // Пусть 10 будет макс уровнем
-
             const items = [
-                { id: 'jetpack', name: 'JETPACK 🚀', desc: 'Увеличивает длительность полета ракеты на уровне.', price: jpPrice, type: 'upgrade', maxed: jpMaxed },
-                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Автоматически спасает от смерти (откидывает вверх).', price: 50, type: 'consumable' },
-                { id: '#39ff14', name: 'Скин: ТОКСИК 🟢', desc: 'Радиоактивно зеленый куб.', price: 300, type: 'skin' },
-                { id: '#FFD700', name: 'Скин: ЗОЛОТО 🟡', desc: 'Элитный золотой куб.', price: 1000, type: 'skin' }
+                { id: 'upg_jp', name: 'РАКЕТА 🚀', desc: '+Время полета', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
+                { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус притяжения монет', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
+                { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус притяжения джетпаков', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
+                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Авто-спасение от смерти.', price: 50, type: 'consumable', lvl: SAVE.lives },
+                { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
+                { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' }
             ];
 
             items.forEach(item => {
@@ -205,13 +213,11 @@
                 let disabled = SAVE.coins < item.price;
                 let badge = '';
 
-                if (item.type === 'upgrade') {
-                    badge = `<div class="lvl-badge">LVL ${SAVE.jetpackLevel}</div>`;
+                if (item.type.startsWith('upg') || item.type.startsWith('mag')) {
+                    badge = `<div class="lvl-badge">LVL ${item.lvl}</div>`;
                     if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
                 }
-                if (item.type === 'consumable') { 
-                    badge = `<div class="lvl-badge">У ВАС: ${SAVE.lives}</div>`;
-                }
+                if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
                 if (item.type === 'skin') {
                     if (SAVE.ownedSkins.includes(item.id)) {
                         disabled = false;
@@ -232,12 +238,12 @@
         }
 
         function handleBuy(id, type, price) {
-            if (type === 'skin' && SAVE.ownedSkins.includes(id)) {
-                SAVE.skin = id; sfx.jump(); saveGame(); return;
-            }
+            if (type === 'skin' && SAVE.ownedSkins.includes(id)) { SAVE.skin = id; sfx.jump(); saveGame(); return; }
             if (SAVE.coins >= price) {
                 SAVE.coins -= price;
-                if (type === 'upgrade') SAVE.jetpackLevel++;
+                if (type === 'upg_jp') SAVE.jetpackLevel++;
+                if (type === 'mag_coin') SAVE.magnetCoinLvl++;
+                if (type === 'mag_jp') SAVE.magnetJpLvl++;
                 if (type === 'consumable') SAVE.lives++;
                 if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
                 sfx.purchase(); saveGame();
@@ -256,21 +262,17 @@
                 if(!this.ctx) return;
                 const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                 osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                osc.connect(gain); gain.connect(this.ctx.destination);
-                osc.start(); osc.stop(this.ctx.currentTime + duration);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
             }
             jump() {
-                if(!this.ctx) return;
-                const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                 osc.type = 'sine'; osc.frequency.setValueAtTime(250, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); 
                 gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
                 osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.15);
             }
             coin() {
-                if(!this.ctx) return;
-                const now = this.ctx.currentTime;
+                if(!this.ctx) return; const now = this.ctx.currentTime;
                 const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
                 osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
                 const osc2 = this.ctx.createOscillator(); const gain2 = this.ctx.createGain();
@@ -301,8 +303,7 @@
             }
             death() {
                 if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
                 osc.frequency.setValueAtTime(250, now + 0.2); osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
                 osc.frequency.setValueAtTime(200, now + 0.4); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
                 gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
@@ -313,14 +314,12 @@
                 this.bgmStarted = true;
                 const playNote = (time, freq, vol, type, duration) => {
                     const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
-                    osc.type = type; osc.frequency.value = freq;
-                    g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration);
+                    osc.type = type; osc.frequency.value = freq; g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration);
                     osc.connect(g); g.connect(this.ctx.destination); osc.start(time); osc.stop(time + duration);
                 };
                 let step = 0;
                 this.bgmInterval = setInterval(() => {
-                    if(this.ctx.state !== 'running') return;
-                    const now = this.ctx.currentTime;
+                    if(this.ctx.state !== 'running') return; const now = this.ctx.currentTime;
                     const bassNotes = [130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
                     if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.15);
                     const leadNotes = [523, 0, 659, 0, 783, 0, 659, 0, 1046, 0, 783, 0, 659, 0, 523, 0];
@@ -374,7 +373,7 @@
             constructor(x, y, width, type = 'normal') {
                 this.x = x; this.y = y; this.width = width; this.height = 20;
                 this.type = type; this.moveSpeed = 1.5 + Math.random() * 2; this.direction = Math.random() > 0.5 ? 1 : -1;
-                this.flashTimer = 0; 
+                this.flashTimer = 0; this.broken = false;
             }
             update() {
                 if (this.flashTimer > 0) this.flashTimer--;
@@ -384,6 +383,7 @@
                 }
             }
             draw(ctx) {
+                if(this.broken) return;
                 if (this.type === 'finish') { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700'; }
                 else if (this.flashTimer > 0) { ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; } 
                 else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
@@ -400,6 +400,7 @@
             constructor(x, y, type) { this.x = x; this.y = y; this.type = type; this.width = 24; this.height = 24; this.baseY = y; this.angle = Math.random() * Math.PI * 2; this.markedForDeletion = false; }
             update() { this.angle += 0.05; this.y = this.baseY + Math.sin(this.angle) * 5; }
             draw(ctx) {
+                if(this.markedForDeletion) return;
                 ctx.beginPath();
                 if (this.type === 'coin') { ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 20; ctx.arc(this.x + 12, this.y + 12, 10, 0, Math.PI * 2); }
                 else if (this.type === 'jetpack') { ctx.fillStyle = '#ff0055'; ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 25; ctx.moveTo(this.x+12, this.y-4); ctx.lineTo(this.x+26, this.y+24); ctx.lineTo(this.x-2, this.y+24); }
@@ -455,12 +456,18 @@
                 this.y += this.vy;
                 if (this.vy > 0) {
                     this.game.platforms.forEach(p => {
-                        if (p.type === 'finish') return;
+                        if (p.type === 'finish' || p.broken) return;
                         if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
                             if (this.y + 30 - this.vy <= p.y + 20) { 
                                 this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
                                 if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
                                 else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
+                                
+                                // ХАРДКОР: Блоки рассыпаются после прыжка
+                                if (this.game.isHard && p.type !== 'finish') {
+                                    p.broken = true;
+                                    for(let i=0; i<15; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y + 10, '#555'));
+                                }
                             }
                         }
                     });
@@ -484,8 +491,7 @@
                 this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = [];
                 this.cameraY = 0; this.highestY = canvas.height - 50;
                 
-                // РЕКОРД: Запоминаем точную высоту для честного счета
-                this.maxReachedY = this.player ? this.player.y : canvas.height - 50;
+                this.maxReachedY = this.highestY; 
                 
                 this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
                 this.finishSpawned = false;
@@ -529,13 +535,12 @@
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                // ЧЕСТНЫЙ РЕКОРД (по координате игрока, а не камеры)
                 if (this.player.y < this.maxReachedY) this.maxReachedY = this.player.y;
 
                 this.generateChunk(); 
                 let cleanupY = this.cameraY + canvas.height + 300;
-                this.platforms = this.platforms.filter(p => p.y < cleanupY);
-                this.items = this.items.filter(i => i.y < cleanupY);
+                this.platforms = this.platforms.filter(p => p.y < cleanupY && !p.broken); // Удаляем сломанные
+                this.items = this.items.filter(i => i.y < cleanupY && !i.markedForDeletion); // Удаляем собранные
 
                 this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
                 this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
@@ -545,7 +550,7 @@
                 if (this.mode === 'endless') {
                     let score = Math.floor(Math.max(0, ((canvas.height - 50) - this.maxReachedY) / 10));
                     document.getElementById('hudLeft').innerText = `${score} м`;
-                    if (score > SAVE.highScore) SAVE.highScore = score; // Сохраним при смерти
+                    if (score > SAVE.highScore) SAVE.highScore = score; 
                 }
                 
                 if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
@@ -565,20 +570,34 @@
                     this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) triggerWin(); });
                 }
 
-                // ИДЕАЛЬНЫЙ СБОР ПРЕДМЕТОВ (Хитбоксы расширены)
+                // ЛОГИКА МАГНИТОВ И СБОРА
+                let magCoinRadius = SAVE.magnetCoinLvl * 60;
+                let magJpRadius = SAVE.magnetJpLvl * 60;
+
                 this.items.forEach(item => {
-                    if (!item.markedForDeletion && 
-                        this.player.x < item.x + 30 && this.player.x + 30 > item.x - 10 && 
-                        this.player.y < item.y + 30 && this.player.y + 30 > item.y - 10) {
-                        
+                    if (item.markedForDeletion) return;
+                    
+                    let dx = (this.player.x + 15) - (item.x + 12);
+                    let dy = (this.player.y + 15) - (item.y + 12);
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    // Притяжение магнитом
+                    let radius = item.type === 'coin' ? magCoinRadius : (item.type === 'jetpack' ? magJpRadius : 0);
+                    if (radius > 0 && dist < radius) {
+                        item.x += (dx / dist) * 12;
+                        item.y += (dy / dist) * 12;
+                    }
+
+                    // Четкий хитбокс подбора
+                    if (this.player.x < item.x + 24 && this.player.x + 30 > item.x && this.player.y < item.y + 24 && this.player.y + 30 > item.y) {
                         item.markedForDeletion = true;
+                        
                         if (item.type === 'coin') { 
                             let reward = this.isHard ? 3 : 1; 
-                            SAVE.coins += reward; sfx.coin(); 
-                            saveGame(); // Моментальное сохранение!
+                            SAVE.coins += reward; sfx.coin(); saveGame(); 
                             for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
+                            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
                         } else if (item.type === 'jetpack') { 
-                            // Прокачиваемый джетпак! Уровень 1 дает 120 кадров, дальше +30 за левел
                             this.player.jetpackTimer = 90 + (SAVE.jetpackLevel * 30); 
                             sfx.powerup(); 
                             for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
@@ -631,7 +650,7 @@
         }
 
         function triggerGameOver(reason) { 
-            gameState = 'END'; sfx.death(); saveGame(); // Сохраняем рекорд при смерти
+            gameState = 'END'; sfx.death(); saveGame(); 
             setTimeout(() => { 
                 document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; 
                 document.getElementById('endTitle').style.color = "#ff0055";
