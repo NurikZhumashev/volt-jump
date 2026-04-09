@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Arcade Audio</title>
+    <title>Neon Tower: Terraria Vibe</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -50,7 +50,7 @@
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
         <h1 id="menuTitle">NEON RUN</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 16px; color: #ddd; max-width: 80%;">
-            Включи звук 🔊<br>Музыка играет даже в меню!
+            Включи звук 🔊<br>Кликни куда-нибудь, чтобы заиграла музыка!
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <button class="ui-btn btn-shop" onclick="openShop()">🛒 МАГАЗИН</button>
@@ -84,12 +84,12 @@
         let currentLevel = 1;
         let gameState = 'START'; 
 
-        // --- УЛУЧШЕННЫЙ АУДИО-ДВИЖОК ---
+        // --- УЛУЧШЕННЫЙ АУДИО-СИНТЕЗАТОР (ТЕРРАРИЯ-СТАЙЛ) ---
         class SoundEngine {
             constructor() {
                 this.ctx = null;
                 this.bgmStarted = false;
-                this.bgmNodes = [];
+                this.bgmInterval = null;
             }
             init() {
                 if (!this.ctx) {
@@ -100,85 +100,168 @@
                 if (!this.bgmStarted) this.startBGM();
             }
             
+            // Базовая функция для коротких звуков
             playTone(freq, type, duration, vol=0.2) {
                 if(!this.ctx) return;
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = type;
                 osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(freq / 2, this.ctx.currentTime + duration);
                 gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + duration);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
                 osc.connect(gain); gain.connect(this.ctx.destination);
                 osc.start(); osc.stop(this.ctx.currentTime + duration);
             }
             
+            // Звук прыжка (Мягкий пластик)
             jump() {
-                this.playTone(300, 'triangle', 0.2, 0.3); // Единый громкий звук для всех платформ
+                if(!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine'; // Синусоида дает мягкий, округлый звук
+                osc.frequency.setValueAtTime(250, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); // Резкий спад частоты
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(now); osc.stop(now + 0.15);
             }
             
+            // Звук монеты (Реальный металлический дзынь)
             coin() {
-                this.playTone(987.77, 'sine', 0.1, 0.1);
-                setTimeout(() => this.playTone(1318.51, 'sine', 0.2, 0.1), 50);
+                if(!this.ctx) return;
+                const now = this.ctx.currentTime;
+                // Основной звон (синус)
+                const osc1 = this.ctx.createOscillator();
+                const gain1 = this.ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(2000, now);
+                gain1.gain.setValueAtTime(0.15, now);
+                gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                // Металлический отзвук (квадрат)
+                const osc2 = this.ctx.createOscillator();
+                const gain2 = this.ctx.createGain();
+                osc2.type = 'square';
+                osc2.frequency.setValueAtTime(3000, now);
+                gain2.gain.setValueAtTime(0.03, now);
+                gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+                osc1.connect(gain1); gain1.connect(this.ctx.destination);
+                osc2.connect(gain2); gain2.connect(this.ctx.destination);
+                osc1.start(now); osc1.stop(now + 0.5);
+                osc2.start(now); osc2.stop(now + 0.2);
             }
             
+            // Звук покупки (Кассовый аппарат / успешная покупка)
+            purchase() {
+                if(!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1000, now);
+                osc.frequency.setValueAtTime(1500, now + 0.1); // Двойной тон
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(now); osc.stop(now + 0.3);
+            }
+
+            // Звук подбора предмета/Джетпака
             powerup() {
-                for(let i=0; i<5; i++) {
-                    setTimeout(() => this.playTone(400 + i*150, 'sawtooth', 0.1, 0.1), i*60);
-                }
-            }
-            
-            thrust() {
-                if(Math.random() > 0.7) this.playTone(60 + Math.random()*40, 'sawtooth', 0.1, 0.05);
-            }
-            
-            death() {
+                if(!this.ctx) return;
                 const now = this.ctx.currentTime;
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(300, now);
-                osc.frequency.linearRampToValueAtTime(40, now + 0.8);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.8);
+                osc.frequency.linearRampToValueAtTime(600, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
                 osc.connect(gain); gain.connect(this.ctx.destination);
-                osc.start(); osc.stop(now + 0.8);
+                osc.start(now); osc.stop(now + 0.3);
             }
             
+            // Гудение джетпака в полете
+            thrust() {
+                if(!this.ctx) return;
+                if(Math.random() > 0.7) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+                }
+            }
+            
+            // Звук смерти (Досадный спуск)
+            death() {
+                if(!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                
+                // Ступенчатое понижение
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
+                osc.frequency.setValueAtTime(250, now + 0.2);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+                osc.frequency.setValueAtTime(200, now + 0.4);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
+                
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 1.0);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(now); osc.stop(now + 1.0);
+            }
+            
+            // Террария-стайл музыка
             startBGM() {
                 if (!this.ctx || this.bgmStarted) return;
                 this.bgmStarted = true;
-                
-                const playStep = (time, freq, vol) => {
+
+                const playNote = (time, freq, vol, type, duration) => {
                     const osc = this.ctx.createOscillator();
                     const g = this.ctx.createGain();
-                    osc.type = 'triangle';
+                    osc.type = type;
                     osc.frequency.value = freq;
                     g.gain.setValueAtTime(vol, time);
-                    g.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                    g.gain.exponentialRampToValueAtTime(0.001, time + duration);
                     osc.connect(g); g.connect(this.ctx.destination);
-                    osc.start(time); osc.stop(time + 0.1);
+                    osc.start(time); osc.stop(time + duration);
                 };
 
                 let step = 0;
-                setInterval(() => {
+                this.bgmInterval = setInterval(() => {
+                    if(this.ctx.state !== 'running') return;
                     const now = this.ctx.currentTime;
-                    // Басовая линия (ритм)
-                    if (step % 2 === 0) playStep(now, 55, 0.05); // Ля
-                    if (step % 4 === 2) playStep(now, 41, 0.05); // Ми
                     
-                    // Легкая мелодия
-                    if (step % 8 === 0) playStep(now, 220, 0.02);
-                    if (step % 8 === 3) playStep(now, 330, 0.02);
-                    
+                    // Бас (прыгающий квадрат)
+                    const bassNotes = [130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
+                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.15);
+
+                    // Мелодия (звенящий синус)
+                    const leadNotes = [523, 0, 659, 0, 783, 0, 659, 0, 1046, 0, 783, 0, 659, 0, 523, 0];
+                    if (leadNotes[step]) playNote(now, leadNotes[step], 0.03, 'sine', 0.2);
+
                     step = (step + 1) % 16;
-                }, 200);
+                }, 180); // Темп (180мс на шаг)
+            }
+
+            stopBGM() {
+                clearInterval(this.bgmInterval);
+                this.bgmStarted = false;
             }
         }
         const sfx = new SoundEngine();
 
         // --- МАГАЗИН ---
-        function openShop() { shopOverlay.style.display = 'flex'; updateShopButtons(); }
+        function openShop() { sfx.init(); shopOverlay.style.display = 'flex'; updateShopButtons(); }
         function closeShop() { shopOverlay.style.display = 'none'; }
         
         function updateShopButtons() {
@@ -192,7 +275,7 @@
             if (totalCoins >= 200 && !hasJetpack) {
                 totalCoins -= 200; hasJetpack = true;
                 localStorage.setItem('neonCoins', totalCoins); localStorage.setItem('hasJetpack', 'true');
-                sfx.powerup(); 
+                sfx.purchase(); // РЕАЛИСТИЧНЫЙ ЗВУК ПОКУПКИ
                 updateCoinUI(); updateShopButtons();
             }
         }
@@ -307,7 +390,7 @@
                 
                 if (this.jetpackTimer > 0) { 
                     this.vy = -18; this.jetpackTimer--; 
-                    sfx.thrust(); // Звук джетпака
+                    sfx.thrust(); 
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); 
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff0055', true)); 
                 } else { this.vy += 0.8; }
@@ -319,7 +402,7 @@
                         if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
                             if (this.y + 30 - this.vy <= p.y + 20) { 
                                 this.y = p.y - 30; p.flashTimer = 5; 
-                                sfx.jump(); // Всегда одинаковый сочный прыжок
+                                sfx.jump(); // МЯГКИЙ ПЛАСТИКОВЫЙ ЗВУК ДЛЯ ВСЕХ
                                 if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
                                 else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
                             }
@@ -351,6 +434,7 @@
                     let r = Math.random(); let type = 'normal';
                     if (r > 0.85) type = 'spring'; else if (r > 0.65) type = 'moving';
                     this.platforms.push(new Platform(x, this.platformY, w, type));
+                    
                     let ri = Math.random();
                     if (ri > 0.96) this.items.push(new Item(x + w/2 - 12, this.platformY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.platformY - 35, 'coin'));
@@ -362,13 +446,24 @@
                 this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
                 this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
                 this.cameraY += (this.player.y - canvas.height/2 - this.cameraY) * 0.1; 
-                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) gameOver("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
+                
+                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
+                    for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
+                    gameOver("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
+                }
                 this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) winLevel(); });
                 this.items.forEach(item => {
                     if (!item.markedForDeletion && this.player.x < item.x+24 && this.player.x+30 > item.x && this.player.y < item.y+24 && this.player.y+30 > item.y) {
                         item.markedForDeletion = true;
-                        if (item.type === 'coin') { totalCoins++; localStorage.setItem('neonCoins', totalCoins); sfx.coin(); for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); }
-                        else if (item.type === 'jetpack') { this.player.jetpackTimer = 180; sfx.powerup(); for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); }
+                        if (item.type === 'coin') { 
+                            totalCoins++; localStorage.setItem('neonCoins', totalCoins); 
+                            sfx.coin(); 
+                            for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
+                        } else if (item.type === 'jetpack') { 
+                            this.player.jetpackTimer = 180; 
+                            sfx.powerup(); 
+                            for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
+                        }
                     }
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
@@ -380,6 +475,7 @@
                 this.hunter.draw(ctx); if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') this.player.draw(ctx);
                 this.particles.forEach(p => p.draw(ctx));
                 ctx.restore();
+                
                 if (gameState === 'PLAYING') {
                     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, canvas.width, 50);
                     ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.fillText(`УРОВЕНЬ ${currentLevel}`, 20, 32);
@@ -395,7 +491,7 @@
         function animate() { game.update(); game.draw(ctx); requestAnimationFrame(animate); }
         
         function pressStart() {
-            sfx.init(); // Запуск звука при нажатии на Старт
+            sfx.init(); 
             if (gameState === 'GAMEOVER') game = new Game(currentLevel);
             gameState = 'PLAYING'; uiOverlay.style.display = 'none';
             if (hasJetpack) { game.player.jetpackTimer = 180; sfx.powerup(); }
@@ -405,7 +501,7 @@
 
         function gameOver(t) { 
             gameState = 'GAMEOVER'; 
-            sfx.death(); 
+            sfx.stopBGM(); sfx.death(); 
             setTimeout(() => { uiOverlay.style.display = 'flex'; document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`; document.getElementById('menuTitle').innerText = t; updateCoinUI(); }, 800); 
         }
         function winLevel() { 
