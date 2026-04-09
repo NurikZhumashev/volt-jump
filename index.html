@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Balanced Hunter</title>
+    <title>Neon Tower: Chill Hunter</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
@@ -32,7 +32,7 @@
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
         <h1 id="menuTitle" style="font-size: 32px; margin-bottom: 20px; text-align: center;">NEON RUN</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 18px; color: #ccc;">
-            Касание в левой половине — влево.<br>Красный Охотник выйдет на след через 2 секунды.
+            Касание в левой половине — влево.<br>Красный Охотник теперь ОЧЕНЬ медленный.
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <p id="totalCoinsUI" style="color: #FFD700; margin-top: 20px; font-size: 22px; font-weight: bold;">💰 0</p>
@@ -50,11 +50,9 @@
         let currentLevel = 1;
         let gameState = 'START'; 
 
-        // --- УПРАВЛЕНИЕ ---
         class InputHandler {
             constructor() {
                 this.keys = [];
-                
                 window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
                 window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
                 
@@ -72,11 +70,8 @@
                 };
 
                 const handleTouchEnd = (e) => {
-                    if (e.touches.length === 0) {
-                        this.keys = []; 
-                    } else {
-                        handleTouch(e); 
-                    }
+                    if (e.touches.length === 0) this.keys = []; 
+                    else handleTouch(e); 
                 };
 
                 canvas.addEventListener('touchstart', handleTouch, {passive: false});
@@ -106,7 +101,6 @@
             }
         }
 
-        // --- СИСТЕМА ЧАСТИЦ ---
         class Particle {
             constructor(x, y, color, isFire = false) {
                 this.x = x; this.y = y; this.color = color;
@@ -125,7 +119,6 @@
             }
         }
 
-        // --- ПЛАТФОРМЫ ---
         class Platform {
             constructor(x, y, width, type = 'normal') {
                 this.x = x; this.y = y; this.width = width; this.height = 20;
@@ -141,14 +134,12 @@
                     ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height);
                     ctx.fillStyle = '#00ffcc';
                 }
-                
                 if(this.type !== 'finish') ctx.fillRect(this.x, this.y, this.width, 4);
                 else ctx.fillRect(this.x, this.y, this.width, this.height);
                 ctx.shadowBlur = 0;
             }
         }
 
-        // --- ПРЕДМЕТЫ ---
         class Item {
             constructor(x, y, type) {
                 this.x = x; this.y = y; this.type = type; 
@@ -172,7 +163,7 @@
             }
         }
 
-        // --- ОХОТНИК С БАЛАНСИРОВАННОЙ СКОРОСТЬЮ ---
+        // --- ОХОТНИК (МЕДЛЕННАЯ ВЕРСИЯ) ---
         class Hunter {
             constructor(game) {
                 this.game = game;
@@ -187,9 +178,7 @@
                 this.active = false; 
                 this.startTime = 0; 
             }
-            startTimer() {
-                this.startTime = Date.now(); 
-            }
+            startTimer() { this.startTime = Date.now(); }
             update() {
                 if (gameState !== 'PLAYING') return;
 
@@ -208,30 +197,24 @@
                 let dy = targetY - this.y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
 
-                // --- ЛОГИКА СКОРОСТИ ---
-                // Базовая скорость (чуть медленнее игрока)
-                let speed = 2.8 + (this.game.level * 0.2); 
+                // --- НОВЫЙ БАЛАНС СКОРОСТИ ---
+                let speed = 1.6 + (this.game.level * 0.1); // Сделано медленнее
 
-                // Если игрок улетел далеко (на джетпаке), охотник начинает разгоняться
                 if (distance > 300) {
-                    speed += (distance - 300) * 0.015; 
+                    speed += (distance - 300) * 0.005; // Разгон стал очень слабым
                 }
                 
-                // Максимальный предел скорости, чтобы он не телепортировался
-                let maxSpeed = 14 + (this.game.level * 0.5);
+                let maxSpeed = 8 + (this.game.level * 0.5); // Максимальный лимит снижен
                 if (speed > maxSpeed) speed = maxSpeed;
 
-                // Движение по вектору
                 if (distance > 0) {
                     this.x += (dx / distance) * speed;
                     this.y += (dy / distance) * speed;
                 }
 
-                // --- МЯГКИЕ ТИСКИ ЭКРАНА ---
                 let screenBottom = this.game.cameraY + canvas.height - this.height - 10;
                 if (this.y > screenBottom) {
-                    // Плавно подтягиваем его к низу экрана, а не жестко телепортируем
-                    this.y -= (this.y - screenBottom) * 0.15;
+                    this.y -= (this.y - screenBottom) * 0.08; // Подтягивание к камере стало мягче
                 }
 
                 if (Math.random() > 0.4) {
@@ -243,23 +226,18 @@
                 ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 20; ctx.shadowColor = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
-                
                 let lookX = (this.game.player.x - this.x) > 0 ? 3 : -3;
                 let lookY = (this.game.player.y - this.y) > 0 ? 3 : -3;
-                
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(this.x + 6 + lookX, this.y + 10 + lookY, 8, 8);
                 ctx.fillRect(this.x + 24 + lookX, this.y + 10 + lookY, 8, 8);
-                
                 ctx.fillStyle = '#000';
                 ctx.fillRect(this.x + 8 + lookX, this.y + 12 + lookY, 4, 4);
                 ctx.fillRect(this.x + 26 + lookX, this.y + 12 + lookY, 4, 4);
-                
                 ctx.shadowBlur = 0;
             }
         }
 
-        // --- ИГРОК ---
         class Player {
             constructor(game) {
                 this.game = game;
@@ -275,7 +253,6 @@
             }
             update(input) {
                 if (gameState !== 'PLAYING') return;
-
                 if (input.keys.includes('ArrowRight')) this.vx = 8;
                 else if (input.keys.includes('ArrowLeft')) this.vx = -8;
                 else this.vx *= 0.8;
@@ -288,40 +265,27 @@
                 } else {
                     this.vy += 0.8; 
                 }
-
                 this.y += this.vy;
-                
                 if (this.vy > 0) {
                     this.game.platforms.forEach(plat => {
                         if (plat.type === 'finish') return; 
-
                         if (this.x < plat.x + plat.width && this.x + this.width > plat.x &&
                             this.y < plat.y + plat.height && this.y + this.height > plat.y) {
-                            
                             if (this.y + this.height - this.vy <= plat.y + 20) {
                                 this.y = plat.y - this.height;
-                                
-                                if (plat.type === 'spring') {
-                                    this.vy = -26; 
-                                    this.createJumpDust('#00ff00');
-                                } else {
-                                    this.vy = -17; 
-                                    this.createJumpDust('#ffffff');
-                                }
+                                if (plat.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00'); }
+                                else { this.vy = -17; this.createJumpDust('#ffffff'); }
                             }
                         }
                     });
                 }
-
                 this.x += this.vx;
                 if (this.x > canvas.width) this.x = -this.width;
                 if (this.x < -this.width) this.x = canvas.width;
             }
-
             createJumpDust(color = '#fff') {
                 for(let i=0; i<5; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color));
             }
-
             draw(ctx) {
                 ctx.fillStyle = this.jetpackTimer > 0 ? '#ff0055' : this.color; 
                 ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
@@ -329,7 +293,6 @@
             }
         }
 
-        // --- ДВИЖОК ИГРЫ ---
         class Game {
             constructor(level) {
                 this.input = new InputHandler();
@@ -338,58 +301,42 @@
                 this.level = level;
                 this.levelHeight = 1500 + (level * 1000); 
                 this.platformY = canvas.height - 50;
-                
                 this.platforms.push(new Platform(0, this.platformY, canvas.width, 'normal'));
                 this.buildLevel();
-
                 this.player = new Player(this);
                 this.hunter = new Hunter(this);
             }
-
             buildLevel() {
                 let targetY = -this.levelHeight;
                 while (this.platformY > targetY) {
                     this.platformY -= 90 + Math.random() * 40;
                     let width = 70 + Math.random() * 100;
                     let x = Math.random() * (canvas.width - width);
-                    
                     let type = Math.random() > 0.85 ? 'spring' : 'normal';
                     this.platforms.push(new Platform(x, this.platformY, width, type));
-
                     let randItem = Math.random();
-                    if (randItem > 0.96) {
-                        this.items.push(new Item(x + width/2 - 12, this.platformY - 40, 'jetpack'));
-                    } else if (randItem > 0.6) {
-                        this.items.push(new Item(x + width/2 - 12, this.platformY - 35, 'coin'));
-                    }
+                    if (randItem > 0.96) this.items.push(new Item(x + width/2 - 12, this.platformY - 40, 'jetpack'));
+                    else if (randItem > 0.6) this.items.push(new Item(x + width/2 - 12, this.platformY - 35, 'coin'));
                 }
                 this.platforms.push(new Platform(0, targetY - 100, canvas.width, 'finish'));
             }
-
             update() {
                 if (gameState !== 'PLAYING') return;
-
                 this.player.update(this.input);
                 this.hunter.update(); 
-                
                 this.items.forEach(i => i.update());
                 this.particles.forEach(p => p.update());
                 this.particles = this.particles.filter(p => p.life > 0);
-
                 let targetCamera = this.player.y - canvas.height / 2;
                 this.cameraY += (targetCamera - this.cameraY) * 0.1; 
-
-                // КОЛЛИЗИЯ С ОХОТНИКОМ
                 if (this.hunter.active && 
                     this.player.x < this.hunter.x + this.hunter.width - 5 && 
                     this.player.x + this.player.width > this.hunter.x + 5 &&
                     this.player.y < this.hunter.y + this.hunter.height - 5 && 
                     this.player.y + this.player.height > this.hunter.y + 5) {
-                    
                     for(let i=0; i<30; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033'));
                     gameOver("ОХОТНИК ДОГНАЛ ТЕБЯ!");
                 }
-
                 this.platforms.forEach(plat => {
                     if (plat.type === 'finish') {
                         if (this.player.x < plat.x + plat.width && this.player.x + this.player.width > plat.x &&
@@ -398,12 +345,10 @@
                         }
                     }
                 });
-
                 this.items.forEach(item => {
                     if (!item.markedForDeletion && 
                         this.player.x < item.x + item.width && this.player.x + this.player.width > item.x &&
                         this.player.y < item.y + item.height && this.player.y + this.player.height > item.y) {
-                        
                         item.markedForDeletion = true;
                         if (item.type === 'coin') {
                             totalCoins++;
@@ -417,31 +362,22 @@
                 });
                 this.items = this.items.filter(i => !i.markedForDeletion);
             }
-
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.save();
                 ctx.translate(0, -this.cameraY);
-
                 this.platforms.forEach(p => p.draw(ctx));
                 this.items.forEach(i => i.draw(ctx));
                 this.particles.forEach(p => p.draw(ctx));
-                
                 this.hunter.draw(ctx); 
-                
-                if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') {
-                    this.player.draw(ctx);
-                }
-
+                if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') this.player.draw(ctx);
                 ctx.restore();
-
                 if (gameState === 'PLAYING') {
                     ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial';
                     ctx.fillText(`УРОВЕНЬ ${currentLevel}`, 20, 30);
                     ctx.fillStyle = '#FFD700'; ctx.textAlign = 'right';
                     ctx.fillText(`💰 ${totalCoins}`, canvas.width - 20, 30);
                     ctx.textAlign = 'left';
-                    
                     let progress = Math.min(1, Math.abs(this.player.y - (canvas.height - 100)) / (this.levelHeight + canvas.height));
                     ctx.fillStyle = 'rgba(255,255,255,0.2)';
                     ctx.fillRect(canvas.width/2 - 50, 15, 100, 8);
@@ -452,57 +388,38 @@
         }
 
         let game = new Game(currentLevel);
-
-        function animate() {
-            game.update();
-            game.draw(ctx);
-            requestAnimationFrame(animate);
-        }
-
+        function animate() { game.update(); game.draw(ctx); requestAnimationFrame(animate); }
         function pressStart() {
-            if (gameState === 'GAMEOVER') {
-                game = new Game(currentLevel);
-            }
+            if (gameState === 'GAMEOVER') game = new Game(currentLevel);
             gameState = 'PLAYING';
             uiOverlay.style.display = 'none';
             if (game.player.vy === 0) game.player.vy = -17; 
             game.hunter.startTimer();
         }
-
         function gameOver(reasonText) {
             gameState = 'GAMEOVER';
             setTimeout(() => { 
                 uiOverlay.style.display = 'flex';
                 document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`;
                 document.getElementById('menuTitle').innerText = reasonText; 
-                document.getElementById('menuInfo').innerText = `Он никогда не промахивается.`;
+                document.getElementById('menuInfo').innerText = `Теперь он медленный, не зевай!`;
                 document.getElementById('startBtn').innerText = `ИГРАТЬ СНОВА`; 
                 updateCoinUI();
             }, 500);
         }
-
         function winLevel() {
             gameState = 'GAMEOVER';
             uiOverlay.style.display = 'flex';
             currentLevel++;
             document.getElementById('menuLevel').innerText = `ПОБЕДА!`;
             document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`;
-            document.getElementById('menuInfo').innerText = `С каждым уровнем Охотник всё быстрее...`;
+            document.getElementById('menuInfo').innerText = `Готов к уровню ${currentLevel}?`;
             document.getElementById('startBtn').innerText = `СЛЕДУЮЩИЙ УРОВЕНЬ`; 
             updateCoinUI();
         }
-
-        function updateCoinUI() {
-            document.getElementById('totalCoinsUI').innerText = `💰 Монеты: ${totalCoins}`;
-        }
-
-        updateCoinUI();
-        animate();
-
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
+        function updateCoinUI() { document.getElementById('totalCoinsUI').innerText = `💰 Монеты: ${totalCoins}`; }
+        updateCoinUI(); animate();
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
     </script>
 </body>
 </html>
