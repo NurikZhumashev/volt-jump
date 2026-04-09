@@ -3,282 +3,332 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Terraria Vibe</title>
+    <title>Neon Tower: The Masterpiece</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
-        canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
+        canvas { display: block; width: 100vw; height: 100vh; }
         
-        #uiOverlay, #shopOverlay {
+        /* Экраны интерфейса */
+        .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: radial-gradient(circle at center, rgba(11,11,26,0.7) 0%, rgba(0,0,0,0.95) 100%);
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            z-index: 20; color: white;
+            background: radial-gradient(circle at center, rgba(11,11,26,0.85) 0%, rgba(0,0,0,0.98) 100%);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            z-index: 20; color: white; transition: opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 0; visibility: hidden;
         }
-        #shopOverlay { display: none; z-index: 30; }
+        .overlay.active { opacity: 1; visibility: visible; }
 
         @keyframes neonPulse {
             0% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
-            50% { text-shadow: 0 0 20px #00d2ff, 0 0 40px #00d2ff, 0 0 60px #00d2ff; transform: scale(1.05); }
+            50% { text-shadow: 0 0 20px #00d2ff, 0 0 40px #00d2ff; transform: scale(1.05); }
             100% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
         }
 
-        h1 { font-size: 42px; margin-bottom: 20px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 2px; }
-        h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 28px; margin: 0 0 10px 0; text-align: center; letter-spacing: 1px; }
+        h1 { font-size: 46px; margin-bottom: 10px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 3px; margin-top:0;}
+        h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 32px; margin: 0 0 20px 0; text-align: center; letter-spacing: 2px; }
 
         .ui-btn {
-            padding: 16px 40px; margin: 12px; border-radius: 40px; font-size: 20px; font-weight: bold;
-            border: 2px solid rgba(255,255,255,0.2); color: white; cursor: pointer; text-transform: uppercase; width: 280px;
-            background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 8px 25px rgba(0, 210, 255, 0.4);
+            padding: 16px 40px; margin: 10px; border-radius: 40px; font-size: 18px; font-weight: bold;
+            border: 2px solid rgba(255,255,255,0.1); color: white; cursor: pointer; text-transform: uppercase; width: 280px;
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 5px 20px rgba(0, 210, 255, 0.3);
             transition: all 0.2s ease;
         }
-        .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 8px 25px rgba(241, 39, 17, 0.4); }
-        .ui-btn:active { transform: scale(0.92); box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-        .ui-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; box-shadow: none; border-color: transparent; }
+        .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 5px 20px rgba(241, 39, 17, 0.3); }
+        .btn-endless { background: linear-gradient(45deg, #8A2387, #E94057, #F27121); box-shadow: 0 5px 20px rgba(233, 64, 87, 0.3); }
+        .btn-back { background: transparent; border: 2px solid #555; box-shadow: none; margin-top: 20px; }
+        
+        .ui-btn:active { transform: scale(0.95); }
+        .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 
-        .shop-card {
-            background: rgba(255,255,255,0.05); padding: 25px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.1); text-align: center; width: 80%; max-width: 320px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5); margin-bottom: 20px;
+        /* Сетка уровней */
+        #levelGrid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+            width: 90%; max-width: 400px; max-height: 50vh; overflow-y: auto;
+            padding: 15px; border-radius: 15px; background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .shop-card h3 { margin-top: 0; font-size: 24px; text-shadow: 0 0 10px #ff0055; }
+        .lvl-btn {
+            aspect-ratio: 1; border-radius: 12px; border: none; font-size: 18px; font-weight: bold;
+            color: white; background: #333; cursor: pointer; transition: 0.2s;
+        }
+        .lvl-btn.unlocked { background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 10px #00d2ff; }
+        .lvl-btn.hard { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f12711; color: #fff; }
+        .lvl-btn:active { transform: scale(0.9); }
+
+        /* Магазин */
+        #shopList { display: flex; flex-direction: column; width: 90%; max-width: 350px; max-height: 60vh; overflow-y: auto; gap: 15px; }
+        .shop-card {
+            background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1); text-align: center;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .shop-card h3 { margin: 0 0 5px 0; font-size: 22px; }
+        .shop-card p { font-size: 14px; color: #aaa; margin: 0 0 10px 0; line-height: 1.3; }
+        .shop-btn { padding: 10px 20px; width: 100%; border-radius: 10px; font-size: 16px; border: none; cursor: pointer; font-weight: bold; color: white; background: #4caf50; transition: 0.2s; }
+        .shop-btn:disabled { background: #555; color: #888; }
+        .shop-btn.equip { background: #00d2ff; }
+
+        .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
+        .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
+        .lives-hud { color: #ff0055; text-shadow: 0 0 10px #ff0055; margin-top: 5px; font-size: 18px;}
     </style>
 </head>
-<body onclick="sfx.init()"> <canvas id="gameCanvas"></canvas>
+<body onclick="sfx.init()">
 
-    <div id="uiOverlay">
-        <h2 id="menuLevel">УРОВЕНЬ 1</h2>
-        <h1 id="menuTitle">NEON RUN</h1>
-        <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 16px; color: #ddd; max-width: 80%;">
-            Включи звук 🔊<br>Кликни куда-нибудь, чтобы заиграла музыка!
-        </p>
-        <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
-        <button class="ui-btn btn-shop" onclick="openShop()">🛒 МАГАЗИН</button>
-        <div style="background: rgba(0,0,0,0.5); padding: 10px 30px; border-radius: 20px; margin-top: 20px; border: 1px solid #FFD700;">
-            <p id="totalCoinsUI" style="color: #FFD700; font-size: 24px; font-weight: bold; margin: 0; text-shadow: 0 0 10px #FFD700;">💰 0</p>
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="top-hud" id="gameHud" style="display:none;">
+        <div>
+            <div class="hud-text" id="hudLeft">УРОВЕНЬ 1</div>
+            <div class="lives-hud" id="hudLives">❤️ 0</div>
         </div>
+        <div class="hud-text coin-hud" id="hudCoins">💰 0</div>
     </div>
 
-    <div id="shopOverlay">
-        <h2>АРСЕНАЛ</h2>
-        <div class="shop-card">
-            <h3 style="color: #ff0055;">JETPACK 🚀</h3>
-            <p style="font-size: 15px; color: #ccc; line-height: 1.4;">Дает огненное ускорение на 3 сек. при старте уровня. Остается навсегда.</p>
-            <p style="color: #FFD700; font-weight: bold; font-size: 20px; margin: 15px 0;">200 💰</p>
-            <button class="ui-btn" id="buyJetpackBtn" onclick="buyJetpack()" style="width: 100%; font-size: 18px; margin: 0;">КУПИТЬ</button>
-        </div>
-        <button class="ui-btn" onclick="closeShop()" style="background: #333; box-shadow: none; border-color: #555;">НАЗАД</button>
+    <div id="mainMenu" class="overlay active">
+        <h1>NEON RUN</h1>
+        <p style="color: #ccc; margin-bottom: 20px;">Включи звук 🔊</p>
+        <button class="ui-btn" onclick="showState('LEVELS')">КАМПАНИЯ</button>
+        <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕСКОНЕЧНЫЙ</button>
+        <button class="ui-btn btn-shop" onclick="showState('SHOP')">МАГАЗИН</button>
+        <p class="coin-hud" style="font-size: 24px; margin-top: 20px;" id="menuCoins">💰 0</p>
+        <p class="hud-text" style="font-size: 16px; color: #888;" id="menuScore">Рекорд: 0 м</p>
+    </div>
+
+    <div id="levelMenu" class="overlay">
+        <h2>КАМПАНИЯ</h2>
+        <div id="levelGrid"></div>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
+    </div>
+
+    <div id="shopMenu" class="overlay">
+        <h2 style="margin-bottom: 10px;">АРСЕНАЛ</h2>
+        <p class="coin-hud" style="font-size: 20px; margin-top: 0;" id="shopCoins">💰 0</p>
+        <div id="shopList">
+            </div>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
+    </div>
+
+    <div id="endMenu" class="overlay">
+        <h2 id="endTitle">УРОВЕНЬ ПРОЙДЕН</h2>
+        <p id="endDesc" style="color: #ccc; font-size: 18px; margin-bottom: 30px;">Молодец!</p>
+        <button class="ui-btn" id="endBtn1" onclick="nextAction()">ДАЛЕЕ</button>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">В МЕНЮ</button>
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const uiOverlay = document.getElementById('uiOverlay');
-        const shopOverlay = document.getElementById('shopOverlay');
+        // --- СИСТЕМА СОХРАНЕНИЙ И ДАННЫХ ---
+        const SAVE = {
+            coins: parseInt(localStorage.getItem('neonCoins')) || 0,
+            maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
+            highScore: parseInt(localStorage.getItem('neonScore')) || 0,
+            jetpack: localStorage.getItem('hasJetpack') === 'true',
+            lives: parseInt(localStorage.getItem('neonLives')) || 0,
+            skin: localStorage.getItem('neonSkin') || '#00d2ff',
+            ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff']
+        };
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        function saveGame() {
+            localStorage.setItem('neonCoins', SAVE.coins);
+            localStorage.setItem('neonMaxLevel', SAVE.maxLevel);
+            localStorage.setItem('neonScore', SAVE.highScore);
+            localStorage.setItem('hasJetpack', SAVE.jetpack);
+            localStorage.setItem('neonLives', SAVE.lives);
+            localStorage.setItem('neonSkin', SAVE.skin);
+            localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
+            updateUI();
+        }
 
-        let totalCoins = parseInt(localStorage.getItem('neonCoins')) || 0;
-        let hasJetpack = localStorage.getItem('hasJetpack') === 'true';
-        let currentLevel = 1;
-        let gameState = 'START'; 
+        // --- УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ ---
+        const overlays = {
+            MAIN: document.getElementById('mainMenu'),
+            LEVELS: document.getElementById('levelMenu'),
+            SHOP: document.getElementById('shopMenu'),
+            END: document.getElementById('endMenu')
+        };
+        const gameHud = document.getElementById('gameHud');
 
-        // --- УЛУЧШЕННЫЙ АУДИО-СИНТЕЗАТОР (ТЕРРАРИЯ-СТАЙЛ) ---
-        class SoundEngine {
-            constructor() {
-                this.ctx = null;
-                this.bgmStarted = false;
-                this.bgmInterval = null;
-            }
-            init() {
-                if (!this.ctx) {
-                    const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    this.ctx = new AudioContext();
+        function showState(state) {
+            sfx.init();
+            Object.values(overlays).forEach(el => el.classList.remove('active'));
+            gameHud.style.display = 'none';
+            if(overlays[state]) overlays[state].classList.add('active');
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
+            document.getElementById('shopCoins').innerText = `💰 Доступно: ${SAVE.coins}`;
+            document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
+            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
+            document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
+            renderShop();
+            renderLevels();
+        }
+
+        // Генерация уровней (до 100)
+        function renderLevels() {
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 100; i++) {
+                let btn = document.createElement('button');
+                btn.className = 'lvl-btn';
+                btn.innerText = i;
+                if (i <= SAVE.maxLevel) {
+                    if (i % 5 === 0) btn.classList.add('hard');
+                    else btn.classList.add('unlocked');
+                    btn.onclick = () => startGame('campaign', i);
+                } else {
+                    btn.disabled = true;
                 }
+                grid.appendChild(btn);
+            }
+        }
+
+        // Генерация магазина
+        const SHOP_ITEMS = [
+            { id: 'jetpack', name: 'JETPACK 🚀', desc: 'Ускорение на 3 сек. в начале каждого забега. Навсегда.', price: 200, type: 'perm' },
+            { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Спасает от одной смерти. Расходуется автоматически.', price: 50, type: 'consumable' },
+            { id: '#39ff14', name: 'Скин: ТОКСИК 🟢', desc: 'Радиоактивно зеленый цвет куба.', price: 300, type: 'skin' },
+            { id: '#FFD700', name: 'Скин: ЗОЛОТО 🟡', desc: 'Элитный золотой цвет куба.', price: 1000, type: 'skin' }
+        ];
+
+        function renderShop() {
+            const list = document.getElementById('shopList');
+            list.innerHTML = '';
+            SHOP_ITEMS.forEach(item => {
+                let isOwned = false;
+                let isEquipped = false;
+                let actionText = `КУПИТЬ (${item.price} 💰)`;
+                let btnClass = 'shop-btn';
+                let disabled = SAVE.coins < item.price;
+
+                if (item.type === 'perm' && SAVE.jetpack) { isOwned = true; actionText = 'КУПЛЕНО'; disabled = true; }
+                if (item.type === 'consumable') { actionText = `КУПИТЬ (${item.price} 💰) У вас: ${SAVE.lives}`; disabled = SAVE.coins < item.price; }
+                if (item.type === 'skin') {
+                    if (SAVE.ownedSkins.includes(item.id)) {
+                        isOwned = true; disabled = false;
+                        if (SAVE.skin === item.id) { isEquipped = true; actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
+                        else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
+                    }
+                }
+
+                list.innerHTML += `
+                    <div class="shop-card">
+                        <h3 style="color:${item.type==='skin'?item.id:'#ff0055'}">${item.name}</h3>
+                        <p>${item.desc}</p>
+                        <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price})">${actionText}</button>
+                    </div>
+                `;
+            });
+        }
+
+        function handleBuy(id, type, price) {
+            if (type === 'skin' && SAVE.ownedSkins.includes(id)) {
+                SAVE.skin = id; sfx.jump(); saveGame(); return;
+            }
+            if (SAVE.coins >= price) {
+                SAVE.coins -= price;
+                if (type === 'perm') SAVE.jetpack = true;
+                if (type === 'consumable') SAVE.lives++;
+                if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
+                sfx.purchase(); saveGame();
+            }
+        }
+
+        // --- АУДИО (ТЕРРАРИЯ-СТАЙЛ) ---
+        class SoundEngine {
+            constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
+            init() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 if (this.ctx.state === 'suspended') this.ctx.resume();
                 if (!this.bgmStarted) this.startBGM();
             }
-            
-            // Базовая функция для коротких звуков
             playTone(freq, type, duration, vol=0.2) {
                 if(!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
                 gain.gain.setValueAtTime(vol, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
                 osc.connect(gain); gain.connect(this.ctx.destination);
                 osc.start(); osc.stop(this.ctx.currentTime + duration);
             }
-            
-            // Звук прыжка (Мягкий пластик)
             jump() {
                 if(!this.ctx) return;
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine'; // Синусоида дает мягкий, округлый звук
-                osc.frequency.setValueAtTime(250, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); // Резкий спад частоты
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                osc.connect(gain); gain.connect(this.ctx.destination);
-                osc.start(now); osc.stop(now + 0.15);
+                const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = 'sine'; osc.frequency.setValueAtTime(250, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); 
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.15);
             }
-            
-            // Звук монеты (Реальный металлический дзынь)
             coin() {
                 if(!this.ctx) return;
                 const now = this.ctx.currentTime;
-                // Основной звон (синус)
-                const osc1 = this.ctx.createOscillator();
-                const gain1 = this.ctx.createGain();
-                osc1.type = 'sine';
-                osc1.frequency.setValueAtTime(2000, now);
-                gain1.gain.setValueAtTime(0.15, now);
-                gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-                // Металлический отзвук (квадрат)
-                const osc2 = this.ctx.createOscillator();
-                const gain2 = this.ctx.createGain();
-                osc2.type = 'square';
-                osc2.frequency.setValueAtTime(3000, now);
-                gain2.gain.setValueAtTime(0.03, now);
-                gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-
-                osc1.connect(gain1); gain1.connect(this.ctx.destination);
-                osc2.connect(gain2); gain2.connect(this.ctx.destination);
-                osc1.start(now); osc1.stop(now + 0.5);
-                osc2.start(now); osc2.stop(now + 0.2);
+                const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
+                osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                const osc2 = this.ctx.createOscillator(); const gain2 = this.ctx.createGain();
+                osc2.type = 'square'; osc2.frequency.setValueAtTime(3000, now); gain2.gain.setValueAtTime(0.03, now); gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc1.connect(gain1); gain1.connect(this.ctx.destination); osc2.connect(gain2); gain2.connect(this.ctx.destination);
+                osc1.start(now); osc1.stop(now + 0.5); osc2.start(now); osc2.stop(now + 0.2);
             }
-            
-            // Звук покупки (Кассовый аппарат / успешная покупка)
             purchase() {
-                if(!this.ctx) return;
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(1000, now);
-                osc.frequency.setValueAtTime(1500, now + 0.1); // Двойной тон
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                osc.connect(gain); gain.connect(this.ctx.destination);
-                osc.start(now); osc.stop(now + 0.3);
+                if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = 'square'; osc.frequency.setValueAtTime(1000, now); osc.frequency.setValueAtTime(1500, now + 0.1); 
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.3);
             }
-
-            // Звук подбора предмета/Джетпака
             powerup() {
-                if(!this.ctx) return;
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.linearRampToValueAtTime(600, now + 0.3);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                osc.connect(gain); gain.connect(this.ctx.destination);
-                osc.start(now); osc.stop(now + 0.3);
+                if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
+                gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.4);
             }
-            
-            // Гудение джетпака в полете
             thrust() {
                 if(!this.ctx) return;
                 if(Math.random() > 0.7) {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
-                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-                    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
-                    osc.connect(gain); gain.connect(this.ctx.destination);
-                    osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.1);
                 }
             }
-            
-            // Звук смерти (Досадный спуск)
             death() {
-                if(!this.ctx) return;
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
+                if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                 osc.type = 'sawtooth';
-                
-                // Ступенчатое понижение
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
-                osc.frequency.setValueAtTime(250, now + 0.2);
-                osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
-                osc.frequency.setValueAtTime(200, now + 0.4);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
-                
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0, now + 1.0);
-                osc.connect(gain); gain.connect(this.ctx.destination);
-                osc.start(now); osc.stop(now + 1.0);
+                osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
+                osc.frequency.setValueAtTime(250, now + 0.2); osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+                osc.frequency.setValueAtTime(200, now + 0.4); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0);
             }
-            
-            // Террария-стайл музыка
             startBGM() {
                 if (!this.ctx || this.bgmStarted) return;
                 this.bgmStarted = true;
-
                 const playNote = (time, freq, vol, type, duration) => {
-                    const osc = this.ctx.createOscillator();
-                    const g = this.ctx.createGain();
-                    osc.type = type;
-                    osc.frequency.value = freq;
-                    g.gain.setValueAtTime(vol, time);
-                    g.gain.exponentialRampToValueAtTime(0.001, time + duration);
-                    osc.connect(g); g.connect(this.ctx.destination);
-                    osc.start(time); osc.stop(time + duration);
+                    const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                    osc.type = type; osc.frequency.value = freq;
+                    g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration);
+                    osc.connect(g); g.connect(this.ctx.destination); osc.start(time); osc.stop(time + duration);
                 };
-
                 let step = 0;
                 this.bgmInterval = setInterval(() => {
                     if(this.ctx.state !== 'running') return;
                     const now = this.ctx.currentTime;
-                    
-                    // Бас (прыгающий квадрат)
                     const bassNotes = [130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
                     if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.15);
-
-                    // Мелодия (звенящий синус)
                     const leadNotes = [523, 0, 659, 0, 783, 0, 659, 0, 1046, 0, 783, 0, 659, 0, 523, 0];
                     if (leadNotes[step]) playNote(now, leadNotes[step], 0.03, 'sine', 0.2);
-
                     step = (step + 1) % 16;
-                }, 180); // Темп (180мс на шаг)
-            }
-
-            stopBGM() {
-                clearInterval(this.bgmInterval);
-                this.bgmStarted = false;
+                }, 180); 
             }
         }
         const sfx = new SoundEngine();
 
-        // --- МАГАЗИН ---
-        function openShop() { sfx.init(); shopOverlay.style.display = 'flex'; updateShopButtons(); }
-        function closeShop() { shopOverlay.style.display = 'none'; }
-        
-        function updateShopButtons() {
-            const btn = document.getElementById('buyJetpackBtn');
-            if (hasJetpack) { btn.innerText = "УЖЕ ТВОЕ"; btn.disabled = true; } 
-            else if (totalCoins < 200) { btn.innerText = "МАЛО ЗОЛОТА"; btn.disabled = true; } 
-            else { btn.innerText = "КУПИТЬ"; btn.disabled = false; }
-        }
-
-        function buyJetpack() {
-            if (totalCoins >= 200 && !hasJetpack) {
-                totalCoins -= 200; hasJetpack = true;
-                localStorage.setItem('neonCoins', totalCoins); localStorage.setItem('hasJetpack', 'true');
-                sfx.purchase(); // РЕАЛИСТИЧНЫЙ ЗВУК ПОКУПКИ
-                updateCoinUI(); updateShopButtons();
-            }
-        }
+        // --- ДВИЖОК ИГРЫ ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
         class InputHandler {
             constructor() {
@@ -309,8 +359,7 @@
             update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
             draw(ctx) { 
                 ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; 
-                ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
-                ctx.fillRect(this.x, this.y, this.size, this.size); 
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, this.size, this.size); 
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
             }
         }
@@ -333,7 +382,7 @@
                 else if (this.flashTimer > 0) { ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; } 
                 else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
                 else if (this.type === 'spring') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ff00'; }
-                else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ffcc'; }
+                else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00d2ff'; } // Изменил цвет обычных
                 
                 if(this.type !== 'finish' && this.flashTimer === 0) ctx.fillRect(this.x, this.y, this.width, 4); 
                 else ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -342,9 +391,7 @@
         }
 
         class Item {
-            constructor(x, y, type) {
-                this.x = x; this.y = y; this.type = type; this.width = 24; this.height = 24; this.baseY = y; this.angle = Math.random() * Math.PI * 2; this.markedForDeletion = false;
-            }
+            constructor(x, y, type) { this.x = x; this.y = y; this.type = type; this.width = 24; this.height = 24; this.baseY = y; this.angle = Math.random() * Math.PI * 2; this.markedForDeletion = false; }
             update() { this.angle += 0.05; this.y = this.baseY + Math.sin(this.angle) * 5; }
             draw(ctx) {
                 ctx.beginPath();
@@ -364,10 +411,16 @@
                 let dx = (this.game.player.x + 15) - (this.x + 19);
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
-                let speed = 1.6 + (this.game.level * 0.1); 
+                
+                // В хардкор режиме он быстрее
+                let baseSpeed = this.game.isHard ? 2.5 : 1.6;
+                let speed = baseSpeed + (this.game.level * 0.1); 
                 if (dist > 300) speed += (dist - 300) * 0.005; 
-                if (speed > 8) speed = 8;
+                let maxSpeed = this.game.isHard ? 12 : 8;
+                if (speed > maxSpeed) speed = maxSpeed;
+                
                 if (dist > 0) { this.x += (dx/dist)*speed; this.y += (dy/dist)*speed; }
+                
                 let bottom = this.game.cameraY + canvas.height - 48;
                 if (this.y > bottom) this.y -= (this.y - bottom) * 0.08;
                 if (Math.random() > 0.4) this.game.particles.push(new Particle(this.x + Math.random()*38, this.y + 19, this.color));
@@ -382,15 +435,14 @@
         }
 
         class Player {
-            constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = '#00d2ff'; this.reset(); }
-            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; }
+            constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; this.reset(); }
+            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin;}
             update(input) {
                 if (gameState !== 'PLAYING') return;
                 if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 
                 if (this.jetpackTimer > 0) { 
-                    this.vy = -18; this.jetpackTimer--; 
-                    sfx.thrust(); 
+                    this.vy = -18; this.jetpackTimer--; sfx.thrust(); 
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); 
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff0055', true)); 
                 } else { this.vy += 0.8; }
@@ -401,8 +453,7 @@
                         if (p.type === 'finish') return;
                         if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
                             if (this.y + 30 - this.vy <= p.y + 20) { 
-                                this.y = p.y - 30; p.flashTimer = 5; 
-                                sfx.jump(); // МЯГКИЙ ПЛАСТИКОВЫЙ ЗВУК ДЛЯ ВСЕХ
+                                this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
                                 if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
                                 else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
                             }
@@ -420,98 +471,201 @@
         }
 
         class Game {
-            constructor(level) {
+            constructor(mode, level) {
+                this.mode = mode; // 'campaign' или 'endless'
+                this.level = level || 1;
+                this.isHard = (this.mode === 'campaign' && this.level % 5 === 0);
+                
                 this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = [];
-                this.cameraY = 0; this.level = level; this.levelHeight = 1500 + (level * 1000); this.platformY = canvas.height - 50;
-                this.platforms.push(new Platform(0, this.platformY, canvas.width, 'normal'));
-                this.buildLevel(); this.player = new Player(this); this.hunter = new Hunter(this);
+                this.cameraY = 0; this.highestY = canvas.height - 50;
+                
+                // В кампании фиксированная высота, в бесконечном - нет
+                this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
+                this.finishSpawned = false;
+
+                this.platforms.push(new Platform(0, this.highestY, canvas.width, 'normal'));
+                this.player = new Player(this); this.hunter = new Hunter(this);
             }
-            buildLevel() {
-                let targetY = -this.levelHeight;
-                while (this.platformY > targetY) {
-                    this.platformY -= 90 + Math.random() * 40;
-                    let w = 70 + Math.random() * 100; let x = Math.random() * (canvas.width - w);
-                    let r = Math.random(); let type = 'normal';
-                    if (r > 0.85) type = 'spring'; else if (r > 0.65) type = 'moving';
-                    this.platforms.push(new Platform(x, this.platformY, w, type));
+
+            // Динамическая генерация чанков
+            generateChunk() {
+                while (this.highestY > this.cameraY - canvas.height * 2) {
+                    if (this.mode === 'campaign' && this.highestY <= this.targetY) {
+                        if (!this.finishSpawned) {
+                            this.platforms.push(new Platform(0, this.targetY - 100, canvas.width, 'finish'));
+                            this.finishSpawned = true;
+                        }
+                        break;
+                    }
+
+                    // Усложнение: в хардкоре больше расстояние между платформами
+                    let gap = 90 + Math.random() * (this.isHard ? 60 : 40);
+                    this.highestY -= gap;
+                    
+                    let w = 70 + Math.random() * (this.isHard ? 60 : 100); 
+                    let x = Math.random() * (canvas.width - w);
+                    
+                    let type = 'normal';
+                    let r = Math.random();
+                    // В хардкоре почти нет пружин, но много движущихся
+                    if (this.isHard) {
+                        if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving';
+                    } else {
+                        if (r > 0.85) type = 'spring'; else if (r > 0.65) type = 'moving';
+                    }
+                    
+                    this.platforms.push(new Platform(x, this.highestY, w, type));
                     
                     let ri = Math.random();
-                    if (ri > 0.96) this.items.push(new Item(x + w/2 - 12, this.platformY - 40, 'jetpack'));
-                    else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.platformY - 35, 'coin'));
+                    if (ri > 0.98) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
+                    else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
                 }
-                this.platforms.push(new Platform(0, targetY - 100, canvas.width, 'finish'));
             }
+
+            useExtraLife() {
+                SAVE.lives--; saveGame(); sfx.powerup();
+                for(let i=0; i<50; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ffffff', false, 2));
+                this.player.vy = -35; // Мощный отскок вверх
+                this.player.y -= 100;
+                this.hunter.y = this.cameraY + canvas.height + 200; // Отбрасываем охотника далеко вниз
+                this.hunter.active = false; // Усыпляем его
+                this.hunter.startTimer(); // Даем еще 2 секунды форы
+            }
+
             update() {
                 if (gameState !== 'PLAYING') return;
+
+                this.generateChunk(); // Генерируем по мере подъема
+
+                // Очистка старых платформ (оптимизация)
+                let cleanupY = this.cameraY + canvas.height + 300;
+                this.platforms = this.platforms.filter(p => p.y < cleanupY);
+                this.items = this.items.filter(i => i.y < cleanupY);
+
                 this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
                 this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
-                this.cameraY += (this.player.y - canvas.height/2 - this.cameraY) * 0.1; 
                 
-                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
-                    for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
-                    gameOver("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
+                this.cameraY += (this.player.y - canvas.height/2 - this.cameraY) * 0.1; 
+
+                // Обновление рекорда в бесконечном режиме
+                if (this.mode === 'endless') {
+                    let score = Math.floor(Math.max(0, -this.cameraY / 10));
+                    document.getElementById('hudLeft').innerText = `${score} м`;
+                    if (score > SAVE.highScore) SAVE.highScore = score;
                 }
-                this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) winLevel(); });
+                
+                // СМЕРТЬ ОТ ОХОТНИКА
+                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
+                    if (SAVE.lives > 0) { this.useExtraLife(); } 
+                    else {
+                        for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
+                        triggerGameOver("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
+                    }
+                }
+
+                // СМЕРТЬ ОТ ПАДЕНИЯ
+                if (this.player.y > this.cameraY + canvas.height + 100) {
+                    if (SAVE.lives > 0) { this.useExtraLife(); } 
+                    else { triggerGameOver("УПАЛ В БЕЗДНУ"); }
+                }
+
+                // ФИНИШ
+                if (this.mode === 'campaign') {
+                    this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) triggerWin(); });
+                }
+
+                // ПРЕДМЕТЫ
                 this.items.forEach(item => {
                     if (!item.markedForDeletion && this.player.x < item.x+24 && this.player.x+30 > item.x && this.player.y < item.y+24 && this.player.y+30 > item.y) {
                         item.markedForDeletion = true;
                         if (item.type === 'coin') { 
-                            totalCoins++; localStorage.setItem('neonCoins', totalCoins); 
-                            sfx.coin(); 
+                            let reward = this.isHard ? 3 : 1; // Утроенное золото на харде
+                            SAVE.coins += reward; sfx.coin(); 
                             for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
+                            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
                         } else if (item.type === 'jetpack') { 
-                            this.player.jetpackTimer = 180; 
-                            sfx.powerup(); 
+                            this.player.jetpackTimer = 180; sfx.powerup(); 
                             for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
                         }
                     }
                 });
-                this.items = this.items.filter(i => !i.markedForDeletion);
             }
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Багровый фон на хардкорном уровне
+                if (this.isHard) { ctx.fillStyle = 'rgba(50, 0, 10, 0.3)'; ctx.fillRect(0,0,canvas.width, canvas.height); }
+
                 ctx.save(); ctx.translate(0, -this.cameraY);
                 this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
-                this.hunter.draw(ctx); if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') this.player.draw(ctx);
+                this.hunter.draw(ctx); if (gameState === 'PLAYING' || gameState === 'END') this.player.draw(ctx);
                 this.particles.forEach(p => p.draw(ctx));
                 ctx.restore();
                 
-                if (gameState === 'PLAYING') {
-                    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, canvas.width, 50);
-                    ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.fillText(`УРОВЕНЬ ${currentLevel}`, 20, 32);
-                    ctx.fillStyle = '#FFD700'; ctx.textAlign = 'right'; ctx.fillText(`💰 ${totalCoins}`, canvas.width - 20, 32); ctx.textAlign = 'left';
-                    let prog = Math.min(1, Math.abs(this.player.y - (canvas.height - 100)) / (this.levelHeight + canvas.height));
-                    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 20, 100, 10);
-                    ctx.fillStyle = this.player.jetpackTimer > 0 ? '#ff0055' : '#00d2ff'; ctx.fillRect(canvas.width/2 - 50, 20, 100 * prog, 10);
+                // Рендер полосы прогресса джетпака
+                if (gameState === 'PLAYING' && this.player.jetpackTimer > 0) {
+                    let prog = this.player.jetpackTimer / 180;
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 50, 100, 6);
+                    ctx.fillStyle = '#ff0055'; ctx.fillRect(canvas.width/2 - 50, 50, 100 * prog, 6);
                 }
             }
         }
 
-        let game = new Game(currentLevel);
-        function animate() { game.update(); game.draw(ctx); requestAnimationFrame(animate); }
+        let game = null;
+        let lastPlayedMode = 'campaign';
+        let lastPlayedLevel = 1;
+
+        function animate() { 
+            if (game) { game.update(); game.draw(ctx); }
+            requestAnimationFrame(animate); 
+        }
         
-        function pressStart() {
-            sfx.init(); 
-            if (gameState === 'GAMEOVER') game = new Game(currentLevel);
-            gameState = 'PLAYING'; uiOverlay.style.display = 'none';
-            if (hasJetpack) { game.player.jetpackTimer = 180; sfx.powerup(); }
+        function startGame(mode, level = 1) {
+            lastPlayedMode = mode; lastPlayedLevel = level;
+            game = new Game(mode, level);
+            gameState = 'PLAYING'; 
+            
+            // Настройка HUD
+            document.getElementById('hudLeft').innerText = mode === 'campaign' ? `УРОВЕНЬ ${level}` : `0 м`;
+            document.getElementById('hudLeft').style.color = game.isHard ? '#ff0055' : 'white';
+            updateUI();
+            
+            showState('NONE'); // Скрываем меню
+            gameHud.style.display = 'flex';
+
+            if (SAVE.jetpack) { game.player.jetpackTimer = 180; sfx.powerup(); }
             if (game.player.vy === 0) game.player.vy = -17; 
             game.hunter.startTimer();
         }
 
-        function gameOver(t) { 
-            gameState = 'GAMEOVER'; 
-            sfx.stopBGM(); sfx.death(); 
-            setTimeout(() => { uiOverlay.style.display = 'flex'; document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`; document.getElementById('menuTitle').innerText = t; updateCoinUI(); }, 800); 
+        function triggerGameOver(reason) { 
+            gameState = 'END'; sfx.death(); saveGame();
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; 
+                document.getElementById('endTitle').style.color = "#ff0055";
+                document.getElementById('endDesc').innerText = reason; 
+                document.getElementById('endBtn1').innerText = "ПОВТОРИТЬ";
+                document.getElementById('endBtn1').onclick = () => startGame(lastPlayedMode, lastPlayedLevel);
+                showState('END');
+            }, 800); 
         }
-        function winLevel() { 
-            gameState = 'GAMEOVER'; 
-            sfx.coin(); 
-            uiOverlay.style.display = 'flex'; currentLevel++; document.getElementById('menuLevel').innerText = `ПОБЕДА!`; document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`; updateCoinUI(); 
+
+        function triggerWin() { 
+            gameState = 'END'; sfx.coin(); 
+            if (lastPlayedLevel === SAVE.maxLevel && SAVE.maxLevel < 100) SAVE.maxLevel++;
+            saveGame();
+            
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "УРОВЕНЬ ПРОЙДЕН"; 
+                document.getElementById('endTitle').style.color = "#00ff00";
+                document.getElementById('endDesc').innerText = game.isHard ? "ХАРДКОР ЗАВЕРШЕН!" : "Отличная работа!"; 
+                document.getElementById('endBtn1').innerText = "СЛЕДУЮЩИЙ";
+                document.getElementById('endBtn1').onclick = () => startGame('campaign', lastPlayedLevel + 1);
+                showState('END');
+            }, 500); 
         }
-        function updateCoinUI() { document.getElementById('totalCoinsUI').innerText = `💰 ${totalCoins}`; }
         
-        updateCoinUI(); animate();
+        showState('MAIN'); // Запуск
+        animate();
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
     </script>
 </body>
