@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower TMA</title>
+    <title>Neon Tower & Coins TMA</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: sans-serif; user-select: none; }
-        canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); } /* Градиентный фон неба */
+        canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); }
         
         .controls {
             position: fixed;
@@ -106,27 +106,56 @@
                 this.x = x;
                 this.y = y;
                 this.width = width;
-                this.height = 30; // Сделали платформы чуть тоньше
+                this.height = 30; 
                 
                 this.isMoving = isMoving;
-                this.vx = isMoving ? (Math.random() > 0.5 ? 2 : -2) : 0; // Направление движения
+                this.vx = isMoving ? (Math.random() > 0.5 ? 2 : -2) : 0; 
                 this.startX = x;
-                this.moveRange = 100; // Насколько далеко уезжает
+                this.moveRange = 100; 
             }
             update() {
                 if (this.isMoving) {
                     this.x += this.vx;
                     if (this.x > this.startX + this.moveRange || this.x < this.startX - this.moveRange) {
-                        this.vx *= -1; // Меняем направление
+                        this.vx *= -1; 
                     }
                 }
             }
             draw(ctx) {
                 ctx.fillStyle = '#222';
                 ctx.fillRect(this.x, this.y, this.width, this.height);
-                // Если движется — цвет желтоватый, если стоит — бирюзовый
                 ctx.fillStyle = this.isMoving ? '#ffcc00' : '#00ffcc';
                 ctx.fillRect(this.x, this.y, this.width, 4);
+            }
+        }
+
+        // --- МОНЕТА ---
+        class Coin {
+            constructor(x, y) {
+                this.width = 20; // Для хитбокса
+                this.height = 20;
+                this.x = x;
+                this.y = y;
+                this.baseY = y;
+                this.angle = Math.random() * Math.PI * 2; // Для анимации покачивания
+                this.markedForDeletion = false;
+            }
+            update() {
+                // Плавное покачивание вверх-вниз
+                this.angle += 0.05;
+                this.y = this.baseY + Math.sin(this.angle) * 5;
+            }
+            draw(ctx) {
+                ctx.fillStyle = '#FFD700'; // Золотой цвет
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#FFD700';
+                
+                ctx.beginPath();
+                // Рисуем круг (смещаем на половину ширины/высоты для центровки)
+                ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 10, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
             }
         }
 
@@ -137,22 +166,21 @@
                 this.width = 30;
                 this.height = 30;
                 this.color = '#00d2ff';
-                this.weight = 0.8; // Немного снизили гравитацию для удобства прыжков вверх
+                this.weight = 0.8; 
                 this.reset();
             }
             reset() {
                 this.x = 100;
-                this.y = 0; // Начальная точка будет переопределена в loadLevel
+                this.y = 0; 
                 this.vx = 0;
                 this.vy = 0;
                 this.onGround = false;
                 this.visible = true;
-                this.currentPlatform = null; // Запоминаем, на какой платформе стоим
+                this.currentPlatform = null; 
             }
             update(input) {
                 if (!this.visible) return;
 
-                // Управление
                 if (input.keys.includes(' ') && this.onGround) {
                     this.vy = -16;
                     this.onGround = false;
@@ -163,13 +191,11 @@
                 else if (input.keys.includes('ArrowLeft')) this.vx = -6;
                 else this.vx *= 0.8;
 
-                // Применяем платформенный импульс (если стоим на движущейся)
                 let platformSpeed = this.currentPlatform ? this.currentPlatform.vx : 0;
 
                 this.vy += this.weight;
                 this.y += this.vy;
                 
-                // Проверка платформ
                 this.onGround = false;
                 this.currentPlatform = null;
                 
@@ -181,16 +207,14 @@
                             this.onGround = true;
                             this.vy = 0;
                             this.y = plat.y - this.height;
-                            this.currentPlatform = plat; // Прицепились к платформе
+                            this.currentPlatform = plat; 
                         }
                     }
                 });
 
-                // Двигаем по X с учетом скорости платформы
                 this.x += this.vx + platformSpeed;
                 if (this.x < 0) this.x = 0;
 
-                // Смерть от падения (если упал ниже текущего вида камеры)
                 if (this.y > this.game.cameraY + canvas.height + 100) {
                     this.game.die();
                 }
@@ -231,48 +255,53 @@
                 this.player = new Player(this);
                 this.input = new InputHandler();
                 this.level = 1;
+                
+                // Загружаем монеты из памяти устройства (если они там есть)
+                this.totalCoins = parseInt(localStorage.getItem('neonCoins')) || 0;
+                
                 this.particles = [];
                 this.cameraX = 0;
                 this.cameraY = 0;
                 this.platforms = [];
+                this.coins = [];
                 this.loadLevel();
             }
 
             loadLevel() {
                 this.platforms = [];
+                this.coins = [];
                 this.particles = [];
                 
                 let currentX = 0;
-                let currentY = canvas.height - 100; // Начинаем снизу
+                let currentY = canvas.height - 100; 
                 
-                // Стартовая безопасная платформа
                 this.platforms.push(new Platform(currentX, currentY, 400, false));
 
-                // Генерация башни (идем вверх и вправо)
                 const jumpsCount = 8 + (this.level * 3);
                 
                 for (let i = 0; i < jumpsCount; i++) {
-                    // Поднимаемся вверх на 60-110 пикселей
                     currentY -= 60 + Math.random() * 50;
-                    
-                    // Шагаем вправо (иногда чуть влево, чтобы было интересно)
                     currentX += 30 + Math.random() * 120;
                     
                     let platWidth = 100 + Math.random() * 100;
-                    
-                    // Чем выше уровень, тем больше шанс движущейся платформы
                     let isMoving = Math.random() > (0.8 - this.level * 0.05); 
                     
                     this.platforms.push(new Platform(currentX, currentY, platWidth, isMoving));
+
+                    // Случайный спавн монет над платформой (вероятность 50%)
+                    if (Math.random() > 0.5) {
+                        // Располагаем по центру платформы и чуть выше неё
+                        let coinX = currentX + platWidth / 2 - 10;
+                        let coinY = currentY - 40;
+                        this.coins.push(new Coin(coinX, coinY));
+                    }
                 }
 
-                // Финальная платформа и дверь
                 currentX += 50;
                 currentY -= 80;
                 this.platforms.push(new Platform(currentX, currentY, 200, false));
                 this.door = new Door(currentX + 80, currentY);
 
-                // Ставим игрока на первую платформу
                 this.player.reset();
                 this.player.y = canvas.height - 200;
                 this.player.x = 100;
@@ -282,19 +311,22 @@
                 if (!this.player.visible) return;
                 
                 for (let i = 0; i < 30; i++) {
+                    // Создаем частицы цвета игрока
                     this.particles.push(new Particle(this.player.x + 15, this.player.y + 15, this.player.color));
                 }
                 
                 this.player.visible = false;
                 
                 setTimeout(() => {
-                    this.loadLevel(); // Перезапускаем уровень полностью при падении
+                    this.loadLevel(); 
                 }, 1000);
             }
 
             update() {
-                // Обновляем платформы
                 this.platforms.forEach(plat => plat.update());
+                
+                // Обновляем монеты
+                this.coins.forEach(coin => coin.update());
                 
                 this.player.update(this.input);
 
@@ -302,13 +334,30 @@
                 this.particles = this.particles.filter(p => p.life > 0);
 
                 if (this.player.visible) {
+                    
+                    // Проверка сбора монет
+                    this.coins.forEach(coin => {
+                        if (!coin.markedForDeletion && this.checkCollision(this.player, coin)) {
+                            coin.markedForDeletion = true;
+                            this.totalCoins++;
+                            // Сохраняем в память устройства
+                            localStorage.setItem('neonCoins', this.totalCoins);
+                            
+                            // Эффект сбора (золотые искры)
+                            for(let i=0; i<10; i++){
+                                this.particles.push(new Particle(coin.x + 10, coin.y + 10, '#FFD700'));
+                            }
+                        }
+                    });
+                    // Удаляем собранные монеты из массива
+                    this.coins = this.coins.filter(coin => !coin.markedForDeletion);
+
                     if (this.checkCollision(this.player, this.door)) {
                         this.level++;
                         this.loadLevel();
                     }
                 }
 
-                // КАМЕРА: теперь плавно следит и по оси Y (игрок всегда в нижней трети экрана)
                 this.cameraX = this.player.x - canvas.width / 3;
                 this.cameraY = this.player.y - canvas.height / 1.5;
                 
@@ -316,14 +365,13 @@
             }
 
             draw(ctx) {
-                // Очищаем экран
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 ctx.save();
-                // Двигаем весь мир под камеру по X и по Y
                 ctx.translate(-this.cameraX, -this.cameraY);
 
                 this.platforms.forEach(plat => plat.draw(ctx));
+                this.coins.forEach(coin => coin.draw(ctx));
                 this.door.draw(ctx);
                 this.particles.forEach(p => p.draw(ctx));
                 this.player.draw(ctx);
@@ -334,6 +382,12 @@
                 ctx.fillStyle = 'white';
                 ctx.font = '24px Arial';
                 ctx.fillText(`Уровень: ${this.level}`, 20, 40);
+                
+                // Отображение монет в правом верхнем углу
+                ctx.fillStyle = '#FFD700';
+                ctx.textAlign = 'right';
+                ctx.fillText(`Монеты: ${this.totalCoins}`, canvas.width - 20, 40);
+                ctx.textAlign = 'left'; // Возвращаем обратно, чтобы не сломать другой текст
             }
 
             checkCollision(p, o) {
