@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: The Flawless Build</title>
+    <title>Neon Tower: Ultimate Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -40,6 +40,7 @@
         .ui-btn:active { transform: scale(0.95); }
         .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 
+        /* СЕТКА УРОВНЕЙ */
         #levelGrid {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
             width: 90%; max-width: 380px; max-height: 50vh; overflow-y: auto;
@@ -56,6 +57,7 @@
         .lvl-btn.locked { background: #1a1a2e; color: #555; cursor: not-allowed; }
         .lvl-btn:active:not(:disabled) { transform: scale(0.9); }
 
+        /* МАГАЗИН GRID */
         #shopList { 
             display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
             gap: 12px; width: 95%; max-width: 500px; max-height: 65vh; overflow-y: auto; padding: 5px; 
@@ -72,6 +74,7 @@
         .shop-btn.equip { background: #00d2ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
+        /* HUD */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
@@ -121,7 +124,7 @@
     </div>
 
     <script>
-        // --- СИСТЕМА СОХРАНЕНИЙ ---
+        // --- 1. СИСТЕМА СОХРАНЕНИЙ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
             maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
@@ -147,6 +150,7 @@
             updateUI();
         }
 
+        // --- УПРАВЛЕНИЕ UI ---
         const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu') };
         const gameHud = document.getElementById('gameHud');
 
@@ -167,6 +171,7 @@
             renderShop(); renderLevels();
         }
 
+        // Блокировка пройденных уровней
         function renderLevels() {
             const grid = document.getElementById('levelGrid');
             grid.innerHTML = '';
@@ -188,6 +193,7 @@
             }
         }
 
+        // Продвинутый магазин
         function renderShop() {
             const list = document.getElementById('shopList');
             list.innerHTML = '';
@@ -429,10 +435,11 @@
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 
-                let baseSpeed = this.game.isHard ? 2.5 : 1.6;
+                // ИСПРАВЛЕНИЕ СКОРОСТИ
+                let baseSpeed = this.game.isHard ? 2.1 : 1.6; // Немного замедлен
                 let speed = baseSpeed + (this.game.level * 0.1); 
                 if (dist > 300) speed += (dist - 300) * 0.005; 
-                let maxSpeed = this.game.isHard ? 12 : 8;
+                let maxSpeed = this.game.isHard ? 10 : 8; // Снижен лимит
                 if (speed > maxSpeed) speed = maxSpeed;
                 
                 if (dist > 0) { this.x += (dx/dist)*speed; this.y += (dy/dist)*speed; }
@@ -468,14 +475,12 @@
                     this.game.platforms.forEach(p => {
                         if (p.type === 'finish' || p.broken) return;
                         
-                        // ИСПРАВЛЕНИЕ: ЖЕСТКАЯ ПРОВЕРКА КОЛЛИЗИИ (Чтобы не было фантомных отскоков)
                         if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
                             if (this.y + 30 - this.vy <= p.y + 15) { 
                                 this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
                                 if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
                                 else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
                                 
-                                // ХАРДКОР: Блоки рассыпаются после прыжка
                                 if (this.game.isHard && p.type !== 'finish') {
                                     p.broken = true;
                                     for(let i=0; i<15; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y + 10, '#555'));
@@ -529,7 +534,7 @@
                     this.platforms.push(new Platform(x, this.highestY, w, type));
                     
                     let ri = Math.random();
-                    // В хардкоре Джетпаки НЕ спавнятся
+                    // ИСПРАВЛЕНИЕ: Джетпаки не спавнятся в хардкоре
                     if (ri > 0.98 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
                 }
@@ -559,7 +564,6 @@
                 this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
                 this.floatingTexts.forEach(ft => ft.update()); this.floatingTexts = this.floatingTexts.filter(ft => ft.life > 0);
                 
-                // ИСПРАВЛЕНИЕ: Камера едет ТОЛЬКО вверх. Никаких случайных генераций под ногами!
                 let targetCamera = this.player.y - canvas.height / 2;
                 if (targetCamera < this.cameraY) {
                     this.cameraY += (targetCamera - this.cameraY) * 0.15; 
@@ -579,7 +583,6 @@
                     }
                 }
 
-                // ЕСЛИ УПАЛ В БЕЗДНУ ЗА ЭКРАН
                 if (this.player.y > this.cameraY + canvas.height + 100) {
                     if (SAVE.lives > 0) { this.useExtraLife(); } 
                     else { triggerGameOver("УПАЛ В БЕЗДНУ"); }
@@ -589,8 +592,7 @@
                     this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) triggerWin(); });
                 }
 
-                // ЛОГИКА МАГНИТОВ И СБОРА
-                let magCoinRadius = SAVE.magnetCoinLvl * 45; // Разумный радиус
+                let magCoinRadius = SAVE.magnetCoinLvl * 45; 
                 let magJpRadius = SAVE.magnetJpLvl * 45;
 
                 this.items.forEach(item => {
