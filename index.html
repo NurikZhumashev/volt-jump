@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Juicy Update</title>
+    <title>Neon Tower: Audio Update</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; background: linear-gradient(to top, #0b0b1a, #1a1a3a); width: 100vw; height: 100vh; }
         
-        /* Красивое меню с размытием */
         #uiOverlay, #shopOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -18,7 +17,6 @@
         }
         #shopOverlay { display: none; z-index: 30; }
 
-        /* Анимация пульсации для заголовка */
         @keyframes neonPulse {
             0% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
             50% { text-shadow: 0 0 20px #00d2ff, 0 0 40px #00d2ff, 0 0 60px #00d2ff; transform: scale(1.05); }
@@ -38,7 +36,6 @@
         .ui-btn:active { transform: scale(0.92); box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
         .ui-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; box-shadow: none; border-color: transparent; }
 
-        /* Стеклянная карточка магазина */
         .shop-card {
             background: rgba(255,255,255,0.05); padding: 25px; border-radius: 20px;
             border: 1px solid rgba(255,255,255,0.1); text-align: center; width: 80%; max-width: 320px;
@@ -55,7 +52,7 @@
         <h2 id="menuLevel">УРОВЕНЬ 1</h2>
         <h1 id="menuTitle">NEON RUN</h1>
         <p id="menuInfo" style="margin-bottom: 30px; text-align: center; font-size: 16px; color: #ddd; max-width: 80%;">
-            Касание слева — влево. Касание справа — вправо.<br><span style="color: #ff0033; font-weight: bold;">Охотник выйдет на след через 2 секунды.</span>
+            Включи звук 🔊<br><span style="color: #ff0033; font-weight: bold;">Охотник выйдет на след через 2 секунды.</span>
         </p>
         <button class="ui-btn" id="startBtn" onclick="pressStart()">СТАРТ</button>
         <button class="ui-btn btn-shop" onclick="openShop()">🛒 МАГАЗИН</button>
@@ -89,6 +86,87 @@
         let currentLevel = 1;
         let gameState = 'START'; 
 
+        // --- АУДИО-СИНТЕЗАТОР ---
+        class SoundEngine {
+            constructor() {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                } catch(e) { console.log("Web Audio API не поддерживается"); this.ctx = null; }
+                this.bgmOsc = null; this.bgmGain = null; this.lfo = null;
+            }
+            init() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+            
+            playTone(freq, type, duration, vol=0.1) {
+                if(!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + duration);
+            }
+            
+            jump(isSpring) {
+                if (isSpring) {
+                    this.playTone(400, 'square', 0.1, 0.05);
+                    setTimeout(() => this.playTone(600, 'square', 0.2, 0.05), 50);
+                } else {
+                    this.playTone(200, 'sine', 0.1, 0.08);
+                }
+            }
+            coin() {
+                this.playTone(800, 'sine', 0.1, 0.05);
+                setTimeout(() => this.playTone(1200, 'sine', 0.2, 0.05), 80);
+            }
+            powerup() {
+                this.playTone(300, 'sawtooth', 0.1, 0.1);
+                setTimeout(() => this.playTone(400, 'sawtooth', 0.1, 0.1), 100);
+                setTimeout(() => this.playTone(500, 'sawtooth', 0.3, 0.1), 200);
+            }
+            thrust() { this.playTone(100 + Math.random()*50, 'sawtooth', 0.1, 0.02); }
+            death() {
+                this.playTone(200, 'sawtooth', 0.3, 0.1);
+                setTimeout(() => this.playTone(150, 'sawtooth', 0.3, 0.1), 200);
+                setTimeout(() => this.playTone(100, 'sawtooth', 0.8, 0.1), 400);
+            }
+            
+            startBGM() {
+                if (!this.ctx || this.bgmOsc) return;
+                this.bgmOsc = this.ctx.createOscillator();
+                this.bgmGain = this.ctx.createGain();
+                this.bgmOsc.type = 'triangle';
+                this.bgmOsc.frequency.value = 55; // Мрачный бас
+                this.bgmGain.gain.value = 0.05;
+                this.bgmOsc.connect(this.bgmGain);
+                this.bgmGain.connect(this.ctx.destination);
+                this.bgmOsc.start();
+
+                // Пульсация баса
+                this.lfo = this.ctx.createOscillator();
+                this.lfo.type = 'sine';
+                this.lfo.frequency.value = 2; // 2 Гц
+                const lfoGain = this.ctx.createGain();
+                lfoGain.gain.value = 0.04;
+                this.lfo.connect(lfoGain);
+                lfoGain.connect(this.bgmGain.gain);
+                this.lfo.start();
+            }
+            stopBGM() {
+                if(this.bgmOsc && this.ctx) {
+                    this.bgmGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1);
+                    setTimeout(() => {
+                        if(this.bgmOsc) { this.bgmOsc.stop(); this.bgmOsc = null; }
+                        if(this.lfo) { this.lfo.stop(); this.lfo = null; }
+                    }, 1000);
+                }
+            }
+        }
+        const sfx = new SoundEngine();
+
+        // --- МАГАЗИН ---
         function openShop() { shopOverlay.style.display = 'flex'; updateShopButtons(); }
         function closeShop() { shopOverlay.style.display = 'none'; }
         
@@ -103,6 +181,7 @@
             if (totalCoins >= 200 && !hasJetpack) {
                 totalCoins -= 200; hasJetpack = true;
                 localStorage.setItem('neonCoins', totalCoins); localStorage.setItem('hasJetpack', 'true');
+                sfx.powerup(); // Звук покупки!
                 updateCoinUI(); updateShopButtons();
             }
         }
@@ -125,7 +204,6 @@
             }
         }
 
-        // --- СОЧНЫЕ ЧАСТИЦЫ ---
         class Particle {
             constructor(x, y, color, isFire = false, speedMult = 1) {
                 this.x = x; this.y = y; this.color = color;
@@ -138,18 +216,17 @@
             draw(ctx) { 
                 ctx.globalAlpha = Math.max(0, this.life); 
                 ctx.fillStyle = this.color; 
-                ctx.shadowBlur = 10; ctx.shadowColor = this.color; // Свечение частиц!
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
                 ctx.fillRect(this.x, this.y, this.size, this.size); 
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
             }
         }
 
-        // --- ПЛАТФОРМЫ С АНИМАЦИЕЙ КАСАНИЯ ---
         class Platform {
             constructor(x, y, width, type = 'normal') {
                 this.x = x; this.y = y; this.width = width; this.height = 20;
                 this.type = type; this.moveSpeed = 1.5 + Math.random() * 2; this.direction = Math.random() > 0.5 ? 1 : -1;
-                this.flashTimer = 0; // Для анимации вспышки при приземлении
+                this.flashTimer = 0; 
             }
             update() {
                 if (this.flashTimer > 0) this.flashTimer--;
@@ -160,7 +237,7 @@
             }
             draw(ctx) {
                 if (this.type === 'finish') { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700'; }
-                else if (this.flashTimer > 0) { ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; } // Вспышка
+                else if (this.flashTimer > 0) { ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; } 
                 else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
                 else if (this.type === 'spring') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ff00'; }
                 else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ffcc'; }
@@ -220,6 +297,7 @@
                 
                 if (this.jetpackTimer > 0) { 
                     this.vy = -18; this.jetpackTimer--; 
+                    if(this.jetpackTimer % 3 === 0) sfx.thrust(); // Звук двигателя
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); 
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff0055', true)); 
                 } else { this.vy += 0.8; }
@@ -231,18 +309,16 @@
                         if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
                             if (this.y + 30 - this.vy <= p.y + 20) { 
                                 this.y = p.y - 30; 
-                                p.flashTimer = 5; // Вспышка платформы при касании
-                                if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
-                                else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
+                                p.flashTimer = 5; 
+                                if (p.type === 'spring') { this.vy = -26; sfx.jump(true); this.createJumpDust('#00ff00', 1.5); } 
+                                else { this.vy = -17; sfx.jump(false); this.createJumpDust('#ffffff', 1); } 
                             }
                         }
                     });
                 }
                 this.x += this.vx; if (this.x > canvas.width) this.x = -30; if (this.x < -30) this.x = canvas.width;
             }
-            createJumpDust(color, speedMult) { 
-                for(let i=0; i<12; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color, false, speedMult)); 
-            }
+            createJumpDust(color, speedMult) { for(let i=0; i<12; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color, false, speedMult)); }
             draw(ctx) { 
                 ctx.fillStyle = this.jetpackTimer > 0 ? '#fff' : this.color; 
                 ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : this.color; 
@@ -278,23 +354,22 @@
                 this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
                 this.cameraY += (this.player.y - canvas.height/2 - this.cameraY) * 0.1; 
                 
-                // Смерть от охотника
                 if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
                     for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
                     gameOver("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
                 }
-                // Финиш
                 this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) winLevel(); });
-                // Предметы
                 this.items.forEach(item => {
                     if (!item.markedForDeletion && this.player.x < item.x+24 && this.player.x+30 > item.x && this.player.y < item.y+24 && this.player.y+30 > item.y) {
                         item.markedForDeletion = true;
                         if (item.type === 'coin') { 
                             totalCoins++; localStorage.setItem('neonCoins', totalCoins); 
-                            for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); // Взрыв монеты
+                            sfx.coin(); // ЗВУК МОНЕТЫ
+                            for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
                         } else if (item.type === 'jetpack') { 
                             this.player.jetpackTimer = 180; 
-                            for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); // Взрыв джетпака
+                            sfx.powerup(); // ЗВУК ДЖЕТПАКА
+                            for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
                         }
                     }
                 });
@@ -305,12 +380,11 @@
                 ctx.save(); ctx.translate(0, -this.cameraY);
                 this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
                 this.hunter.draw(ctx); if (gameState === 'PLAYING' || document.getElementById('menuTitle').innerText === 'УРОВЕНЬ ПРОЙДЕН') this.player.draw(ctx);
-                this.particles.forEach(p => p.draw(ctx)); // Частицы рисуем последними, чтобы они были поверх всего!
+                this.particles.forEach(p => p.draw(ctx));
                 ctx.restore();
                 
-                // Игровой UI (верхняя панель)
                 if (gameState === 'PLAYING') {
-                    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, canvas.width, 50); // Затемнение под текст
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, canvas.width, 50);
                     ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.fillText(`УРОВЕНЬ ${currentLevel}`, 20, 32);
                     ctx.fillStyle = '#FFD700'; ctx.textAlign = 'right'; ctx.fillText(`💰 ${totalCoins}`, canvas.width - 20, 32); ctx.textAlign = 'left';
                     let prog = Math.min(1, Math.abs(this.player.y - (canvas.height - 100)) / (this.levelHeight + canvas.height));
@@ -326,13 +400,22 @@
         function pressStart() {
             if (gameState === 'GAMEOVER') game = new Game(currentLevel);
             gameState = 'PLAYING'; uiOverlay.style.display = 'none';
-            if (hasJetpack) game.player.jetpackTimer = 180; 
+            sfx.init(); sfx.startBGM(); // ВКЛЮЧАЕМ МУЗЫКУ
+            if (hasJetpack) { game.player.jetpackTimer = 180; sfx.powerup(); }
             if (game.player.vy === 0) game.player.vy = -17; 
             game.hunter.startTimer();
         }
 
-        function gameOver(t) { gameState = 'GAMEOVER'; setTimeout(() => { uiOverlay.style.display = 'flex'; document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`; document.getElementById('menuTitle').innerText = t; updateCoinUI(); }, 800); } // Задержка чуть больше, чтобы насладиться взрывом
-        function winLevel() { gameState = 'GAMEOVER'; uiOverlay.style.display = 'flex'; currentLevel++; document.getElementById('menuLevel').innerText = `ПОБЕДА!`; document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`; updateCoinUI(); }
+        function gameOver(t) { 
+            gameState = 'GAMEOVER'; 
+            sfx.stopBGM(); sfx.death(); // ЗВУК СМЕРТИ
+            setTimeout(() => { uiOverlay.style.display = 'flex'; document.getElementById('menuLevel').innerText = `УРОВЕНЬ ${currentLevel}`; document.getElementById('menuTitle').innerText = t; updateCoinUI(); }, 800); 
+        }
+        function winLevel() { 
+            gameState = 'GAMEOVER'; 
+            sfx.stopBGM(); sfx.coin(); // ЗВУК ПОБЕДЫ
+            uiOverlay.style.display = 'flex'; currentLevel++; document.getElementById('menuLevel').innerText = `ПОБЕДА!`; document.getElementById('menuTitle').innerText = `УРОВЕНЬ ПРОЙДЕН`; updateCoinUI(); 
+        }
         function updateCoinUI() { document.getElementById('totalCoinsUI').innerText = `💰 ${totalCoins}`; }
         
         updateCoinUI(); animate();
