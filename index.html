@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Parkour: Double Jump Update</title>
+    <title>Neon Parkour: Smart Buttons</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -447,7 +447,6 @@
         }
 
         // --- ДИЗАЙН УДЛИНЕННЫХ УРОВНЕЙ (40x40 пикселей тайл) ---
-        // . пусто, # стена, ^ шипы, B кнопка, L лазер, D дверь, C монета, @ спавн
         const LEVEL_MAPS = [
             // 1: Обучение (Очень длинный коридор)
             {
@@ -573,7 +572,8 @@
                         
                         if (char === '#') this.walls.push({x, y, w: TILE, h: TILE});
                         if (char === '^') this.spikes.push({x, y: y+20, w: TILE, h: 20});
-                        if (char === 'B') this.buttons.push({x: x+5, y: y+30, w: 30, h: 10, pressed: false});
+                        // ТАЙМЕР ДЛЯ КНОПКИ (180 кадров = 3 секунды)
+                        if (char === 'B') this.buttons.push({x: x+5, y: y+30, w: 30, h: 10, timer: 0, pressed: false});
                         if (char === 'L') this.lasers.push({x: x+15, y, w: 10, h: TILE, active: true});
                         if (char === 'C') this.coins.push({x: x + TILE/2, y: y + TILE/2, collected: false});
                         if (char === 'D') this.door = {x: x, y: y-40, w: 60, h: 80}; 
@@ -592,18 +592,26 @@
                 this.particles.forEach(p => p.update()); 
                 this.particles = this.particles.filter(p => p.life > 0);
                 
-                // Следим за игроком
                 let targetCX = this.player.x - canvas.width / 3;
                 let targetCY = this.player.y - canvas.height / 2;
-                if (targetCX < 0) targetCX = 0; // Не уходим за левый край
+                if (targetCX < 0) targetCX = 0; 
                 this.cameraX += (targetCX - this.cameraX) * 0.1;
                 this.cameraY += (targetCY - this.cameraY) * 0.1;
 
+                // --- НОВАЯ ЛОГИКА КНОПОК С ТАЙМЕРОМ ---
                 let anyButtonPressed = false;
                 this.buttons.forEach(b => {
+                    // Проверка коллизии игрока с кнопкой
                     if (this.player.x < b.x + b.w && this.player.x + 30 > b.x && this.player.y + 30 >= b.y && this.player.y < b.y + b.h) {
-                        if (!b.pressed) sfx.button();
-                        b.pressed = true; anyButtonPressed = true;
+                        if (b.timer === 0) sfx.button(); // Звук только в момент первого нажатия
+                        b.timer = 180; // 3 секунды задержки (180 кадров при 60 fps)
+                    }
+                    
+                    // Если таймер еще не истек, кнопка считается нажатой
+                    if (b.timer > 0) {
+                        b.timer--;
+                        b.pressed = true;
+                        anyButtonPressed = true;
                     } else {
                         b.pressed = false;
                     }
@@ -629,7 +637,6 @@
                     }
                 }
 
-                // Магнит
                 let magCoinRadius = SAVE.magnetCoinLvl * 45; 
                 this.coins.forEach(c => {
                     if (!c.collected) {
@@ -728,7 +735,7 @@
                 this.x = 0; this.y = 0; this.vx = 0; this.vy = 0; 
                 this.onGround = false; this.frameCount = 0;
                 this.invincibleTimer = 0;
-                this.jumps = 0; // Для двойного прыжка
+                this.jumps = 0; 
                 this.jumpPressed = false;
             }
             
@@ -736,25 +743,22 @@
                 this.frameCount++;
                 if (this.invincibleTimer > 0) this.invincibleTimer--;
                 
-                // Движение по X
                 if (input.keys.includes('ArrowRight') || input.keys.includes('Right')) { this.vx += 1.5; }
                 else if (input.keys.includes('ArrowLeft') || input.keys.includes('Left')) { this.vx -= 1.5; }
                 else { this.vx *= 0.8; }
                 
                 if (this.vx > 7) this.vx = 7; if (this.vx < -7) this.vx = -7;
 
-                // ДВОЙНОЙ ПРЫЖОК
                 let isJumping = input.keys.includes('ArrowUp') || input.keys.includes('Jump') || input.keys.includes('Space');
                 
                 if (isJumping && !this.jumpPressed) {
                     this.jumpPressed = true;
-                    if (this.jumps < 2) { // 0 = первый прыжок, 1 = второй прыжок
+                    if (this.jumps < 2) { 
                         this.vy = -15;
                         this.jumps++;
                         this.onGround = false;
                         if (this.jumps === 1) sfx.jump(); else sfx.doubleJump();
                         
-                        // Пыль от прыжка
                         for(let i=0; i<8; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, '#fff', false, 0.5));
                     }
                 }
@@ -762,18 +766,15 @@
                     this.jumpPressed = false;
                 }
 
-                // Гравитация
                 this.vy += 0.8; 
                 if (this.vy > 20) this.vy = 20;
 
-                // Шлейфы
                 if (SAVE.trail !== 'none' && (Math.abs(this.vx)>2 || Math.abs(this.vy)>2)) {
                     if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.2));
                     else if (SAVE.trail === 'matrix' && this.frameCount % 3 === 0) this.game.particles.push(new Particle(this.x + Math.random()*20, this.y + 15, '#00ff00', false, 0.2, Math.random()>0.5?'0':'1'));
                     else if (SAVE.trail === 'fire' && this.frameCount % 2 === 0) this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.2));
                 }
 
-                // Коллизии X
                 this.x += this.vx;
                 this.game.walls.forEach(w => {
                     if (this.x < w.x + w.w && this.x + this.width > w.x && this.y < w.y + w.h && this.y + this.height > w.y) {
@@ -783,7 +784,6 @@
                     }
                 });
 
-                // Коллизии Y
                 this.y += this.vy;
                 this.onGround = false;
                 this.game.walls.forEach(w => {
@@ -791,7 +791,7 @@
                         if (this.vy > 0) { 
                             this.y = w.y - this.height; 
                             this.onGround = true; 
-                            this.jumps = 0; // Сбрасываем двойной прыжок при касании земли
+                            this.jumps = 0; 
                         }
                         else if (this.vy < 0) { this.y = w.y + w.h; }
                         this.vy = 0;
@@ -819,7 +819,7 @@
             document.getElementById('hudLeft').innerText = `СЕКТОР ${levelIdx}`;
             updateUI(); showState('NONE'); 
             gameHud.style.display = 'flex';
-            mobileControls.style.display = 'flex'; // Показываем стрелки только во время игры
+            mobileControls.style.display = 'flex'; 
         }
 
         function triggerGameOver(reason) { 
