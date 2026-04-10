@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Downfall: The Pivot</title>
+    <title>Neon Grapple: Puzzle Platformer</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -23,11 +23,6 @@
             50% { text-shadow: 0 0 20px #00d2ff, 0 0 40px #00d2ff; transform: scale(1.05); }
             100% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
         }
-        @keyframes laserPulse {
-            0% { text-shadow: 0 0 10px #ff0033, 0 0 20px #ff0033; color: #ff5555;}
-            50% { text-shadow: 0 0 20px #ff0033, 0 0 40px #ff0033; color: #fff;}
-            100% { text-shadow: 0 0 10px #ff0033, 0 0 20px #ff0033; color: #ff5555;}
-        }
 
         h1 { font-size: 42px; margin-bottom: 5px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 3px; margin-top:0;}
         h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 30px; margin: 0 0 15px 0; text-align: center; letter-spacing: 2px; }
@@ -39,9 +34,7 @@
             transition: all 0.2s ease;
         }
         .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 5px 20px rgba(241, 39, 17, 0.3); }
-        .btn-endless { background: linear-gradient(45deg, #8A2387, #E94057, #F27121); box-shadow: 0 5px 20px rgba(233, 64, 87, 0.3); }
         .btn-back { background: transparent; border: 2px solid #555; box-shadow: none; margin-top: 15px; }
-        
         .ui-btn:active { transform: scale(0.95); }
         .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 
@@ -55,9 +48,8 @@
             aspect-ratio: 1; border-radius: 10px; border: none; font-size: 16px; font-weight: bold;
             color: white; background: #222; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;
         }
-        .lvl-btn.completed { background: #111; color: #4caf50; border: 1px solid #4caf50; cursor: not-allowed; }
+        .lvl-btn.completed { background: #111; color: #4caf50; border: 1px solid #4caf50; }
         .lvl-btn.current { background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 10px #00d2ff; animation: neonPulse 1.5s infinite; }
-        .lvl-btn.hard { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f12711; animation: neonPulse 1s infinite;}
         .lvl-btn.locked { background: #1a1a2e; color: #555; cursor: not-allowed; }
         .lvl-btn:active:not(:disabled) { transform: scale(0.9); }
 
@@ -98,7 +90,7 @@
 
     <div class="top-hud" id="gameHud" style="display:none;">
         <div>
-            <div class="hud-text" id="hudLeft">ГЛУБИНА: 0 м</div>
+            <div class="hud-text" id="hudLeft">УРОВЕНЬ 1</div>
             <div class="lives-hud" id="hudLives"></div>
         </div>
         <div style="display: flex; align-items: flex-start; gap: 15px;">
@@ -113,26 +105,17 @@
         <button class="ui-btn btn-back" onclick="quitGame()">В МЕНЮ</button>
     </div>
 
-    <div id="reviveMenu" class="overlay" style="z-index: 30;">
-        <h2 style="color: #ff0055; text-shadow: 0 0 15px #ff0055; animation: laserPulse 1s infinite;">СЖЖЕН ЛАЗЕРОМ</h2>
-        <p style="font-size: 18px; color: #ccc; margin-bottom: 25px;">Использовать сердце? У вас: <span id="reviveLivesCount" style="color: #ff0055; font-weight: bold;">0</span> ❤️</p>
-        <button class="ui-btn" style="background: linear-gradient(45deg, #ff0055, #ff5e62);" onclick="confirmRevive()">ДА (❤️-1)</button>
-        <button class="ui-btn btn-back" onclick="declineRevive()">СДАТЬСЯ</button>
-    </div>
-
     <div id="mainMenu" class="overlay active">
-        <h1 style="font-size: 48px; color: #ff0055; text-shadow: 0 0 20px #ff0055; animation: none;">NEON</h1>
-        <h1 style="margin-top: -15px;">DOWNFALL</h1>
-        <p style="color: #00d2ff; margin-bottom: 15px; font-weight: bold;">КАК ИГРАТЬ: Жми в ЦЕНТР экрана, чтобы ПРОБИТЬ платформу!</p>
-        <button class="ui-btn" onclick="showState('LEVELS')">ШАХТЫ (КАМПАНИЯ)</button>
-        <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕЗДНА (БЕСКОНЕЧНЫЙ)</button>
+        <h1 style="font-size: 48px; color: #00d2ff; text-shadow: 0 0 20px #00d2ff; animation: none;">NEON</h1>
+        <h1 style="margin-top: -15px;">GRAPPLE</h1>
+        <p style="color: #ccc; margin-bottom: 5px; font-size: 14px; text-align: center;">ВЕРХ ЭКРАНА - Крюк<br>НИЗ ЦЕНТР - Прыжок</p>
+        <button class="ui-btn" onclick="showState('LEVELS')">ИГРАТЬ</button>
         <button class="ui-btn btn-shop" onclick="showState('SHOP')">АРСЕНАЛ</button>
         <p class="coin-hud" style="font-size: 26px; margin-top: 15px;" id="menuCoins">💰 0</p>
-        <p class="hud-text" style="font-size: 14px; color: #888;" id="menuScore">Макс. Глубина: 0 м</p>
     </div>
 
     <div id="levelMenu" class="overlay">
-        <h2>СЕКТОРА ШАХТЫ</h2>
+        <h2>ГОЛОВОЛОМКИ</h2>
         <div id="levelGrid"></div>
         <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
     </div>
@@ -145,8 +128,8 @@
     </div>
 
     <div id="endMenu" class="overlay">
-        <h2 id="endTitle">СЕКТОР ЗАЧИЩЕН</h2>
-        <p id="endDesc" style="color: #ccc; font-size: 18px; margin-bottom: 30px;">Глубина достигнута!</p>
+        <h2 id="endTitle">УРОВЕНЬ ПРОЙДЕН</h2>
+        <p id="endDesc" style="color: #ccc; font-size: 18px; margin-bottom: 30px;">Молодец!</p>
         <button class="ui-btn" id="endBtn1" onclick="nextAction()">ДАЛЕЕ</button>
         <button class="ui-btn btn-back" onclick="showState('MAIN')">В МЕНЮ</button>
     </div>
@@ -161,14 +144,12 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
+        // --- СОХРАНЕНИЯ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
-            maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
-            highScore: parseInt(localStorage.getItem('neonScore')) || 0,
-            jetpackLevel: parseInt(localStorage.getItem('neonJetpackLvl')) || 1,
-            magnetCoinLvl: parseInt(localStorage.getItem('neonMagCoin')) || 0,
-            magnetJpLvl: parseInt(localStorage.getItem('neonMagJp')) || 0,
-            lives: parseInt(localStorage.getItem('neonLives')) || 0,
+            maxLevel: parseInt(localStorage.getItem('neonGrappleMaxLevel')) || 1,
+            hookLevel: parseInt(localStorage.getItem('neonHookLvl')) || 1,
+            lives: parseInt(localStorage.getItem('neonShields')) || 0,
             skin: localStorage.getItem('neonSkin') || '#00d2ff',
             ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff'],
             trail: localStorage.getItem('neonTrail') || 'none',
@@ -177,12 +158,9 @@
 
         function saveGame() {
             localStorage.setItem('neonCoins', SAVE.coins);
-            localStorage.setItem('neonMaxLevel', SAVE.maxLevel);
-            localStorage.setItem('neonScore', SAVE.highScore);
-            localStorage.setItem('neonJetpackLvl', SAVE.jetpackLevel);
-            localStorage.setItem('neonMagCoin', SAVE.magnetCoinLvl);
-            localStorage.setItem('neonMagJp', SAVE.magnetJpLvl);
-            localStorage.setItem('neonLives', SAVE.lives);
+            localStorage.setItem('neonGrappleMaxLevel', SAVE.maxLevel);
+            localStorage.setItem('neonHookLvl', SAVE.hookLevel);
+            localStorage.setItem('neonShields', SAVE.lives);
             localStorage.setItem('neonSkin', SAVE.skin);
             localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
             localStorage.setItem('neonTrail', SAVE.trail);
@@ -190,10 +168,10 @@
             updateUI();
         }
 
-        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu'), REVIVE: document.getElementById('reviveMenu') };
+        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu') };
         const gameHud = document.getElementById('gameHud');
         let gameState = 'START'; 
-        let pendingDeathReason = "";
+        let currentLevelIdx = 1;
 
         function showState(state) {
             sfx.init();
@@ -219,36 +197,23 @@
             sfx.stopBGM(); saveGame(); showState('MAIN');
         }
 
-        function confirmRevive() {
-            document.getElementById('reviveMenu').classList.remove('active');
-            gameState = 'PLAYING'; game.useExtraLife();
-        }
-
-        function declineRevive() {
-            document.getElementById('reviveMenu').classList.remove('active');
-            triggerGameOver(pendingDeathReason);
-        }
-
         function updateUI() {
             document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
             document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('menuScore').innerText = `Макс. Глубина: ${SAVE.highScore} м`;
             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
+            document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `🛡️ ${SAVE.lives}` : '';
             renderShop(); renderLevels();
         }
 
         function renderLevels() {
             const grid = document.getElementById('levelGrid');
             grid.innerHTML = '';
-            for (let i = 1; i <= 100; i++) {
+            for (let i = 1; i <= 5; i++) { // У нас 5 уровней пока
                 let btn = document.createElement('button'); btn.className = 'lvl-btn'; 
-                if (i < SAVE.maxLevel) { btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true; } 
-                else if (i === SAVE.maxLevel) {
-                    btn.innerText = i;
-                    if (i % 5 === 0) btn.classList.add('hard'); else btn.classList.add('current');
-                    btn.onclick = () => startGame('campaign', i);
-                } else { btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true; }
+                if (i < SAVE.maxLevel) { btn.classList.add('completed'); btn.innerText = i; } 
+                else if (i === SAVE.maxLevel) { btn.classList.add('current'); btn.innerText = i; } 
+                else { btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true; }
+                btn.onclick = () => startGame(i);
                 grid.appendChild(btn);
             }
         }
@@ -257,23 +222,20 @@
             const list = document.getElementById('shopList');
             list.innerHTML = '';
             const items = [
-                { id: 'upg_jp', name: 'МЕТЕОР ☄️', desc: '+Время супер-удара', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
-                { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
-                { id: 'mag_jp', name: 'МАГНИТ МЕТЕОРОВ 🧲', desc: '+Радиус', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
-                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Авто-спасение от лазера', price: 50, type: 'consumable', lvl: SAVE.lives },
+                { id: 'upg_hook', name: 'ДЛИНА КРЮКА 🪝', desc: 'Увеличивает дальность захвата.', price: SAVE.hookLevel * 150, type: 'upg_hook', lvl: SAVE.hookLevel, maxed: SAVE.hookLevel >= 5 },
+                { id: 'shield', name: 'ЭНЕРГО-ЩИТ 🛡️', desc: 'Поглощает 1 смертельный урон.', price: 100, type: 'consumable', lvl: SAVE.lives },
                 { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
                 { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' },
                 { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Убрать шлейф.', price: 0, type: 'trail' },
                 { id: 'fire', name: 'ПЛАМЯ 🔥', desc: 'Огненный шлейф.', price: 800, type: 'trail' },
-                { id: 'rainbow', name: 'РАДУГА 🌈', desc: 'Неоновый перелив.', price: 1500, type: 'trail' },
-                { id: 'matrix', name: 'МАТРИЦА 🟩', desc: 'Цифровой след.', price: 2500, type: 'trail' }
+                { id: 'rainbow', name: 'РАДУГА 🌈', desc: 'Неоновый перелив.', price: 1500, type: 'trail' }
             ];
 
             items.forEach(item => {
                 let actionText = `КУПИТЬ (${item.price} 💰)`;
                 let btnClass = 'shop-btn'; let disabled = SAVE.coins < item.price; let badge = '';
 
-                if (item.type.startsWith('upg') || item.type.startsWith('mag')) {
+                if (item.type === 'upg_hook') {
                     badge = `<div class="lvl-badge">LVL ${item.lvl}</div>`;
                     if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
                 }
@@ -314,9 +276,7 @@
             
             if (SAVE.coins >= price) {
                 SAVE.coins -= price;
-                if (type === 'upg_jp') SAVE.jetpackLevel++;
-                if (type === 'mag_coin') SAVE.magnetCoinLvl++;
-                if (type === 'mag_jp') SAVE.magnetJpLvl++;
+                if (type === 'upg_hook') SAVE.hookLevel++;
                 if (type === 'consumable') SAVE.lives++;
                 if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
                 if (type === 'trail') { SAVE.ownedTrails.push(id); SAVE.trail = id; }
@@ -324,7 +284,7 @@
             }
         }
 
-        // --- НОВЫЙ АУДИО ДВИЖОК ---
+        // --- АУДИО ---
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
@@ -341,49 +301,11 @@
                     osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
                 } catch(e) {}
             }
-            jump() { this.playTone(250, 'sine', 0.15, 0.2); } // Легкий отскок
-            smash() { 
-                if(!this.ctx || this.ctx.state !== 'running') return; 
-                try {
-                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.2); 
-                    gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.2);
-                } catch(e) {}
-            }
-            coin() {
-                if(!this.ctx || this.ctx.state !== 'running') return; 
-                try {
-                    const now = this.ctx.currentTime;
-                    const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
-                    osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-                    const osc2 = this.ctx.createOscillator(); const gain2 = this.ctx.createGain();
-                    osc2.type = 'square'; osc2.frequency.setValueAtTime(3000, now); gain2.gain.setValueAtTime(0.03, now); gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                    osc1.connect(gain1); gain1.connect(this.ctx.destination); osc2.connect(gain2); gain2.connect(this.ctx.destination);
-                    osc1.start(now); osc1.stop(now + 0.5); osc2.start(now); osc2.stop(now + 0.2);
-                } catch(e) {}
-            }
+            jump() { this.playTone(350, 'sine', 0.15, 0.2); } 
+            grapple() { this.playTone(800, 'sine', 0.1, 0.1); setTimeout(() => this.playTone(1200, 'sine', 0.1, 0.1), 50); }
+            button() { this.playTone(500, 'square', 0.2, 0.2); }
+            coin() { this.playTone(2000, 'sine', 0.1, 0.1); setTimeout(() => this.playTone(3000, 'square', 0.1, 0.05), 50); }
             purchase() { this.playTone(1000, 'square', 0.3, 0.1); }
-            powerup() {
-                if(!this.ctx || this.ctx.state !== 'running') return; 
-                try {
-                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
-                    gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
-                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.4);
-                } catch(e) {}
-            }
-            thrust() {
-                if(!this.ctx || this.ctx.state !== 'running') return;
-                try {
-                    if(Math.random() > 0.6) {
-                        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
-                        gain.gain.setValueAtTime(0.08, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
-                        osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.1);
-                    }
-                } catch(e) {}
-            }
             death() {
                 if(!this.ctx) return; 
                 try {
@@ -406,19 +328,19 @@
                 };
                 let step = 0;
                 this.bgmInterval = setInterval(() => {
-                    if(this.ctx.state !== 'running' || gameState === 'PAUSED' || gameState === 'REVIVE_PROMPT') return; 
+                    if(this.ctx.state !== 'running' || gameState === 'PAUSED') return; 
                     const now = this.ctx.currentTime;
-                    // Мрачный бас падения
-                    const bassNotes = [82, 0, 82, 0, 98, 0, 82, 0, 73, 0, 73, 0, 98, 82, 0, 0];
-                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.2);
-                    step = (step + 1) % 16;
-                }, 160); // Темп быстрее!
+                    // Атмосферный бас платформера
+                    const bassNotes = [130, 0, 146, 0, 164, 0, 146, 0];
+                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'triangle', 0.2);
+                    step = (step + 1) % 8;
+                }, 200); 
             }
             stopBGM() { clearInterval(this.bgmInterval); this.bgmStarted = false; }
         }
         const sfx = new SoundEngine();
 
-        // --- НОВОЕ УПРАВЛЕНИЕ (3 ЗОНЫ) ---
+        // --- УМНОЕ УПРАВЛЕНИЕ ---
         class InputHandler {
             constructor() {
                 this.keys = [];
@@ -429,11 +351,17 @@
                     if (gameState !== 'PLAYING') return; e.preventDefault(); this.keys = []; 
                     for (let i = 0; i < e.touches.length; i++) {
                         let x = e.touches[i].clientX;
+                        let y = e.touches[i].clientY;
                         let w = canvas.width;
-                        // Левая треть - влево, Правая треть - вправо, Центр - УДАР ВНИЗ!
-                        if (x < w * 0.33) this.keys.push('ArrowLeft');
-                        else if (x > w * 0.66) this.keys.push('ArrowRight');
-                        else this.keys.push('ArrowDown');
+                        let h = canvas.height;
+                        
+                        if (y < h * 0.5) {
+                            this.keys.push('Hook'); // Верхняя половина - КРЮК
+                        } else {
+                            if (x < w * 0.33) this.keys.push('ArrowLeft'); // Слева снизу
+                            else if (x > w * 0.66) this.keys.push('ArrowRight'); // Справа снизу
+                            else this.keys.push('ArrowUp'); // Центр снизу - ПРЫЖОК
+                        }
                     }
                 };
                 const handleTouchEnd = (e) => { if (e.touches.length === 0) this.keys = []; else handleTouch(e); };
@@ -448,7 +376,7 @@
                 this.x = x; this.y = y; this.color = color; this.text = text;
                 this.size = Math.random() * (isFire ? 10 : 6) + 2;
                 this.vx = (Math.random() - 0.5) * (isFire ? 5 : 12) * speedMult;
-                this.vy = (Math.random() - 0.5) * 12 * speedMult; // Разлет во все стороны!
+                this.vy = (Math.random() - 0.5) * 12 * speedMult; 
                 this.life = 1.0; this.decay = isFire ? 0.05 : 0.03;
             }
             update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
@@ -461,393 +389,369 @@
             }
         }
 
-        class FloatingText {
-            constructor(x, y, text) { this.x = x; this.y = y; this.text = text; this.life = 1.0; this.vy = -1.5; }
-            update() { this.y += this.vy; this.life -= 0.02; }
-            draw(ctx) {
-                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = '#ff0055'; ctx.font = 'bold 24px Arial';
-                ctx.shadowBlur = 10; ctx.shadowColor = '#fff'; ctx.fillText(this.text, this.x - 30, this.y);
-                ctx.shadowBlur = 0; ctx.globalAlpha = 1.0;
-            }
-        }
+        // --- ДИЗАЙН УРОВНЕЙ (40x40 пикселей тайл) ---
+        // . пусто, # стена, ^ шипы, O крюк, B кнопка, L лазер, D дверь, C монета, @ спавн
+        const LEVEL_MAPS = [
+            // 1: Обучение движению и прыжку
+            [
+                "..........................",
+                "..........................",
+                "..........................",
+                "..........................",
+                ".......................D..",
+                ".................C...#####",
+                ".............C..###..#",
+                "........C...###......#",
+                "@......###...........#",
+                "######...............#",
+                "######################"
+            ],
+            // 2: Обучение Шипам и Кнопкам
+            [
+                "..........................",
+                "..........................",
+                "..........................",
+                "...................L...D..",
+                "...................L.#####",
+                "......C.........C..L.#",
+                ".....###.......###.L.#",
+                ".........C...C.....L.#",
+                "@..B....###.###....L.#",
+                "####..#^^^^^^^^^#..L.#",
+                "#######^^^^^^^^^######"
+            ],
+            // 3: Обучение КРЮКУ (Узлы 'O')
+            [
+                "..........................",
+                "..........................",
+                "..........O...............",
+                ".......................D..",
+                ".....................#####",
+                ".....................#",
+                ".....................#",
+                ".....................#",
+                "@................C...#",
+                "###...#^^^^^^^#..##..#",
+                "#######^^^^^^^########"
+            ],
+            // 4: Паркур и тайминги
+            [
+                "..........................",
+                ".......O..................",
+                "...................L...D..",
+                "...............O...L.#####",
+                "...................L.#",
+                "...................L.#",
+                ".........C.........L.#",
+                "........###........L.#",
+                "@..B...........C...L.#",
+                "####.........#####.L.#",
+                "####^^^^^^^^^#########"
+            ],
+            // 5: Хардкор Комбо
+            [
+                "...................................",
+                "............O......................",
+                "........................L.......D..",
+                "....................O...L.....#####",
+                ".....O..................L.....#",
+                "..............C.........L.....#",
+                ".............###........L.....#",
+                ".......C................L.....#",
+                "@.B...###..........C....L.....#",
+                "###..............#####..L.....#",
+                "###^^^^^^^^^^^^^^^^^^^^^^^^^^^#"
+            ]
+        ];
 
-        class Platform {
-            constructor(x, y, width, type = 'normal', tier = 0) {
-                this.x = x; this.y = y; this.width = width; this.height = 20;
-                this.type = type; 
-                this.moveSpeed = (0.8 + tier * 0.4) + Math.random() * 1.2; 
-                this.direction = Math.random() > 0.5 ? 1 : -1;
-                this.broken = false;
+        const TILE = 40;
+
+        class Game {
+            constructor(levelIdx) {
+                this.levelIdx = levelIdx;
+                this.input = new InputHandler(); 
+                this.particles = [];
+                
+                this.walls = []; this.spikes = []; this.nodes = []; this.coins = [];
+                this.buttons = []; this.lasers = []; this.door = null;
+                
+                this.cameraX = 0; this.cameraY = 0;
+                this.player = new Player(this);
+
+                this.loadLevel(LEVEL_MAPS[levelIdx - 1]);
             }
-            update() {
-                if (this.type === 'moving') {
-                    this.x += this.moveSpeed * this.direction;
-                    if (this.x <= 0 || this.x + this.width >= canvas.width) this.direction *= -1;
+
+            loadLevel(mapArray) {
+                for (let r = 0; r < mapArray.length; r++) {
+                    for (let c = 0; c < mapArray[r].length; c++) {
+                        let char = mapArray[r][c];
+                        let x = c * TILE; let y = r * TILE;
+                        
+                        if (char === '#') this.walls.push({x, y, w: TILE, h: TILE});
+                        if (char === '^') this.spikes.push({x, y: y+20, w: TILE, h: 20}); // Шипы занимают нижнюю половину
+                        if (char === 'O') this.nodes.push({x: x + TILE/2, y: y + TILE/2}); // Центр узла
+                        if (char === 'B') this.buttons.push({x: x+5, y: y+30, w: 30, h: 10, pressed: false});
+                        if (char === 'L') this.lasers.push({x: x+15, y, w: 10, h: TILE, active: true});
+                        if (char === 'C') this.coins.push({x: x + TILE/2, y: y + TILE/2, collected: false});
+                        if (char === 'D') this.door = {x: x, y: y-40, w: 60, h: 80}; // Дверь большая
+                        if (char === '@') { this.player.x = x; this.player.y = y; }
+                    }
                 }
             }
-            draw(ctx) {
-                if(this.broken) return;
-                if (this.type === 'finish') { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700'; }
-                else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
-                else if (this.type === 'spring') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ff00'; }
-                else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00d2ff'; }
-                ctx.fillRect(this.x, this.y, this.width, 4); 
-                ctx.shadowBlur = 0;
-            }
-        }
 
-        class Item {
-            constructor(x, y, type) { this.x = x; this.y = y; this.type = type; this.width = 24; this.height = 24; this.baseY = y; this.angle = Math.random() * Math.PI * 2; this.markedForDeletion = false; }
-            update() { this.angle += 0.05; this.y = this.baseY + Math.sin(this.angle) * 5; }
-            draw(ctx) {
-                if(this.markedForDeletion) return;
-                ctx.beginPath();
-                if (this.type === 'coin') { ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 20; ctx.arc(this.x + 12, this.y + 12, 10, 0, Math.PI * 2); }
-                else if (this.type === 'jetpack') { ctx.fillStyle = '#ff0055'; ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 25; ctx.moveTo(this.x+12, this.y-4); ctx.lineTo(this.x+26, this.y+24); ctx.lineTo(this.x-2, this.y+24); }
-                ctx.fill(); ctx.shadowBlur = 0;
-            }
-        }
-
-        // --- НОВЫЙ ОХОТНИК: НАДВИГАЮЩИЙСЯ ЛАЗЕРНЫЙ ПОТОЛОК ---
-        class Hunter {
-            constructor(game) { this.game = game; this.y = -500; this.active = false; this.waitTimer = 0; }
-            reset() { this.y = this.game.cameraY - 500; this.active = false; this.waitTimer = 120; }
-            startTimer() { this.waitTimer = 120; } 
             update() {
                 if (gameState !== 'PLAYING') return;
-                if (!this.active) { 
-                    if (this.waitTimer > 0) this.waitTimer--;
-                    else this.active = true; 
-                    return; 
-                }
+
+                this.player.update(this.input);
+                this.particles.forEach(p => p.update()); 
+                this.particles = this.particles.filter(p => p.life > 0);
                 
-                // Лазер постоянно ползет вниз
-                let baseSpeed = this.game.isHard ? 2.5 : 1.5; 
-                let speed = baseSpeed + (this.game.level * 0.1); 
-                
-                // Если игрок улетел слишком далеко вниз, лазер ускоряется, чтобы догнать
-                if (this.game.player.y - this.y > 700) {
-                    speed += (this.game.player.y - this.y - 700) * 0.01;
+                // Умная камера (следит за игроком)
+                let targetCX = this.player.x - canvas.width / 3;
+                let targetCY = this.player.y - canvas.height / 2;
+                this.cameraX += (targetCX - this.cameraX) * 0.1;
+                this.cameraY += (targetCY - this.cameraY) * 0.1;
+
+                // КНОПКИ И ЛАЗЕРЫ
+                let anyButtonPressed = false;
+                this.buttons.forEach(b => {
+                    // Игрок наступает на кнопку
+                    if (this.player.x < b.x + b.w && this.player.x + 30 > b.x && this.player.y + 30 >= b.y && this.player.y < b.y + b.h) {
+                        if (!b.pressed) sfx.button();
+                        b.pressed = true; anyButtonPressed = true;
+                    } else {
+                        b.pressed = false;
+                    }
+                });
+
+                // Лазеры отключаются, если нажата любая кнопка
+                this.lasers.forEach(l => l.active = !anyButtonPressed);
+
+                // СМЕРТЬ ОТ ШИПОВ ИЛИ ЛАЗЕРОВ
+                let dead = false;
+                this.spikes.forEach(s => {
+                    if (this.player.x < s.x + s.w - 5 && this.player.x + 30 > s.x + 5 && this.player.y + 30 > s.y + 5) dead = true;
+                });
+                this.lasers.forEach(l => {
+                    if (l.active && this.player.x < l.x + l.w && this.player.x + 30 > l.x && this.player.y + 30 > l.y && this.player.y < l.y + l.h) dead = true;
+                });
+                if (this.player.y > 3000) dead = true; // Упал в бездну
+
+                if (dead) {
+                    if (SAVE.lives > 0) {
+                        SAVE.lives--; saveGame(); sfx.powerup();
+                        for(let i=0; i<30; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#00d2ff', false, 2));
+                        this.player.vy = -20; // Щит подкидывает вверх
+                    } else {
+                        for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
+                        triggerGameOver("ВЫ ПОГИБЛИ");
+                    }
                 }
-                this.y += speed;
+
+                // МОНЕТЫ
+                this.coins.forEach(c => {
+                    if (!c.collected && Math.abs((this.player.x+15) - c.x) < 25 && Math.abs((this.player.y+15) - c.y) < 25) {
+                        c.collected = true; SAVE.coins++; sfx.coin(); saveGame();
+                        for(let i=0; i<10; i++) this.particles.push(new Particle(c.x, c.y, '#FFD700'));
+                        document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
+                    }
+                });
+
+                // ФИНИШ
+                if (this.door && this.player.x < this.door.x + this.door.w && this.player.x + 30 > this.door.x && this.player.y < this.door.y + this.door.h && this.player.y + 30 > this.door.y) {
+                    triggerWin();
+                }
             }
+
             draw(ctx) {
-                // Рисуем заливку сверху экрана до линии лазера
-                ctx.fillStyle = 'rgba(255, 0, 50, 0.4)';
-                let topEdge = this.game.cameraY;
-                if (this.y > topEdge) {
-                    ctx.fillRect(0, topEdge, canvas.width, this.y - topEdge);
-                }
-                
-                // Сам лазерный луч
-                ctx.fillStyle = '#ff0033'; ctx.shadowBlur = 20; ctx.shadowColor = '#ff0033'; 
-                ctx.fillRect(0, this.y - 10, canvas.width, 15);
-                
-                // Искры от лазера
-                if (Math.random() > 0.5) {
-                    ctx.fillStyle = '#fff';
-                    ctx.fillRect(Math.random() * canvas.width, this.y - 5, 10 + Math.random()*20, 2);
-                }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save(); ctx.translate(-this.cameraX, -this.cameraY);
+
+                // Стены
+                ctx.fillStyle = '#222'; ctx.shadowBlur = 10; ctx.shadowColor = '#00d2ff';
+                this.walls.forEach(w => { ctx.fillRect(w.x, w.y, w.w, w.h); ctx.fillStyle = '#00d2ff'; ctx.fillRect(w.x, w.y, w.w, 2); ctx.fillStyle = '#222';});
                 ctx.shadowBlur = 0;
+
+                // Шипы
+                ctx.fillStyle = '#ff0033';
+                this.spikes.forEach(s => {
+                    ctx.beginPath(); ctx.moveTo(s.x, s.y+s.h); ctx.lineTo(s.x+s.w/2, s.y); ctx.lineTo(s.x+s.w, s.y+s.h); ctx.fill();
+                });
+
+                // Кнопки
+                this.buttons.forEach(b => {
+                    ctx.fillStyle = b.pressed ? '#4caf50' : '#ff0033';
+                    ctx.fillRect(b.x, b.pressed ? b.y+5 : b.y, b.w, b.pressed ? b.h-5 : b.h);
+                });
+
+                // Лазеры
+                this.lasers.forEach(l => {
+                    if (l.active) {
+                        ctx.fillStyle = '#ff0033'; ctx.shadowBlur = 15; ctx.shadowColor = '#ff0033';
+                        ctx.fillRect(l.x, l.y, l.w, l.h); ctx.shadowBlur = 0;
+                    }
+                });
+
+                // Узлы Крюка
+                this.nodes.forEach(n => {
+                    ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(n.x, n.y, 8, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(n.x, n.y, 3, 0, Math.PI*2); ctx.fill();
+                });
+
+                // Монеты
+                this.coins.forEach(c => {
+                    if(!c.collected) {
+                        ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700';
+                        ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+                    }
+                });
+
+                // Дверь
+                if (this.door) {
+                    ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 20; ctx.shadowColor = '#00ff00';
+                    ctx.fillRect(this.door.x, this.door.y, this.door.w, this.door.h);
+                    ctx.fillStyle = '#000'; ctx.fillRect(this.door.x+10, this.door.y+10, this.door.w-20, this.door.h-10);
+                    ctx.shadowBlur = 0;
+                }
+
+                // Игрок и веревка
+                if (gameState === 'PLAYING' || gameState === 'END') this.player.draw(ctx);
+                
+                this.particles.forEach(p => p.draw(ctx)); 
+                ctx.restore();
             }
         }
 
         class Player {
-            constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; this.reset(); }
-            reset() { this.x = canvas.width/2 - 15; this.y = 100; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin; this.angle = 0; this.frameCount = 0; this.isSmashing = false;}
+            constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; 
+                this.x = 0; this.y = 0; this.vx = 0; this.vy = 0; 
+                this.onGround = false; this.grappleNode = null; this.frameCount = 0;
+            }
+            
             update(input) {
-                if (gameState !== 'PLAYING') return;
                 this.frameCount++;
-
-                // Движение влево/вправо
-                if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 
-                // УДАР ВНИЗ (SMASH)
-                if (input.keys.includes('ArrowDown') && this.vy >= 0 && !this.isSmashing) {
-                    this.isSmashing = true;
-                    this.vy = 25; // Резкое ускорение вниз
-                    sfx.smash();
+                // ДВИЖЕНИЕ И ПРЫЖКИ
+                if (input.keys.includes('ArrowRight') || input.keys.includes('Right')) { this.vx += 1.5; }
+                else if (input.keys.includes('ArrowLeft') || input.keys.includes('Left')) { this.vx -= 1.5; }
+                else { this.vx *= 0.8; } // Трение
+                
+                if (this.vx > 7) this.vx = 7; if (this.vx < -7) this.vx = -7;
+
+                if ((input.keys.includes('ArrowUp') || input.keys.includes('Jump')) && this.onGround) {
+                    this.vy = -16; this.onGround = false; sfx.jump();
+                    for(let i=0; i<5; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, '#fff', false, 0.5));
                 }
 
-                let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
-                this.angle += (this.jetpackTimer > 0 || this.isSmashing ? 0.4 : 0.1) * dir;
+                // --- ЛОГИКА КРЮКА ---
+                let maxDist = 200 + (SAVE.hookLevel * 50); // Прокачка длины крюка
+                let wantGrapple = input.keys.includes('Hook') || input.keys.includes(' ');
 
-                // Шлейфы
-                if (SAVE.trail !== 'none' || this.isSmashing) {
-                    if (this.isSmashing) {
-                        this.game.particles.push(new Particle(this.x + 15, this.y, '#ff5500', true, 0.5));
-                    } else if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) {
-                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 5, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.3));
-                    } else if (SAVE.trail === 'matrix' && this.frameCount % 3 === 0) {
-                        let char = Math.random() > 0.5 ? '0' : '1';
-                        this.game.particles.push(new Particle(this.x + Math.random()*20, this.y, '#00ff00', false, 0.2, char));
-                    } else if (SAVE.trail === 'fire' && this.frameCount % 2 === 0) {
-                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.4));
+                if (wantGrapple && !this.grappleNode) {
+                    // Ищем ближайший узел
+                    let bestNode = null; let bestDist = maxDist;
+                    this.game.nodes.forEach(n => {
+                        let d = Math.sqrt(Math.pow(n.x - (this.x+15), 2) + Math.pow(n.y - (this.y+15), 2));
+                        if (d < bestDist) { bestDist = d; bestNode = n; }
+                    });
+                    if (bestNode) { this.grappleNode = bestNode; sfx.grapple(); }
+                } else if (!wantGrapple) {
+                    this.grappleNode = null;
+                }
+
+                if (this.grappleNode) {
+                    // ФИЗИКА МАЯТНИКА (Пружина к узлу)
+                    let dx = this.grappleNode.x - (this.x + 15);
+                    let dy = this.grappleNode.y - (this.y + 15);
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let force = (dist - 50) * 0.02; // Тянет к узлу, если далеко
+                    if (force > 0) {
+                        this.vx += (dx/dist) * force;
+                        this.vy += (dy/dist) * force;
                     }
-                }
-
-                // Гравитация тянет ВНИЗ (в плюс)
-                if (this.jetpackTimer > 0) { 
-                    this.isSmashing = true; this.vy = 30; this.jetpackTimer--; sfx.thrust(); 
-                    this.game.particles.push(new Particle(this.x+15, this.y, '#ff9900', true)); 
-                } else if (!this.isSmashing) { 
+                    this.game.particles.push(new Particle(this.x+15, this.y+15, '#FFD700', false, 0.2)); // Искры от мотора
+                } else {
                     this.vy += 0.8; // Гравитация
                 }
-                
-                if (this.vy < 0) this.isSmashing = false; // Отменили смэш после отскока
-                if (this.vy > 35) this.vy = 35; // Терминальная скорость
-                
+
+                if (this.vy > 20) this.vy = 20;
+
+                // --- ШЛЕЙФЫ ---
+                if (SAVE.trail !== 'none' && (Math.abs(this.vx)>2 || Math.abs(this.vy)>2)) {
+                    if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.2));
+                    else if (SAVE.trail === 'matrix' && this.frameCount % 3 === 0) this.game.particles.push(new Particle(this.x + Math.random()*20, this.y + 15, '#00ff00', false, 0.2, Math.random()>0.5?'0':'1'));
+                    else if (SAVE.trail === 'fire' && this.frameCount % 2 === 0) this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.2));
+                }
+
+                // --- КОЛЛИЗИИ (AABB) ---
+                this.x += this.vx;
+                this.game.walls.forEach(w => {
+                    if (this.x < w.x + w.w && this.x + this.width > w.x && this.y < w.y + w.h && this.y + this.height > w.y) {
+                        if (this.vx > 0) this.x = w.x - this.width;
+                        else if (this.vx < 0) this.x = w.x + w.w;
+                        this.vx = 0;
+                    }
+                });
+
                 this.y += this.vy;
-                
-                // КОЛЛИЗИЯ С ПЛАТФОРМАМИ (Только при падении)
-                if (this.vy > 0) {
-                    this.game.platforms.forEach(p => {
-                        if (p.type === 'finish') {
-                            // Финиш ловим всегда
-                            if (this.x < p.x + p.width && this.x + 30 > p.x && this.y + 30 >= p.y && this.y < p.y + 20) {
-                                triggerWin();
-                            }
-                            return;
-                        }
-
-                        if (p.broken) return;
-                        
-                        if (this.x < p.x + p.width && this.x + 30 > p.x && this.y + 30 >= p.y && this.y + 30 - this.vy <= p.y + 20) {
-                            if (this.isSmashing) {
-                                // ПРОБИВАЕМ ПЛАТФОРМУ НАХРЕН!
-                                p.broken = true;
-                                sfx.death(); // Звук разрушения
-                                for(let i=0; i<20; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y, p.type === 'spring' ? '#00ff00' : '#00d2ff', false, 1.5));
-                            } else {
-                                // ОТСКОК ОТ ПЛАТФОРМЫ
-                                this.y = p.y - 30; 
-                                sfx.jump(); 
-                                if (p.type === 'spring') { 
-                                    this.vy = -26; // Пружина кидает жестко вверх к лазеру!
-                                    this.createJumpDust('#00ff00', 1.5); 
-                                } else { 
-                                    this.vy = -12; // Легкий авто-отскок от обычной платформы
-                                    this.createJumpDust('#ffffff', 1); 
-                                } 
-                                
-                                if (this.game.isHard) {
-                                    p.broken = true;
-                                    for(let i=0; i<15; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y, '#555'));
-                                }
-                            }
-                        }
-                    });
-                }
-                this.x += this.vx; if (this.x > canvas.width) this.x = -30; if (this.x < -30) this.x = canvas.width;
-            }
-            createJumpDust(color, speedMult) { for(let i=0; i<12; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color, false, speedMult)); }
-            draw(ctx) { 
-                ctx.save();
-                ctx.translate(this.x + 15, this.y + 15);
-                ctx.rotate(this.angle);
-
-                ctx.fillStyle = this.jetpackTimer > 0 || this.isSmashing ? '#fff' : this.color; 
-                ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : (this.isSmashing ? '#ff9900' : this.color); 
-                
-                ctx.fillRect(-15, -15, 30, 30); 
-                
-                ctx.shadowBlur = 0; 
-                ctx.restore();
-            }
-        }
-
-        class Game {
-            constructor(mode, level) {
-                this.mode = mode; 
-                this.level = level || 1;
-                this.isHard = (this.mode === 'campaign' && this.level % 5 === 0);
-                
-                this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = []; this.floatingTexts = [];
-                
-                this.cameraY = 0; 
-                this.lowestY = canvas.height + 50; // Генерируем ВНИЗ
-                this.maxReachedY = 0; 
-                
-                this.tier = 0; 
-                this.currentScore = 0;
-
-                this.targetY = this.mode === 'campaign' ? (1500 + (this.level * 500)) : Infinity;
-                this.finishSpawned = false;
-
-                this.platforms.push(new Platform(0, this.lowestY, canvas.width, 'normal', this.tier));
-                this.player = new Player(this); this.hunter = new Hunter(this);
-            }
-
-            // ГЕНЕРАЦИЯ ЧАНКОВ ВНИЗ
-            generateChunk() {
-                while (this.lowestY < this.cameraY + canvas.height * 2) {
-                    if (this.mode === 'campaign' && this.lowestY >= this.targetY) {
-                        if (!this.finishSpawned) { this.platforms.push(new Platform(0, this.targetY + 100, canvas.width, 'finish', 0)); this.finishSpawned = true; }
-                        break;
-                    }
-                    let gap = 120 + (this.tier * 10) + Math.random() * (this.isHard ? 60 : 40 + (this.tier * 5));
-                    this.lowestY += gap; // Увеличиваем Y
-                    
-                    let w = 85 + Math.random() * (this.isHard ? 50 : 80); 
-                    let x = Math.random() * (canvas.width - w);
-                    
-                    let type = 'normal'; let r = Math.random();
-                    if (this.isHard) { if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; } 
-                    else { if (r > 0.85) type = 'spring'; else if (r > Math.max(0.2, 0.65 - (this.tier * 0.15))) type = 'moving'; }
-                    
-                    this.platforms.push(new Platform(x, this.lowestY, w, type, this.tier));
-                    
-                    let ri = Math.random();
-                    if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.lowestY - 40, 'jetpack'));
-                    else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.lowestY - 35, 'coin'));
-                }
-            }
-
-            useExtraLife() {
-                SAVE.lives--; saveGame(); sfx.powerup();
-                for(let i=0; i<50; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ffffff', false, 2));
-                // Даем кратковременный супер-метеор вниз, отодвигаем лазер вверх
-                this.player.jetpackTimer = 40; 
-                this.hunter.y = this.cameraY - 600; 
-                this.hunter.active = false; this.hunter.startTimer(); 
-                this.floatingTexts.push(new FloatingText(this.player.x, this.player.y, "❤️ СПАСЕН!"));
-            }
-
-            update() {
-                if (gameState !== 'PLAYING') return;
-
-                if (this.player.y > this.maxReachedY) this.maxReachedY = this.player.y; // Учет рекорда ВНИЗ
-
-                if (this.mode === 'endless') {
-                    this.currentScore = Math.floor(this.maxReachedY / 10);
-                    this.tier = Math.floor(this.currentScore / 3000); 
-                    document.getElementById('hudLeft').innerText = `ГЛУБИНА: ${this.currentScore} м`;
-                    if (this.currentScore > SAVE.highScore) SAVE.highScore = this.currentScore; 
-                }
-
-                this.generateChunk(); 
-                let cleanupY = this.cameraY - 500; // Удаляем то, что осталось сильно СВЕРХУ
-                this.platforms = this.platforms.filter(p => p.y > cleanupY && !p.broken); 
-                this.items = this.items.filter(i => i.y > cleanupY && !i.markedForDeletion); 
-
-                this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
-                this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
-                this.floatingTexts.forEach(ft => ft.update()); this.floatingTexts = this.floatingTexts.filter(ft => ft.life > 0);
-                
-                // Камера плавно спускается за игроком
-                let targetCamera = this.player.y - canvas.height * 0.3; // Игрок в верхней трети экрана
-                if (targetCamera > this.cameraY) {
-                    this.cameraY += (targetCamera - this.cameraY) * 0.15; 
-                }
-                
-                // ЕДИНСТВЕННАЯ СМЕРТЬ: КАСАНИЕ ЛАЗЕРНОГО ПОТОЛКА
-                if (this.player.y < this.hunter.y) {
-                    if (SAVE.lives > 0) { this.useExtraLife(); } 
-                    else {
-                        for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
-                        this.handleDeath("СЖЖЕН ЛАЗЕРОМ");
-                    }
-                }
-
-                let magCoinRadius = SAVE.magnetCoinLvl * 45; 
-                let magJpRadius = SAVE.magnetJpLvl * 45;
-
-                this.items.forEach(item => {
-                    if (item.markedForDeletion) return;
-                    
-                    let dx = (this.player.x + 15) - (item.x + 12);
-                    let dy = (this.player.y + 15) - (item.y + 12);
-                    let dist = Math.sqrt(dx*dx + dy*dy);
-
-                    let radius = item.type === 'coin' ? magCoinRadius : (item.type === 'jetpack' ? magJpRadius : 0);
-                    if (radius > 0 && dist < radius) {
-                        item.x += (dx / dist) * 12;
-                        item.y += (dy / dist) * 12;
-                    }
-
-                    if (this.player.x < item.x + 24 && this.player.x + 30 > item.x && this.player.y < item.y + 24 && this.player.y + 30 > item.y) {
-                        item.markedForDeletion = true;
-                        
-                        if (item.type === 'coin') { 
-                            // Бонус за Смэш-сбор! Если разбил платформу и собрал монету
-                            let reward = (this.isHard ? 3 : 1) * (this.player.isSmashing ? 2 : 1); 
-                            SAVE.coins += reward; sfx.coin(); saveGame(); 
-                            if (this.player.isSmashing) this.floatingTexts.push(new FloatingText(item.x, item.y, "SMASH x2!"));
-                            for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
-                            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
-                        } else if (item.type === 'jetpack') { 
-                            this.player.jetpackTimer = 90 + (SAVE.jetpackLevel * 30); 
-                            sfx.powerup(); 
-                            for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
-                        }
+                this.onGround = false;
+                this.game.walls.forEach(w => {
+                    if (this.x < w.x + w.w && this.x + this.width > w.x && this.y < w.y + w.h && this.y + this.height > w.y) {
+                        if (this.vy > 0) { this.y = w.y - this.height; this.onGround = true; }
+                        else if (this.vy < 0) { this.y = w.y + w.h; }
+                        this.vy = 0;
                     }
                 });
             }
-            handleDeath(reason) {
-                if (SAVE.lives > 0 && gameState === 'PLAYING') {
-                    gameState = 'REVIVE_PROMPT'; pendingDeathReason = reason;
-                    document.getElementById('reviveLivesCount').innerText = SAVE.lives; document.getElementById('reviveMenu').classList.add('active');
-                } else if (gameState === 'PLAYING') { triggerGameOver(reason); }
-            }
-            draw(ctx) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                if (this.isHard) { 
-                    ctx.fillStyle = 'rgba(50, 0, 10, 0.3)'; ctx.fillRect(0,0,canvas.width, canvas.height); 
-                } else if (this.mode === 'endless' && this.tier > 0) {
-                    let bgAlpha = Math.min(0.8, this.tier * 0.15);
-                    ctx.fillStyle = `rgba(60, 0, 15, ${bgAlpha})`; 
-                    ctx.fillRect(0,0,canvas.width, canvas.height);
-                }
 
-                ctx.save(); ctx.translate(0, -this.cameraY);
-                this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
-                if (gameState === 'PLAYING' || gameState === 'END' || gameState === 'REVIVE_PROMPT') this.player.draw(ctx);
-                this.hunter.draw(ctx); // Лазер рисуем поверх всего
-                this.particles.forEach(p => p.draw(ctx)); this.floatingTexts.forEach(ft => ft.draw(ctx));
-                ctx.restore();
-                
-                if ((gameState === 'PLAYING' || gameState === 'REVIVE_PROMPT') && this.player.jetpackTimer > 0) {
-                    let maxTimer = 90 + (SAVE.jetpackLevel * 30);
-                    let prog = this.player.jetpackTimer / maxTimer;
-                    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 50, 100, 6);
-                    ctx.fillStyle = '#ff0055'; ctx.fillRect(canvas.width/2 - 50, 50, 100 * prog, 6);
+            draw(ctx) { 
+                // Рисуем луч крюка
+                if (this.grappleNode) {
+                    ctx.beginPath(); ctx.moveTo(this.x+15, this.y+15); ctx.lineTo(this.grappleNode.x, this.grappleNode.y);
+                    ctx.strokeStyle = '#00d2ff'; ctx.lineWidth = 3; ctx.shadowBlur = 10; ctx.shadowColor = '#00d2ff';
+                    ctx.stroke(); ctx.shadowBlur = 0;
                 }
+                
+                ctx.fillStyle = this.color; 
+                ctx.shadowBlur = 15; ctx.shadowColor = this.color; 
+                ctx.fillRect(this.x, this.y, this.width, this.height); 
+                ctx.shadowBlur = 0; 
             }
         }
 
-        let game = null; let lastPlayedMode = 'campaign'; let lastPlayedLevel = 1;
+        let game = null;
 
         function animate() { if (game) { game.update(); game.draw(ctx); } requestAnimationFrame(animate); }
         
-        function startGame(mode, level = 1) {
-            lastPlayedMode = mode; lastPlayedLevel = level;
-            game = new Game(mode, level); gameState = 'PLAYING'; 
-            document.getElementById('hudLeft').innerText = mode === 'campaign' ? `СЕКТОР ${level}` : `ГЛУБИНА: 0 м`;
-            document.getElementById('hudLeft').style.color = game.isHard ? '#ff0055' : 'white';
+        function startGame(levelIdx) {
+            currentLevelIdx = levelIdx;
+            game = new Game(levelIdx); gameState = 'PLAYING'; 
+            document.getElementById('hudLeft').innerText = `СЕКТОР ${levelIdx}`;
             updateUI(); showState('NONE'); gameHud.style.display = 'flex';
-            game.hunter.reset(); game.hunter.startTimer();
         }
 
         function triggerGameOver(reason) { 
             gameState = 'END'; sfx.death(); saveGame(); 
             setTimeout(() => { 
-                document.getElementById('endTitle').innerText = "КРИТИЧЕСКИЙ УРОН"; document.getElementById('endTitle').style.color = "#ff0055";
+                document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; document.getElementById('endTitle').style.color = "#ff0055";
                 document.getElementById('endDesc').innerText = reason; document.getElementById('endBtn1').innerText = "ПОВТОРИТЬ";
-                document.getElementById('endBtn1').onclick = () => startGame(lastPlayedMode, lastPlayedLevel);
+                document.getElementById('endBtn1').onclick = () => startGame(currentLevelIdx);
                 showState('END');
             }, 800); 
         }
 
         function triggerWin() { 
             gameState = 'END'; sfx.coin(); 
-            if (lastPlayedLevel === SAVE.maxLevel && SAVE.maxLevel < 100) SAVE.maxLevel++;
+            if (currentLevelIdx === SAVE.maxLevel && SAVE.maxLevel < 5) SAVE.maxLevel++;
             saveGame();
             setTimeout(() => { 
                 document.getElementById('endTitle').innerText = "СЕКТОР ЗАЧИЩЕН"; document.getElementById('endTitle').style.color = "#00ff00";
-                document.getElementById('endDesc').innerText = game.isHard ? "ХАРДКОР ЗАВЕРШЕН!" : "Отличная работа!"; 
-                document.getElementById('endBtn1').innerText = "СЛЕДУЮЩИЙ";
-                document.getElementById('endBtn1').onclick = () => startGame('campaign', lastPlayedLevel + 1);
+                document.getElementById('endDesc').innerText = "Дверь открыта!"; 
+                
+                let btn = document.getElementById('endBtn1');
+                if (currentLevelIdx < 5) { btn.innerText = "СЛЕДУЮЩИЙ"; btn.onclick = () => startGame(currentLevelIdx + 1); } 
+                else { btn.innerText = "ФИНАЛ ПРОЙДЕН!"; btn.onclick = () => showState('MAIN'); }
+                
                 showState('END');
             }, 500); 
         }
