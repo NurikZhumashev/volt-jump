@@ -3,481 +3,653 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Adventure Platformer</title>
-    <!-- Подключаем Telegram WebApp SDK -->
+    <title>3D Adventure Platformer</title>
+    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Подключаем Phaser 3 -->
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <!-- Three.js (r128) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
     <style>
-        /* Идеальная центровка и запрет скролла для мобильных устройств */
+        /* Сброс стилей и мобильная адаптация */
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #111; overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; user-select: none; -webkit-user-select: none;
         }
-        #game-container {
-            width: 100%;
-            height: 100%;
+        
+        #game-canvas {
+            display: block; width: 100%; height: 100%;
         }
-        canvas {
-            display: block;
+
+        /* UI Слой поверх 3D Canvas */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* Пропускаем клики сквозь пустые области */
+            display: flex; flex-direction: column;
         }
+
+        .screen {
+            pointer-events: auto; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);
+            color: white; text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { font-size: 36px; margin-bottom: 30px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        h2 { font-size: 28px; color: #ffd700; margin-bottom: 20px; }
+
+        .btn {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            border: none; border-radius: 15px; color: white;
+            padding: 15px 40px; font-size: 24px; font-weight: bold;
+            margin: 10px; box-shadow: 0 6px 0 #1e8449;
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .btn:active { transform: translateY(6px); box-shadow: 0 0 0 #1e8449; }
+        .btn-shop { background: linear-gradient(135deg, #f1c40f, #f39c12); box-shadow: 0 6px 0 #d68910; color: #333; }
+        .btn-back { background: linear-gradient(135deg, #e74c3c, #c0392b); box-shadow: 0 6px 0 #922b21; }
+        .btn-buy { background: #34495e; box-shadow: 0 6px 0 #2c3e50; font-size: 18px; padding: 10px 20px; }
+        .btn-buy.owned { background: #27ae60; box-shadow: 0 6px 0 #1e8449; }
+
+        .shop-item {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 280px; background: rgba(255,255,255,0.1);
+            padding: 15px; border-radius: 10px; margin-bottom: 15px;
+        }
+
+        /* Игровой интерфейс (HUD) */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        #top-bar {
+            display: flex; justify-content: space-between; padding: 20px; pointer-events: auto;
+        }
+        #score-text { font-size: 24px; font-weight: bold; color: #ffd700; text-shadow: 0 2px 4px #000; }
+        
+        #btn-menu {
+            background: #e74c3c; border: none; color: white; padding: 8px 15px;
+            border-radius: 10px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 0 #c0392b;
+        }
+        #btn-menu:active { transform: translateY(4px); box-shadow: 0 0 0 #c0392b; }
+
+        #controls {
+            display: flex; justify-content: space-between; padding: 20px; padding-bottom: 40px;
+            pointer-events: auto;
+        }
+        .ctrl-group { display: flex; gap: 15px; }
+        .ctrl-btn {
+            width: 70px; height: 70px; border-radius: 35px; border: 3px solid rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.2); color: white; font-size: 30px;
+            display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+        }
+        .ctrl-btn:active { background: rgba(255,255,255,0.5); }
+
     </style>
 </head>
 <body>
-<div id="game-container"></div>
+
+<!-- 3D Canvas -->
+<canvas id="game-canvas"></canvas>
+
+<!-- UI Слой -->
+<div id="ui-layer">
+    <!-- Главное меню -->
+    <div id="menu-screen" class="screen">
+        <h1>3D ADVENTURE<br>PLATFORMER</h1>
+        <button class="btn" id="btn-play">▶ ИГРАТЬ</button>
+        <button class="btn btn-shop" id="btn-open-shop">🛒 МАГАЗИН</button>
+    </div>
+
+    <!-- Магазин -->
+    <div id="shop-screen" class="screen hidden">
+        <h1>МАГАЗИН</h1>
+        <h2 id="shop-coins">Монеты: 0</h2>
+        
+        <div class="shop-item">
+            <span>Белый Куб</span>
+            <button class="btn btn-buy" onclick="buyItem(0, 0xffffff, false)">ВЫБРАН</button>
+        </div>
+        <div class="shop-item">
+            <span>Красный Куб (10)</span>
+            <button class="btn btn-buy" onclick="buyItem(10, 0xff3333, false)" id="buy-red">КУПИТЬ</button>
+        </div>
+        <div class="shop-item">
+            <span>Синий Куб (10)</span>
+            <button class="btn btn-buy" onclick="buyItem(10, 0x3388ff, false)" id="buy-blue">КУПИТЬ</button>
+        </div>
+        <div class="shop-item">
+            <span>2x Прыжок (20)</span>
+            <button class="btn btn-buy" onclick="buyItem(20, null, true)" id="buy-jump">КУПИТЬ</button>
+        </div>
+
+        <button class="btn btn-back" id="btn-close-shop" style="margin-top: 30px;">НАЗАД</button>
+    </div>
+
+    <!-- Игровой HUD -->
+    <div id="hud" class="hidden">
+        <div id="top-bar">
+            <div id="score-text">Монеты: 0</div>
+            <button id="btn-menu">МЕНЮ</button>
+        </div>
+        <div id="controls">
+            <div class="ctrl-group">
+                <div class="ctrl-btn" id="ctrl-left">◄</div>
+                <div class="ctrl-btn" id="ctrl-right">►</div>
+            </div>
+            <div class="ctrl-btn" id="ctrl-jump">▲</div>
+        </div>
+    </div>
+</div>
 
 <script>
     // ==========================================
-    // 1. БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ TELEGRAM
+    // 1. ИНИЦИАЛИЗАЦИЯ TELEGRAM
     // ==========================================
     let tg = null;
     if (typeof window !== 'undefined' && window.Telegram && window.Telegram.WebApp) {
         tg = window.Telegram.WebApp;
-    }
-    
-    if (tg && typeof tg.expand === 'function') {
-        tg.expand();
-    }
-    if (tg && typeof tg.ready === 'function') {
-        tg.ready();
+        if (typeof tg.expand === 'function') tg.expand();
+        if (typeof tg.ready === 'function') tg.ready();
     }
 
     // ==========================================
-    // 2. ДАННЫЕ ИГРОКА (Data Layer)
+    // 2. ДАННЫЕ ИГРОКА И ЭКОНОМИКА
     // ==========================================
-    class GameData {
-        static init() {
-            try {
-                this.coins = Number(localStorage.getItem('adv_coins')) || 0;
-                this.unlockedSkins = JSON.parse(localStorage.getItem('adv_skins')) || [0xffffff];
-                this.currentSkin = Number(localStorage.getItem('adv_current_skin')) || 0xffffff;
-                this.doubleJump = localStorage.getItem('adv_double_jump') === 'true';
-                this.currentLevel = Number(localStorage.getItem('adv_level')) || 0;
-            } catch (e) {
-                this.coins = 0;
-                this.unlockedSkins = [0xffffff];
-                this.currentSkin = 0xffffff;
-                this.doubleJump = false;
-                this.currentLevel = 0;
-            }
-        }
+    const GameData = {
+        coins: 0,
+        unlockedSkins: [0xffffff],
+        currentSkin: 0xffffff,
+        doubleJump: false,
+        currentLevel: 0,
 
-        static save() {
+        init() {
             try {
-                localStorage.setItem('adv_coins', this.coins);
-                localStorage.setItem('adv_skins', JSON.stringify(this.unlockedSkins));
-                localStorage.setItem('adv_current_skin', this.currentSkin);
-                localStorage.setItem('adv_double_jump', this.doubleJump);
-                localStorage.setItem('adv_level', this.currentLevel);
+                this.coins = Number(localStorage.getItem('3d_coins')) || 0;
+                this.unlockedSkins = JSON.parse(localStorage.getItem('3d_skins')) || [0xffffff];
+                this.currentSkin = Number(localStorage.getItem('3d_skin')) || 0xffffff;
+                this.doubleJump = localStorage.getItem('3d_jump') === 'true';
+                this.currentLevel = Number(localStorage.getItem('3d_level')) || 0;
             } catch (e) {}
+        },
+        save() {
+            try {
+                localStorage.setItem('3d_coins', this.coins);
+                localStorage.setItem('3d_skins', JSON.stringify(this.unlockedSkins));
+                localStorage.setItem('3d_skin', this.currentSkin);
+                localStorage.setItem('3d_jump', this.doubleJump);
+                localStorage.setItem('3d_level', this.currentLevel);
+            } catch (e) {}
+        },
+        vibrate(type = 'light') {
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred(type);
         }
-
-        static addCoins(amount) {
-            this.coins += amount;
-            this.save();
-        }
-
-        static vibrate(type = 'light') {
-            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
-                tg.HapticFeedback.impactOccurred(type);
-            }
-        }
-    }
-
+    };
     GameData.init();
 
     // ==========================================
-    // 3. БАЗА УРОВНЕЙ (АБСОЛЮТНО БЕЗ КОММЕНТАРИЕВ)
+    // 3. УРОВНИ (3D Сетка)
     // ==========================================
+    // 0: Пусто, 1: Блок, 2: Шипы, 3: Монета, 4: Рычаг, 5: Дверь, 6: Флаг, 9: Спавн
     const LEVELS = [
-        [[1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,6,1],[1,0,0,0,0,0,0,0,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,1,1,1,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,0,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,4,0,0,0,0,0,0,1],[1,1,1,1,1,1,0,0,0,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,1,1,1,5,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,1,1,1,0,0,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,9,3,3,0,0,0,0,2,2,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1]
+        [[0,0,0,0,0,0,0,0,0,0,6,0],[0,0,0,0,0,0,0,0,1,1,1,1],[0,0,0,0,1,1,1,0,0,0,0,0],[1,1,1,0,0,0,0,1,1,1,0,0],[0,0,0,4,0,0,0,0,0,0,0,0],[1,1,1,1,1,1,0,0,0,1,1,1],[0,0,1,1,1,5,1,1,1,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0],[9,3,3,0,0,0,0,2,2,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1]
         ],
-        [[1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,6,1],[1,0,0,0,0,0,0,0,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,2,2,0,0,0,0,0,1],[1,0,0,1,1,1,1,1,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,0,0,0,0,1,1,1],[1,0,0,0,0,0,3,0,0,0,0,1],[1,0,0,0,0,1,1,1,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,0,0,0,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,1,1,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],
-            [1,1,1,0,0,0,0,0,0,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,9,0,0,2,2,2,2,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1]
+        [[0,0,0,0,0,0,0,0,0,0,6,0],[0,0,0,0,0,0,0,0,1,1,1,1],[0,0,0,2,2,0,0,0,0,0,0,0],[0,1,1,1,1,1,0,0,0,0,0,0],
+            [0,0,0,0,0,3,0,0,0,0,0,0],
+            [0,0,0,1,1,1,0,0,0,0,0,0],[0,1,1,0,0,0,0,1,1,0,0,0],[0,0,0,0,1,1,0,0,0,0,0,0],[9,0,0,2,2,2,2,0,0,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1]
         ]
     ];
 
-    const InputState = { left: false, right: false };
-
     // ==========================================
-    // 4. UI ПОМОЩНИКИ
+    // 4. ДВИЖОК ИГРЫ (THREE.JS)
     // ==========================================
-    function createButton(scene, x, y, width, height, text, color, callback) {
-        const bg = scene.add.rectangle(x, y, width, height, color).setInteractive();
-        const txt = scene.add.text(x, y, text, { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-        
-        bg.on('pointerdown', () => { bg.setAlpha(0.7); GameData.vibrate('light'); });
-        bg.on('pointerout', () => { bg.setAlpha(1); });
-        bg.on('pointerup', () => { bg.setAlpha(1); callback(); });
+    const Input = { left: false, right: false, jump: false };
 
-        return { bg, txt };
-    }
+    class GameEngine {
+        constructor() {
+            this.canvas = document.getElementById('game-canvas');
+            this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+            this.renderer.shadowMap.enabled = true;
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // ==========================================
-    // 5. СЦЕНЫ ИГРЫ
-    // ==========================================
-
-    class BootScene extends Phaser.Scene {
-        constructor() { super('BootScene'); }
-        create() {
-            const bgColor = (tg && tg.themeParams && tg.themeParams.bg_color) ? tg.themeParams.bg_color : '#111111';
-            this.cameras.main.setBackgroundColor(bgColor);
-
-            let g = this.add.graphics();
+            this.scene = new THREE.Scene();
             
-            g.fillStyle(0xffffff); g.fillRect(0, 0, 24, 24); g.generateTexture('player', 24, 24); g.clear();
-            g.fillStyle(0x555555); g.fillRect(0, 0, 32, 32); g.lineStyle(2, 0x333333); g.strokeRect(0, 0, 32, 32); g.generateTexture('wall', 32, 32); g.clear();
-            g.fillStyle(0xff0000); g.fillTriangle(0, 32, 16, 0, 32, 32); g.generateTexture('spike', 32, 32); g.clear();
-            g.fillStyle(0xffd700); g.fillCircle(16, 16, 10); g.lineStyle(2, 0xdaa520); g.strokeCircle(16, 16, 10); g.generateTexture('coin', 32, 32); g.clear();
-            g.fillStyle(0x888888); g.fillRect(8, 24, 16, 8); g.lineStyle(4, 0xff0000); g.beginPath(); g.moveTo(16, 24); g.lineTo(8, 8); g.strokePath(); g.generateTexture('lever_off', 32, 32); g.clear();
-            g.fillStyle(0x888888); g.fillRect(8, 24, 16, 8); g.lineStyle(4, 0x00ff00); g.beginPath(); g.moveTo(16, 24); g.lineTo(24, 8); g.strokePath(); g.generateTexture('lever_on', 32, 32); g.clear();
-            g.fillStyle(0x8b4513); g.fillRect(0, 0, 32, 32); g.lineStyle(2, 0x5c2e0b); g.strokeRect(0, 0, 32, 32); g.generateTexture('door', 32, 32); g.clear();
-            g.fillStyle(0xaaaaaa); g.fillRect(4, 0, 4, 32); g.fillStyle(0x00ff00); g.fillRect(8, 0, 20, 14); g.generateTexture('flag', 32, 32); g.clear();
+            // Настройка цвета фона из Telegram
+            const bgColor = (tg && tg.themeParams && tg.themeParams.bg_color) ? tg.themeParams.bg_color : '#1a1a2e';
+            this.scene.background = new THREE.Color(bgColor);
+            this.scene.fog = new THREE.Fog(bgColor, 10, 30); // Эффект глубины
 
-            this.scene.start('MenuScene');
-        }
-    }
-
-    class MenuScene extends Phaser.Scene {
-        constructor() { super('MenuScene'); }
-        create() {
-            const cx = this.scale.width / 2;
-
-            this.add.text(cx, 150, 'ADVENTURE\nPLATFORMER', { 
-                fontSize: '36px', fill: '#ffffff', align: 'center', fontStyle: 'bold' 
-            }).setOrigin(0.5);
-
-            createButton(this, cx, 350, 250, 60, '▶ ИГРАТЬ', 0x228822, () => {
-                // Запускаем ТОЛЬКО GameScene
-                this.scene.start('GameScene');
-            });
-
-            createButton(this, cx, 450, 250, 60, '🛒 МАГАЗИН', 0x888822, () => {
-                this.scene.start('ShopScene');
-            });
-        }
-    }
-
-    class ShopScene extends Phaser.Scene {
-        constructor() { super('ShopScene'); }
-        create() {
-            const cx = this.scale.width / 2;
-            this.add.text(cx, 60, 'МАГАЗИН', { fontSize: '32px', fill: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
-            this.coinsText = this.add.text(cx, 110, `Монеты: ${GameData.coins}`, { fontSize: '24px', fill: '#ffd700' }).setOrigin(0.5);
-
-            this.shopItems =[];
-
-            const addShopItem = (y, name, cost, skinColor, isDoubleJump) => {
-                this.add.text(cx - 70, y, name, { fontSize: '20px', fill: '#fff' }).setOrigin(0.5);
-                const btn = createButton(this, cx + 80, y, 140, 40, '', 0x000000, () => {
-                    this.handlePurchase(cost, skinColor, isDoubleJump);
-                });
-                this.shopItems.push({ btn, cost, skinColor, isDoubleJump });
-            };
-
-            addShopItem(200, 'Белый', 0, 0xffffff, false);
-            addShopItem(280, 'Красный', 10, 0xff0000, false);
-            addShopItem(360, 'Синий', 10, 0x0088ff, false);
-            addShopItem(440, '2x Прыжок', 20, null, true);
-
-            createButton(this, cx, 550, 200, 50, 'НАЗАД', 0x555555, () => {
-                this.scene.start('MenuScene');
-            });
-
-            this.updateUI();
-        }
-
-        handlePurchase(cost, skinColor, isDoubleJump) {
-            let isBought = isDoubleJump ? GameData.doubleJump : GameData.unlockedSkins.includes(skinColor);
+            // Камера (2.5D изометрия)
+            this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
             
-            if (!isBought) {
-                if (GameData.coins >= cost) {
-                    GameData.addCoins(-cost);
-                    if (isDoubleJump) GameData.doubleJump = true;
-                    else GameData.unlockedSkins.push(skinColor);
-                    GameData.save();
-                    GameData.vibrate('success');
-                } else {
-                    GameData.vibrate('heavy');
-                    return;
-                }
-            }
-            
-            if (!isDoubleJump) {
-                GameData.currentSkin = skinColor;
-                GameData.save();
-            }
-            
-            this.updateUI();
-        }
+            // Освещение
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            this.scene.add(ambientLight);
 
-        updateUI() {
-            this.coinsText.setText(`Монеты: ${GameData.coins}`);
-            this.shopItems.forEach(item => {
-                let isBought = item.isDoubleJump ? GameData.doubleJump : GameData.unlockedSkins.includes(item.skinColor);
-                let isActive = item.isDoubleJump ? GameData.doubleJump : (GameData.currentSkin === item.skinColor);
+            this.playerLight = new THREE.PointLight(0xffffff, 0.8, 20);
+            this.playerLight.castShadow = true;
+            this.scene.add(this.playerLight);
 
-                if (!isBought) {
-                    item.btn.bg.setFillStyle(0xcc8800);
-                    item.btn.txt.setText(`КУПИТЬ (${item.cost})`);
-                } else if (isActive) {
-                    item.btn.bg.setFillStyle(0x228822);
-                    item.btn.txt.setText('ВЫБРАНО');
-                } else {
-                    item.btn.bg.setFillStyle(0x444444);
-                    item.btn.txt.setText('ВЫБРАТЬ');
-                }
-            });
-        }
-    }
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            dirLight.position.set(5, 10, 5);
+            dirLight.castShadow = true;
+            this.scene.add(dirLight);
 
-    class GameScene extends Phaser.Scene {
-        constructor() { super('GameScene'); }
-        create() {
-            this.isDead = false;
+            // Игровые объекты
+            this.player = null;
+            this.walls = [];
+            this.doors =[];
+            this.coins = [];
+            this.spikes = [];
+            this.levers =[];
+            this.flag = null;
+
+            // Физика
+            this.velocity = new THREE.Vector3();
+            this.isGrounded = false;
             this.jumpsCount = 0;
+            this.playerSize = new THREE.Vector3(0.8, 0.8, 0.8);
+            this.gravity = -35;
+            this.moveSpeed = 7;
+            this.jumpPower = 14;
 
-            // Защита от вылета 1: Если индекс уровня вышел за пределы массива
-            if (!LEVELS[GameData.currentLevel]) {
-                GameData.currentLevel = 0;
-                GameData.save();
-            }
+            this.clock = new THREE.Clock();
+            this.isRunning = false;
 
-            // Защита от вылета 2: Если уровней вообще нет
-            if (!LEVELS[GameData.currentLevel]) {
-                console.error("Уровни не найдены!");
-                return;
-            }
+            window.addEventListener('resize', () => this.onWindowResize(), false);
+            this.onWindowResize();
 
-            // Логирование процесса загрузки
-            console.log("Загрузка уровня:", GameData.currentLevel);
-
-            // Создаем игрока
-            this.player = this.physics.add.sprite(-100, -100, 'player');
-            this.player.setTint(GameData.currentSkin);
-            this.player.setBounce(0);
-            this.player.setCollideWorldBounds(true);
-            this.player.body.setSize(20, 24);
-
-            this.walls = this.physics.add.staticGroup();
-            this.spikes = this.physics.add.staticGroup();
-            this.coins = this.physics.add.group({ allowGravity: false, immovable: true });
-            this.doors = this.physics.add.staticGroup();
-            this.levers = this.physics.add.staticGroup();
-            this.flags = this.physics.add.staticGroup();
-
-            // Парсинг уровня
-            this.loadLevel(LEVELS[GameData.currentLevel]);
-
-            const levelWidth = LEVELS[GameData.currentLevel][0].length * 32;
-            const levelHeight = LEVELS[GameData.currentLevel].length * 32;
-            this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-            this.cameras.main.setBounds(0, 0, levelWidth, levelHeight);
-            this.physics.world.setBounds(0, 0, levelWidth, levelHeight);
-
-            this.physics.add.collider(this.player, this.walls);
-            this.physics.add.collider(this.player, this.doors);
-            this.physics.add.overlap(this.player, this.coins, this.collectCoin, null, this);
-            this.physics.add.overlap(this.player, this.spikes, this.hitSpike, null, this);
-            this.physics.add.overlap(this.player, this.flags, this.reachFlag, null, this);
-            this.physics.add.overlap(this.player, this.levers, this.activateLever, null, this);
-
-            // В конце GameScene.create добавляем запуск интерфейса ПОВЕРХ игры
-            this.scene.launch('UIScene');
+            this.animate = this.animate.bind(this);
+            requestAnimationFrame(this.animate);
         }
 
-        loadLevel(levelArray) {
-            const tileSize = 32;
-            for (let y = 0; y < levelArray.length; y++) {
-                for (let x = 0; x < levelArray[y].length; x++) {
-                    const tile = levelArray[y][x];
-                    const posX = x * tileSize + tileSize / 2;
-                    const posY = y * tileSize + tileSize / 2;
+        onWindowResize() {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
 
-                    if (tile === 1) {
-                        this.walls.create(posX, posY, 'wall');
-                    } else if (tile === 2) {
-                        let spike = this.spikes.create(posX, posY, 'spike');
-                        spike.body.setSize(20, 12);
-                        spike.body.setOffset(6, 20);
-                    } else if (tile === 3) {
-                        this.coins.create(posX, posY, 'coin');
-                    } else if (tile === 4) {
-                        let lever = this.levers.create(posX, posY, 'lever_off');
-                        lever.isActive = false;
-                    } else if (tile === 5) {
-                        this.doors.create(posX, posY, 'door');
-                    } else if (tile === 6) {
-                        this.flags.create(posX, posY, 'flag');
-                    } else if (tile === 9) {
-                        this.player.setPosition(posX, posY);
+        clearScene() {
+            while(this.scene.children.length > 0){ 
+                this.scene.remove(this.scene.children[0]); 
+            }
+            this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            this.scene.add(this.playerLight);
+            
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            dirLight.position.set(5, 10, 5);
+            dirLight.castShadow = true;
+            this.scene.add(dirLight);
+
+            this.walls =[]; this.doors = []; this.coins = [];
+            this.spikes = []; this.levers =[]; this.flag = null;
+        }
+
+        loadLevel(levelIndex) {
+            this.clearScene();
+            const levelData = LEVELS[levelIndex] || LEVELS[0];
+            
+            const matWall = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.8 });
+            const matDoor = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9 });
+            const matCoin = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 });
+            const matSpike = new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.5 });
+            const matFlag = new THREE.MeshStandardMaterial({ color: 0x2ecc71 });
+
+            const geoBox = new THREE.BoxGeometry(1, 1, 1);
+            const geoSpike = new THREE.ConeGeometry(0.4, 0.8, 4);
+            const geoCoin = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+
+            for (let y = 0; y < levelData.length; y++) {
+                for (let x = 0; x < levelData[y].length; x++) {
+                    const type = levelData[y][x];
+                    if (type === 0) continue;
+
+                    const posX = x;
+                    const posY = (levelData.length - y); // Инвертируем Y для 3D
+                    const posZ = 0;
+
+                    if (type === 1) {
+                        let mesh = new THREE.Mesh(geoBox, matWall);
+                        mesh.position.set(posX, posY, posZ);
+                        mesh.receiveShadow = true; mesh.castShadow = true;
+                        this.scene.add(mesh);
+                        this.walls.push({ box: new THREE.Box3().setFromObject(mesh) });
+                    }
+                    else if (type === 2) {
+                        let mesh = new THREE.Mesh(geoSpike, matSpike);
+                        mesh.position.set(posX, posY - 0.1, posZ);
+                        mesh.receiveShadow = true; mesh.castShadow = true;
+                        this.scene.add(mesh);
+                        this.spikes.push({ mesh, box: new THREE.Box3().setFromObject(mesh) });
+                    }
+                    else if (type === 3) {
+                        let mesh = new THREE.Mesh(geoCoin, matCoin);
+                        mesh.position.set(posX, posY, posZ);
+                        mesh.rotation.x = Math.PI / 2;
+                        mesh.castShadow = true;
+                        this.scene.add(mesh);
+                        this.coins.push({ mesh, box: new THREE.Box3().setFromCenterAndSize(mesh.position, new THREE.Vector3(0.6, 0.6, 0.6)), active: true });
+                    }
+                    else if (type === 4) {
+                        let base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.6), matWall);
+                        let handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8), matSpike);
+                        base.position.set(posX, posY - 0.4, posZ);
+                        handle.position.set(posX, posY, posZ);
+                        handle.rotation.z = Math.PI / 4; // Наклонен выключен
+                        this.scene.add(base); this.scene.add(handle);
+                        this.levers.push({ handle, active: false, box: new THREE.Box3().setFromCenterAndSize(base.position, new THREE.Vector3(1, 1, 1)) });
+                    }
+                    else if (type === 5) {
+                        let mesh = new THREE.Mesh(geoBox, matDoor);
+                        mesh.position.set(posX, posY, posZ);
+                        mesh.receiveShadow = true; mesh.castShadow = true;
+                        this.scene.add(mesh);
+                        this.doors.push({ mesh, box: new THREE.Box3().setFromObject(mesh), active: true });
+                        this.walls.push({ box: new THREE.Box3().setFromObject(mesh), isDoor: true, mesh: mesh }); // Дверь работает как стена
+                    }
+                    else if (type === 6) {
+                        let pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2), new THREE.MeshStandardMaterial({color: 0xaaaaaa}));
+                        let cloth = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.05), matFlag);
+                        pole.position.set(posX, posY + 0.5, posZ);
+                        cloth.position.set(posX + 0.3, posY + 1.3, posZ);
+                        this.scene.add(pole); this.scene.add(cloth);
+                        this.flag = { box: new THREE.Box3().setFromCenterAndSize(pole.position, new THREE.Vector3(1, 2, 1)) };
+                    }
+                    else if (type === 9) {
+                        // Создаем игрока
+                        const geoPlayer = new THREE.BoxGeometry(this.playerSize.x, this.playerSize.y, this.playerSize.z);
+                        const matPlayer = new THREE.MeshStandardMaterial({ color: GameData.currentSkin, roughness: 0.4, metalness: 0.2 });
+                        this.player = new THREE.Mesh(geoPlayer, matPlayer);
+                        this.player.position.set(posX, posY, posZ);
+                        this.player.castShadow = true;
+                        this.scene.add(this.player);
+                        this.velocity.set(0,0,0);
                     }
                 }
             }
+            
+            // Если спавн не найден
+            if(!this.player) {
+                this.player = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.8,0.8), new THREE.MeshStandardMaterial({ color: GameData.currentSkin }));
+                this.player.position.set(2, 5, 0);
+                this.scene.add(this.player);
+            }
         }
 
-        update() {
-            if (this.isDead) return;
+        start() {
+            this.loadLevel(GameData.currentLevel);
+            this.isRunning = true;
+        }
 
-            const speed = 200;
-            if (InputState.left) {
-                this.player.setVelocityX(-speed);
-            } else if (InputState.right) {
-                this.player.setVelocityX(speed);
-            } else {
-                this.player.setVelocityX(0);
-            }
-
-            if (this.player.body.blocked.down || this.player.body.touching.down) {
-                this.jumpsCount = 0;
-            }
-
-            if (this.player.y > this.physics.world.bounds.height) {
-                this.hitSpike();
-            }
+        stop() {
+            this.isRunning = false;
         }
 
         doJump() {
-            if (this.isDead) return;
-            const jumpPower = -450;
-            const isGrounded = this.player.body.blocked.down || this.player.body.touching.down;
-
-            if (isGrounded) {
-                this.player.setVelocityY(jumpPower);
+            if (!this.isRunning || !this.player) return;
+            if (this.isGrounded) {
+                this.velocity.y = this.jumpPower;
                 this.jumpsCount = 1;
+                this.isGrounded = false;
             } else if (GameData.doubleJump && this.jumpsCount < 2) {
-                this.player.setVelocityY(jumpPower);
+                this.velocity.y = this.jumpPower * 0.9;
                 this.jumpsCount = 2;
             }
         }
 
-        collectCoin(player, coin) {
-            coin.disableBody(true, true);
-            GameData.addCoins(1);
-            GameData.vibrate('light');
-            const uiScene = this.scene.get('UIScene');
-            if (uiScene) uiScene.updateScore();
-        }
-
-        hitSpike() {
-            if (this.isDead) return;
-            this.isDead = true;
+        die() {
             GameData.vibrate('heavy');
-            
-            InputState.left = false;
-            InputState.right = false;
-            
-            this.scene.restart();
+            Input.left = false; Input.right = false;
+            this.loadLevel(GameData.currentLevel); // Перезапуск
         }
 
-        activateLever(player, lever) {
-            if (!lever.isActive) {
-                lever.isActive = true;
-                lever.setTexture('lever_on');
-                GameData.vibrate('medium');
-                
-                this.doors.getChildren().forEach(door => {
-                    door.body.enable = false;
-                    this.tweens.add({ targets: door, alpha: 0, duration: 300, onComplete: () => door.destroy() });
-                });
-            }
-        }
-
-        reachFlag() {
-            if (this.isDead) return;
-            this.isDead = true;
+        win() {
             GameData.vibrate('medium');
             GameData.currentLevel++;
             GameData.save();
-
-            InputState.left = false;
-            InputState.right = false;
+            Input.left = false; Input.right = false;
             
-            this.scene.stop('UIScene');
-
-            if (GameData.currentLevel < LEVELS.length) {
-                this.scene.start('GameScene');
+            if (GameData.currentLevel >= LEVELS.length) {
+                GameData.currentLevel = 0; GameData.save();
+                UI.showMenu();
             } else {
-                GameData.currentLevel = 0; 
-                GameData.save();
-                this.scene.start('MenuScene');
+                this.loadLevel(GameData.currentLevel);
             }
+        }
+
+        updatePhysics(dt) {
+            if (!this.player) return;
+
+            // Горизонтальное движение
+            if (Input.left) this.velocity.x = -this.moveSpeed;
+            else if (Input.right) this.velocity.x = this.moveSpeed;
+            else this.velocity.x = 0;
+
+            // Гравитация
+            this.velocity.y += this.gravity * dt;
+
+            let playerBox = new THREE.Box3();
+
+            // 1. Движение по Y и коллизии
+            this.player.position.y += this.velocity.y * dt;
+            playerBox.setFromCenterAndSize(this.player.position, this.playerSize);
+            this.isGrounded = false;
+
+            for (let wall of this.walls) {
+                if (wall.isDoor && !wall.mesh.visible) continue; // Открытая дверь не имеет коллизии
+                
+                if (playerBox.intersectsBox(wall.box)) {
+                    if (this.velocity.y < 0) {
+                        this.player.position.y = wall.box.max.y + this.playerSize.y / 2;
+                        this.isGrounded = true;
+                        this.jumpsCount = 0;
+                    } else {
+                        this.player.position.y = wall.box.min.y - this.playerSize.y / 2;
+                    }
+                    this.velocity.y = 0;
+                    playerBox.setFromCenterAndSize(this.player.position, this.playerSize); // Обновляем бокс
+                }
+            }
+
+            // 2. Движение по X и коллизии
+            this.player.position.x += this.velocity.x * dt;
+            playerBox.setFromCenterAndSize(this.player.position, this.playerSize);
+
+            for (let wall of this.walls) {
+                if (wall.isDoor && !wall.mesh.visible) continue;
+
+                if (playerBox.intersectsBox(wall.box)) {
+                    if (this.velocity.x < 0) {
+                        this.player.position.x = wall.box.max.x + this.playerSize.x / 2;
+                    } else {
+                        this.player.position.x = wall.box.min.x - this.playerSize.x / 2;
+                    }
+                    this.velocity.x = 0;
+                    playerBox.setFromCenterAndSize(this.player.position, this.playerSize);
+                }
+            }
+
+            // Фиксация Z (2.5D)
+            this.player.position.z = 0;
+
+            // Смерть при падении
+            if (this.player.position.y < -2) this.die();
+
+            // Оверлапы (Шипы)
+            for (let spike of this.spikes) {
+                // Немного уменьшаем хитбокс шипов для честности
+                let sBox = spike.box.clone().expandByScalar(-0.2);
+                if (playerBox.intersectsBox(sBox)) this.die();
+            }
+
+            // Оверлапы (Монеты)
+            for (let coin of this.coins) {
+                if (coin.active && playerBox.intersectsBox(coin.box)) {
+                    coin.active = false;
+                    coin.mesh.visible = false;
+                    GameData.addCoins(1);
+                    GameData.vibrate('light');
+                    UI.updateScore();
+                }
+                if(coin.active) coin.mesh.rotation.y += 3 * dt; // Анимация вращения
+            }
+
+            // Оверлапы (Рычаги)
+            for (let lever of this.levers) {
+                if (!lever.active && playerBox.intersectsBox(lever.box)) {
+                    lever.active = true;
+                    lever.handle.rotation.z = -Math.PI / 4; // Переключаем ручку
+                    lever.handle.material.color.setHex(0x00ff00);
+                    GameData.vibrate('medium');
+                    
+                    // Открываем двери
+                    for (let door of this.doors) {
+                        door.active = false;
+                        door.mesh.visible = false;
+                    }
+                }
+            }
+
+            // Оверлапы (Флаг)
+            if (this.flag && playerBox.intersectsBox(this.flag.box)) {
+                this.win();
+            }
+        }
+
+        animate() {
+            requestAnimationFrame(this.animate);
+            const dt = Math.min(this.clock.getDelta(), 0.1); // Ограничиваем dt
+
+            if (this.isRunning && this.player) {
+                this.updatePhysics(dt);
+
+                // Плавное следование камеры и света за игроком
+                this.camera.position.lerp(new THREE.Vector3(this.player.position.x, this.player.position.y + 4, 12), 5 * dt);
+                this.camera.lookAt(this.player.position);
+                
+                this.playerLight.position.copy(this.player.position).add(new THREE.Vector3(0, 2, 2));
+            } else {
+                // Медленное вращение камеры в меню
+                this.camera.position.x = Math.sin(Date.now() * 0.0005) * 10 + 5;
+                this.camera.position.z = Math.cos(Date.now() * 0.0005) * 10;
+                this.camera.position.y = 5;
+                this.camera.lookAt(5, 5, 0);
+            }
+
+            this.renderer.render(this.scene, this.camera);
         }
     }
 
-    class UIScene extends Phaser.Scene {
-        constructor() { super('UIScene'); }
-        create() {
-            this.input.addPointer(3);
+    const Engine = new GameEngine();
 
-            this.scoreText = this.add.text(16, 16, `Монеты: ${GameData.coins}`, { 
-                fontSize: '24px', fill: '#ffd700', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 
-            });
+    // ==========================================
+    // 5. УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ (UI)
+    // ==========================================
+    const UI = {
+        menuScreen: document.getElementById('menu-screen'),
+        shopScreen: document.getElementById('shop-screen'),
+        hud: document.getElementById('hud'),
+        scoreText: document.getElementById('score-text'),
+        shopCoins: document.getElementById('shop-coins'),
 
-            createButton(this, 300, 30, 90, 40, 'МЕНЮ', 0xaa2222, () => {
-                InputState.left = false;
-                InputState.right = false;
-                this.scene.stop('GameScene');
-                this.scene.start('MenuScene');
-            });
+        showMenu() {
+            Engine.stop();
+            this.menuScreen.classList.remove('hidden');
+            this.shopScreen.classList.add('hidden');
+            this.hud.classList.add('hidden');
+            Input.left = false; Input.right = false;
+        },
 
-            const createControlBtn = (x, y, textStr, onDown, onUp) => {
-                const circle = this.add.circle(x, y, 40, 0xffffff, 0.2).setInteractive();
-                circle.setStrokeStyle(2, 0xffffff, 0.8);
-                this.add.text(x, y, textStr, { fontSize: '36px', fill: '#fff' }).setOrigin(0.5);
-                
-                circle.on('pointerdown', () => { circle.setAlpha(0.6); onDown(); });
-                circle.on('pointerup', () => { circle.setAlpha(1); onUp(); });
-                circle.on('pointerout', () => { circle.setAlpha(1); onUp(); });
-            };
+        showShop() {
+            this.menuScreen.classList.add('hidden');
+            this.shopScreen.classList.remove('hidden');
+            this.updateShopUI();
+        },
 
-            const btnY = 560;
-            createControlBtn(60, btnY, '◄', () => InputState.left = true, () => InputState.left = false);
-            createControlBtn(160, btnY, '►', () => InputState.right = true, () => InputState.right = false);
-            
-            const gameScene = this.scene.get('GameScene');
-            createControlBtn(300, btnY, '▲', () => gameScene.doJump(), () => {});
-        }
+        startGame() {
+            this.menuScreen.classList.add('hidden');
+            this.hud.classList.remove('hidden');
+            this.updateScore();
+            Engine.start();
+        },
 
         updateScore() {
-            this.scoreText.setText(`Монеты: ${GameData.coins}`);
-        }
-    }
+            this.scoreText.innerText = `Монеты: ${GameData.coins}`;
+        },
 
-    // ==========================================
-    // 6. КОНФИГУРАЦИЯ И ЗАПУСК PHASER
-    // ==========================================
-    const config = {
-        type: Phaser.AUTO,
-        width: 360,
-        height: 640,
-        parent: 'game-container',
-        backgroundColor: '#000000',
-        scale: {
-            mode: Phaser.Scale.FIT,
-            autoCenter: Phaser.Scale.CENTER_BOTH
-        },
-        physics: {
-            default: 'arcade',
-            arcade: { 
-                gravity: { y: 1200 },
-                debug: false 
-            }
-        },
-        scene:[BootScene, MenuScene, ShopScene, GameScene, UIScene]
+        updateShopUI() {
+            this.shopCoins.innerText = `Монеты: ${GameData.coins}`;
+            
+            const updateBtn = (id, cost, conditionBought, conditionActive) => {
+                const btn = document.getElementById(id);
+                if (conditionActive) {
+                    btn.innerText = "ВЫБРАН";
+                    btn.className = "btn btn-buy owned";
+                } else if (conditionBought) {
+                    btn.innerText = "ВЫБРАТЬ";
+                    btn.className = "btn btn-buy";
+                } else {
+                    btn.innerText = `КУПИТЬ (${cost})`;
+                    btn.className = "btn btn-buy";
+                }
+            };
+
+            updateBtn('buy-red', 10, GameData.unlockedSkins.includes(0xff3333), GameData.currentSkin === 0xff3333);
+            updateBtn('buy-blue', 10, GameData.unlockedSkins.includes(0x3388ff), GameData.currentSkin === 0x3388ff);
+            updateBtn('buy-jump', 20, GameData.doubleJump, GameData.doubleJump);
+        }
     };
 
-    const game = new Phaser.Game(config);
+    // События кнопок меню
+    document.getElementById('btn-play').addEventListener('click', () => { GameData.vibrate('light'); UI.startGame(); });
+    document.getElementById('btn-open-shop').addEventListener('click', () => { GameData.vibrate('light'); UI.showShop(); });
+    document.getElementById('btn-close-shop').addEventListener('click', () => { GameData.vibrate('light'); UI.showMenu(); });
+    document.getElementById('btn-menu').addEventListener('click', () => { GameData.vibrate('light'); UI.showMenu(); });
+
+    // Функция покупки в магазине (глобальная для onclick в HTML)
+    window.buyItem = function(cost, skinColor, isDoubleJump) {
+        let isBought = isDoubleJump ? GameData.doubleJump : GameData.unlockedSkins.includes(skinColor);
+        
+        if (!isBought) {
+            if (GameData.coins >= cost) {
+                GameData.addCoins(-cost);
+                if (isDoubleJump) GameData.doubleJump = true;
+                else GameData.unlockedSkins.push(skinColor);
+                GameData.save();
+                GameData.vibrate('success');
+            } else {
+                GameData.vibrate('heavy'); // Нет денег
+                return;
+            }
+        }
+        
+        if (!isDoubleJump) {
+            GameData.currentSkin = skinColor;
+            GameData.save();
+        }
+        
+        UI.updateShopUI();
+    };
+
+    // Настройка мобильных кнопок управления
+    const setupCtrl = (id, onDown, onUp) => {
+        const el = document.getElementById(id);
+        el.addEventListener('pointerdown', (e) => { e.preventDefault(); onDown(); });
+        el.addEventListener('pointerup', (e) => { e.preventDefault(); onUp(); });
+        el.addEventListener('pointerout', (e) => { e.preventDefault(); onUp(); });
+    };
+
+    setupCtrl('ctrl-left', () => Input.left = true, () => Input.left = false);
+    setupCtrl('ctrl-right', () => Input.right = true, () => Input.right = false);
+    setupCtrl('ctrl-jump', () => Engine.doJump(), () => {}); // Прыжок - разовое событие
+
+    // Запуск (показываем меню, на фоне крутится уровень)
+    Engine.loadLevel(0);
+    UI.showMenu();
 
 </script>
 </body>
