@@ -37,9 +37,10 @@
         .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 5px 20px rgba(241, 39, 17, 0.3); }
         .btn-upgrades { background: linear-gradient(45deg, #00b09b, #96c93d); box-shadow: 0 5px 20px rgba(150, 201, 61, 0.3); }
         .btn-endless { background: linear-gradient(45deg, #8A2387, #E94057, #F27121); box-shadow: 0 5px 20px rgba(233, 64, 87, 0.3); }
+        .btn-profile { background: linear-gradient(45deg, #8e2de2, #4a00e0); box-shadow: 0 5px 20px rgba(142, 45, 226, 0.3); }
         .btn-tg-pay { background: linear-gradient(45deg, #1c92d2, #f2fcfe); color: #000; border-color: #1c92d2; width: 90%; max-width: 300px; padding: 10px; font-size: 14px;}
         .btn-back { background: transparent; border: 2px solid #555; box-shadow: none; margin-top: 15px; }
-        .btn-reset { border-color: #ff0055; color: #ff0055; margin-top: 30px; }
+        .btn-reset { border-color: #ff0055; color: #ff0055; margin-top: 20px; padding: 12px 30px;}
         
         .ui-btn:active { transform: scale(0.95); }
         .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
@@ -80,6 +81,27 @@
         .shop-btn.equip { background: #00d2ff; }
         .shop-btn.crystal-btn { background: #e024ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
+
+        /* СТИЛИ ПРОФИЛЯ */
+        .profile-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(0,210,255,0.05) 100%);
+            padding: 20px; border-radius: 20px; border: 1px solid rgba(0,210,255,0.2);
+            text-align: center; width: 85%; max-width: 350px;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.1);
+            margin-bottom: 20px; position: relative;
+        }
+        .profile-avatar-wrap {
+            width: 80px; height: 80px; margin: 0 auto 15px auto; border-radius: 15px;
+            background: #111; border: 2px solid #00d2ff; box-shadow: 0 0 20px #00d2ff;
+            display: flex; justify-content: center; align-items: center; overflow: hidden;
+        }
+        .profile-name { font-size: 26px; font-weight: 900; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); letter-spacing: 1px; }
+        .profile-name-edit { font-size: 12px; color: #00d2ff; cursor: pointer; margin-bottom: 20px; opacity: 0.8; }
+        .profile-stat { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 16px; font-weight: bold; color: #ccc;}
+        .profile-stat:last-child { border-bottom: none; padding-bottom: 0;}
+        .stat-val { color: #fff; text-shadow: 0 0 8px #fff; font-size: 18px;}
+        .stat-val.gold { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
+        .stat-val.red { color: #ff0055; text-shadow: 0 0 10px #ff0055; }
 
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
@@ -137,10 +159,40 @@
         </div>
         <button class="ui-btn" onclick="showState('LEVELS')">КАМПАНИЯ</button>
         <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕСКОНЕЧНЫЙ</button>
+        <button class="ui-btn btn-profile" onclick="showState('PROFILE')">ПРОФИЛЬ</button>
         <button class="ui-btn btn-upgrades" onclick="showState('UPGRADES')">УЛУЧШЕНИЯ</button>
         <button class="ui-btn btn-shop" onclick="showState('SHOP')">МАГАЗИН</button>
-        <p class="hud-text" style="font-size: 14px; color: #888; margin-top: 15px;" id="menuScore">Рекорд: 0 м</p>
-        <button class="ui-btn btn-back btn-reset" onclick="resetProgress()">СБРОСИТЬ ПРОГРЕСС</button>
+        <button class="ui-btn btn-back btn-reset" style="width: auto;" onclick="resetProgress()">СБРОСИТЬ</button>
+    </div>
+
+    <div id="profileMenu" class="overlay">
+        <h2 style="margin-bottom: 15px; color: #00d2ff; text-shadow: 0 0 15px #00d2ff;">ДОСЬЕ</h2>
+        <div class="profile-card">
+            <div class="profile-avatar-wrap">
+                <canvas id="avatarCanvas" width="60" height="60"></canvas>
+            </div>
+            
+            <div class="profile-name" id="profName">Игрок</div>
+            <div class="profile-name-edit" onclick="changeName()">✏️ Изменить имя</div>
+            
+            <div class="profile-stat">
+                <span>🏆 Лучший забег:</span> 
+                <span class="stat-val" id="profScore">0 м</span>
+            </div>
+            <div class="profile-stat">
+                <span>⭐ Макс. уровень:</span> 
+                <span class="stat-val" id="profLevel">1</span>
+            </div>
+            <div class="profile-stat">
+                <span>💰 Всего добыто:</span> 
+                <span class="stat-val gold" id="profTotalCoins">0</span>
+            </div>
+            <div class="profile-stat">
+                <span>💀 Разрушен:</span> 
+                <span class="stat-val red" id="profDeaths">0 раз</span>
+            </div>
+        </div>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
     </div>
 
     <div id="levelMenu" class="overlay">
@@ -179,12 +231,9 @@
     <script>
         // Инициализация Telegram WebApp
         const tg = window.Telegram?.WebApp;
-        if (tg) {
-            tg.ready();
-            tg.expand();
-        }
+        if (tg) { tg.ready(); tg.expand(); }
 
-        // --- ГЛОБАЛЬНЫЙ ПЕРЕХВАТЧИК КЛИКОВ (ВИБРАЦИЯ КНОПОК) ---
+        // Глобальный перехватчик для вибрации
         document.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
                 if (navigator.vibrate) navigator.vibrate(10);
@@ -208,7 +257,12 @@
             }
         }
 
+        // --- РАСШИРЕННАЯ СИСТЕМА СОХРАНЕНИЙ (ДЛЯ ПРОФИЛЯ) ---
         const SAVE = {
+            nickname: localStorage.getItem('neonName') || 'Игрок_' + Math.floor(Math.random() * 9000 + 1000),
+            totalCoins: parseInt(localStorage.getItem('neonTotalCoins')) || 0,
+            deaths: parseInt(localStorage.getItem('neonDeaths')) || 0,
+            
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
             crystals: parseInt(localStorage.getItem('neonCrystals')) || 0,
             maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
@@ -226,6 +280,10 @@
         };
 
         function saveGame() {
+            localStorage.setItem('neonName', SAVE.nickname);
+            localStorage.setItem('neonTotalCoins', SAVE.totalCoins);
+            localStorage.setItem('neonDeaths', SAVE.deaths);
+            
             localStorage.setItem('neonCoins', SAVE.coins);
             localStorage.setItem('neonCrystals', SAVE.crystals);
             localStorage.setItem('neonMaxLevel', SAVE.maxLevel);
@@ -245,6 +303,7 @@
 
         const overlays = { 
             MAIN: document.getElementById('mainMenu'), 
+            PROFILE: document.getElementById('profileMenu'), // Добавлен профиль
             LEVELS: document.getElementById('levelMenu'), 
             SHOP: document.getElementById('shopMenu'), 
             UPGRADES: document.getElementById('upgradesMenu'),
@@ -294,14 +353,78 @@
             }
         }
 
+        // --- ЛОГИКА ПРОФИЛЯ И АВАТАРА ---
+        function changeName() {
+            sfx.jump();
+            let newName = prompt("Введите свой никнейм (до 15 символов):", SAVE.nickname);
+            if (newName !== null) {
+                newName = newName.trim();
+                if (newName.length > 0) {
+                    SAVE.nickname = newName.substring(0, 15);
+                    saveGame();
+                }
+            }
+        }
+
+        function renderAvatar() {
+            const avCanvas = document.getElementById('avatarCanvas');
+            if(!avCanvas) return;
+            const actx = avCanvas.getContext('2d');
+            actx.clearRect(0,0,60,60);
+            actx.save();
+            actx.translate(30, 30);
+            
+            let color = SAVE.skin;
+            let isSuperSkin = (color === 'cat' || color === 'robot' || color === 'demon' || color === 'ghost');
+            
+            if (color === 'ghost') {
+                actx.globalAlpha = 0.8; actx.fillStyle = '#fff'; actx.shadowBlur = 15; actx.shadowColor = '#00ffff';
+                actx.beginPath(); actx.arc(0, -5, 15, Math.PI, 0); actx.lineTo(15, 15); actx.lineTo(8, 10); actx.lineTo(0, 15); actx.lineTo(-8, 10); actx.lineTo(-15, 15); actx.fill();
+                actx.fillStyle = '#000'; actx.shadowBlur = 0;
+                actx.beginPath(); actx.arc(-5, -5, 3, 0, Math.PI*2); actx.fill(); actx.beginPath(); actx.arc(5, -5, 3, 0, Math.PI*2); actx.fill();
+            } else if (color === 'demon') {
+                actx.fillStyle = '#aa0000'; actx.shadowBlur = 15; actx.shadowColor = '#ff0000'; actx.fillRect(-15, -15, 30, 30);
+                actx.fillStyle = '#000'; actx.shadowBlur = 0;
+                actx.beginPath(); actx.moveTo(-15, -15); actx.lineTo(-5, -25); actx.lineTo(-5, -15); actx.fill(); 
+                actx.beginPath(); actx.moveTo(15, -15); actx.lineTo(5, -25); actx.lineTo(5, -15); actx.fill(); 
+                actx.fillStyle = '#ff0000'; actx.shadowBlur = 5; actx.fillRect(-8, -5, 4, 4); actx.fillRect(4, -5, 4, 4); 
+            } else {
+                actx.fillStyle = isSuperSkin ? '#222' : color; 
+                actx.shadowBlur = 15; actx.shadowColor = color === 'cat' ? '#e024ff' : (color === 'robot' ? '#00d2ff' : color); 
+                actx.fillRect(-15, -15, 30, 30); 
+                if (color === 'cat') {
+                    actx.fillStyle = '#e024ff';
+                    actx.beginPath(); actx.moveTo(-15, -15); actx.lineTo(-5, -5); actx.lineTo(-15, 5); actx.fill();
+                    actx.beginPath(); actx.moveTo(15, -15); actx.lineTo(5, -5); actx.lineTo(15, 5); actx.fill();
+                    actx.fillStyle = '#fff'; actx.fillRect(-8, -2, 4, 4); actx.fillRect(4, -2, 4, 4);
+                } else if (color === 'robot') {
+                    actx.fillStyle = '#00d2ff'; actx.fillRect(-12, -8, 24, 6); 
+                    actx.fillStyle = '#fff'; actx.fillRect(-5, -8, 10, 6);
+                    actx.fillStyle = '#444'; actx.fillRect(-10, 5, 20, 8);
+                }
+            }
+            actx.restore();
+        }
+
         function updateUI() {
             document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('menuCrystals').innerText = `💎 ${SAVE.crystals}`;
             document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('shopCrystals').innerText = `💎 ${SAVE.crystals}`;
-            document.getElementById('upgCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
+            document.getElementById('upgCoins').innerText = `💰 ${SAVE.coins}`; 
             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('hudCrystals').innerText = `💎 ${SAVE.crystals}`;
             document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
+            
+            // Обновление статов в профиле
+            document.getElementById('profName').innerText = SAVE.nickname;
+            document.getElementById('profScore').innerText = `${SAVE.highScore} м`;
+            document.getElementById('profLevel').innerText = SAVE.maxLevel;
+            document.getElementById('profTotalCoins').innerText = SAVE.totalCoins;
+            document.getElementById('profDeaths').innerText = `${SAVE.deaths} раз`;
+            
+            renderAvatar();
+
             if (SAVE.slowmo > 0) { document.getElementById('hudSlowmo').style.display = 'flex'; document.getElementById('slowmoCount').innerText = SAVE.slowmo; } 
             else { document.getElementById('hudSlowmo').style.display = 'none'; }
+            
             renderShop(); renderUpgrades(); renderLevels();
         }
 
@@ -373,7 +496,6 @@
             }
         }
 
-        // --- ИНТЕГРАЦИЯ ВИБРАЦИИ В ЗВУКОВОЙ ДВИЖОК ---
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
@@ -424,7 +546,7 @@
                 } catch(e) {}
             }
             thrust() {
-                if(Math.random() > 0.8 && navigator.vibrate) navigator.vibrate(5); // Микро-вибрация мотора
+                if(Math.random() > 0.8 && navigator.vibrate) navigator.vibrate(5); 
                 if(!this.ctx || this.ctx.state !== 'running') return;
                 try {
                     if(Math.random() > 0.7) {
@@ -824,7 +946,10 @@
                     if (this.player.x < item.x + 24 && this.player.x + 30 > item.x && this.player.y < item.y + 24 && this.player.y + 30 > item.y) {
                         item.markedForDeletion = true;
                         if (item.type === 'coin') { 
-                            let reward = this.isHard ? 3 : 1; SAVE.coins += reward; sfx.coin(); saveGame(); 
+                            let reward = this.isHard ? 3 : 1; 
+                            SAVE.coins += reward; 
+                            SAVE.totalCoins += reward; // ТРЕКИНГ В ПРОФИЛЬ
+                            sfx.coin(); saveGame(); 
                             for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
                             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
                         } else if (item.type === 'jetpack') { 
@@ -945,7 +1070,9 @@
         }
 
         function triggerGameOver(reason) { 
-            gameState = 'END'; sfx.death(); saveGame(); 
+            gameState = 'END'; sfx.death(); 
+            SAVE.deaths++; // ТРЕКИНГ В ПРОФИЛЬ
+            saveGame(); 
             setTimeout(() => { 
                 document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; document.getElementById('endTitle').style.color = "#ff0055";
                 document.getElementById('endDesc').innerText = reason; document.getElementById('endBtn1').innerText = "ПОВТОРИТЬ";
