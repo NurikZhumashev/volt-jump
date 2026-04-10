@@ -189,7 +189,6 @@
             }
         }
 
-        // --- СИСТЕМА СОХРАНЕНИЙ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
             crystals: parseInt(localStorage.getItem('neonCrystals')) || 0,
@@ -237,10 +236,7 @@
         let pendingDeathReason = "";
 
         function simulateTGPurchase() {
-            SAVE.crystals += 50;
-            saveGame();
-            sfx.purchase();
-            alert("Тест TWA: Успешная оплата! Получено 50 💎");
+            SAVE.crystals += 50; saveGame(); sfx.purchase(); alert("Тест TWA: Успешная оплата! Получено 50 💎");
         }
 
         function showState(state) {
@@ -253,99 +249,60 @@
 
         function togglePause() {
             if (gameState === 'PLAYING') {
-                gameState = 'PAUSED';
-                document.getElementById('pauseMenu').classList.add('active');
+                gameState = 'PAUSED'; document.getElementById('pauseMenu').classList.add('active');
                 if (sfx.ctx && sfx.ctx.state === 'running') sfx.ctx.suspend(); 
             } else if (gameState === 'PAUSED') {
-                gameState = 'PLAYING';
-                document.getElementById('pauseMenu').classList.remove('active');
+                gameState = 'PLAYING'; document.getElementById('pauseMenu').classList.remove('active');
                 if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
             }
         }
 
         function quitGame() {
-            gameState = 'END'; 
-            document.getElementById('pauseMenu').classList.remove('active');
+            gameState = 'END'; document.getElementById('pauseMenu').classList.remove('active');
             if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
             sfx.stopBGM(); saveGame(); showState('MAIN');
         }
 
-        function confirmRevive() {
-            document.getElementById('reviveMenu').classList.remove('active');
-            gameState = 'PLAYING';
-            game.useExtraLife();
-        }
-
-        function declineRevive() {
-            document.getElementById('reviveMenu').classList.remove('active');
-            triggerGameOver(pendingDeathReason);
-        }
+        function confirmRevive() { document.getElementById('reviveMenu').classList.remove('active'); gameState = 'PLAYING'; game.useExtraLife(); }
+        function declineRevive() { document.getElementById('reviveMenu').classList.remove('active'); triggerGameOver(pendingDeathReason); }
 
         function updateUI() {
-            document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('menuCrystals').innerText = `💎 ${SAVE.crystals}`;
-            document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('shopCrystals').innerText = `💎 ${SAVE.crystals}`;
-            document.getElementById('upgCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
-            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('hudCrystals').innerText = `💎 ${SAVE.crystals}`;
+            document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('menuCrystals').innerText = `💎 ${SAVE.crystals}`;
+            document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('shopCrystals').innerText = `💎 ${SAVE.crystals}`;
+            document.getElementById('upgCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
+            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('hudCrystals').innerText = `💎 ${SAVE.crystals}`;
             document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
-            renderShop(); 
-            renderUpgrades();
-            renderLevels();
+            renderShop(); renderUpgrades(); renderLevels();
         }
 
         function renderLevels() {
-            const grid = document.getElementById('levelGrid');
-            grid.innerHTML = '';
+            const grid = document.getElementById('levelGrid'); grid.innerHTML = '';
             for (let i = 1; i <= 100; i++) {
-                let btn = document.createElement('button');
-                btn.className = 'lvl-btn'; 
-                if (i < SAVE.maxLevel) {
-                    btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true;
-                } else if (i === SAVE.maxLevel) {
-                    btn.innerText = i;
-                    if (i % 5 === 0) btn.classList.add('hard'); else btn.classList.add('current');
-                    btn.onclick = () => startGame('campaign', i);
-                } else {
-                    btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true;
-                }
+                let btn = document.createElement('button'); btn.className = 'lvl-btn'; 
+                if (i < SAVE.maxLevel) { btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true; } 
+                else if (i === SAVE.maxLevel) { btn.innerText = i; if (i % 5 === 0) btn.classList.add('hard'); else btn.classList.add('current'); btn.onclick = () => startGame('campaign', i); } 
+                else { btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true; }
                 grid.appendChild(btn);
             }
         }
 
         function renderUpgrades() {
-            const list = document.getElementById('upgradesList');
-            list.innerHTML = '';
+            const list = document.getElementById('upgradesList'); list.innerHTML = '';
             const items = [
                 { id: 'upg_jump', name: 'МОЩЬ ПРЫЖКА 🦘', desc: '+Высота', price: 1, type: 'upg_jump', lvl: SAVE.jumpLvl, maxed: SAVE.jumpLvl >= 10 },
                 { id: 'upg_jp', name: 'РАКЕТА 🚀', desc: '+Время полета', price: 1, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
                 { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус', price: 1, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 10 },
                 { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус', price: 1, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 10 }
             ];
-
             items.forEach(item => {
-                let actionText = `ПРОКАЧАТЬ (💰 1)`;
-                let btnClass = 'shop-btn';
-                let disabled = SAVE.coins < item.price;
-                
+                let actionText = `ПРОКАЧАТЬ (💰 1)`; let btnClass = 'shop-btn'; let disabled = SAVE.coins < item.price;
                 if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
-
-                list.innerHTML += `
-                    <div class="shop-card">
-                        <div class="lvl-badge">LVL ${item.lvl}</div>
-                        <h3 style="color:#00d2ff">${item.name}</h3>
-                        <p>${item.desc}</p>
-                        <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price}, 'coins')">${actionText}</button>
-                    </div>
-                `;
+                list.innerHTML += `<div class="shop-card"><div class="lvl-badge">LVL ${item.lvl}</div><h3 style="color:#00d2ff">${item.name}</h3><p>${item.desc}</p><button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price}, 'coins')">${actionText}</button></div>`;
             });
         }
 
         function renderShop() {
-            const list = document.getElementById('shopList');
-            list.innerHTML = '';
+            const list = document.getElementById('shopList'); list.innerHTML = '';
             const items = [
                 { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Возрождение', price: 1, currency: 'coins', type: 'consumable', lvl: SAVE.lives },
                 { id: 'ghost', name: 'ПРИЗРАК 👻', desc: 'Спектральный', price: 1, currency: 'coins', type: 'skin' },
@@ -356,62 +313,27 @@
                 { id: 'fire', name: 'ИНФЕРНО 🔥', desc: 'Огонь', price: 1, currency: 'coins', type: 'trail' },
                 { id: 'electro', name: 'ПЛАЗМА ⚡', desc: 'Молнии', price: 1, currency: 'coins', type: 'trail' }
             ];
-
             items.forEach(item => {
-                let currencySymbol = item.currency === 'crystals' ? '💎' : '💰';
-                let actionText = `КУПИТЬ (${currencySymbol} ${item.price})`;
-                let btnClass = 'shop-btn';
-                if (item.currency === 'crystals') btnClass += ' crystal-btn';
-                
+                let currencySymbol = item.currency === 'crystals' ? '💎' : '💰'; let actionText = `КУПИТЬ (${currencySymbol} ${item.price})`;
+                let btnClass = 'shop-btn'; if (item.currency === 'crystals') btnClass += ' crystal-btn';
                 let disabled = item.currency === 'crystals' ? SAVE.crystals < item.price : SAVE.coins < item.price;
-                let badge = '';
-
-                if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
-                
-                if (item.type === 'skin') {
-                    if (SAVE.ownedSkins.includes(item.id)) {
-                        disabled = false;
-                        if (SAVE.skin === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass = 'shop-btn equip'; }
-                        else { actionText = 'НАДЕТЬ'; btnClass = 'shop-btn equip'; }
-                    }
-                }
-                
-                if (item.type === 'trail') {
-                    if (SAVE.ownedTrails.includes(item.id)) {
-                        disabled = false;
-                        if (SAVE.trail === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass = 'shop-btn equip'; }
-                        else { actionText = 'НАДЕТЬ'; btnClass = 'shop-btn equip'; }
-                    }
-                }
-
+                let badge = ''; if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
+                if (item.type === 'skin' && SAVE.ownedSkins.includes(item.id)) { disabled = false; if (SAVE.skin === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass = 'shop-btn equip'; } else { actionText = 'НАДЕТЬ'; btnClass = 'shop-btn equip'; } }
+                if (item.type === 'trail' && SAVE.ownedTrails.includes(item.id)) { disabled = false; if (SAVE.trail === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass = 'shop-btn equip'; } else { actionText = 'НАДЕТЬ'; btnClass = 'shop-btn equip'; } }
                 let titleColor = item.currency === 'crystals' ? '#e024ff' : (item.type === 'skin' && item.id.startsWith('#') ? item.id : '#fff');
-
-                list.innerHTML += `
-                    <div class="shop-card">
-                        ${badge}
-                        <h3 style="color:${titleColor}">${item.name}</h3>
-                        <p>${item.desc}</p>
-                        <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price}, '${item.currency}')">${actionText}</button>
-                    </div>
-                `;
+                list.innerHTML += `<div class="shop-card">${badge}<h3 style="color:${titleColor}">${item.name}</h3><p>${item.desc}</p><button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price}, '${item.currency}')">${actionText}</button></div>`;
             });
         }
 
         function handleBuy(id, type, price, currency) {
             if (type === 'skin' && SAVE.ownedSkins.includes(id)) { SAVE.skin = id; sfx.jump(); saveGame(); return; }
             if (type === 'trail' && SAVE.ownedTrails.includes(id)) { SAVE.trail = id; sfx.jump(); saveGame(); return; }
-            
             let canBuy = (currency === 'crystals' && SAVE.crystals >= price) || (currency === 'coins' && SAVE.coins >= price);
-            
             if (canBuy) {
                 if (currency === 'crystals') SAVE.crystals -= price; else SAVE.coins -= price;
-
-                if (type === 'upg_jump') SAVE.jumpLvl++;
-                if (type === 'upg_jp') SAVE.jetpackLevel++;
-                if (type === 'mag_coin') SAVE.magnetCoinLvl++;
-                if (type === 'mag_jp') SAVE.magnetJpLvl++;
-                if (type === 'consumable') SAVE.lives++;
-                if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
+                if (type === 'upg_jump') SAVE.jumpLvl++; if (type === 'upg_jp') SAVE.jetpackLevel++;
+                if (type === 'mag_coin') SAVE.magnetCoinLvl++; if (type === 'mag_jp') SAVE.magnetJpLvl++;
+                if (type === 'consumable') SAVE.lives++; if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
                 if (type === 'trail') { SAVE.ownedTrails.push(id); SAVE.trail = id; }
                 sfx.purchase(); saveGame();
             }
@@ -420,14 +342,8 @@
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
-                if (!this.ctx) {
-                    try {
-                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                        if (AudioCtx) this.ctx = new AudioCtx();
-                    } catch(e) {}
-                }
-                if (this.ctx && this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume();
-                if (!this.bgmStarted) this.startBGM();
+                if (!this.ctx) { try { const AudioCtx = window.AudioContext || window.webkitAudioContext; if (AudioCtx) this.ctx = new AudioCtx(); } catch(e) {} }
+                if (this.ctx && this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume(); if (!this.bgmStarted) this.startBGM();
             }
             jump() {
                 if(!this.ctx || this.ctx.state !== 'running') return; 
@@ -441,8 +357,7 @@
             coin() {
                 if(!this.ctx || this.ctx.state !== 'running') return; 
                 try {
-                    const now = this.ctx.currentTime;
-                    const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
+                    const now = this.ctx.currentTime; const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
                     osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
                     osc1.connect(gain1); gain1.connect(this.ctx.destination); osc1.start(now); osc1.stop(now + 0.5);
                 } catch(e) {}
@@ -538,9 +453,7 @@
             }
             update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
             draw(ctx) { 
-                ctx.globalAlpha = Math.max(0, this.life); 
-                ctx.fillStyle = this.color; 
-                ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
+                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
                 if (this.text) { ctx.font = 'bold 20px monospace'; ctx.fillText(this.text, this.x, this.y); } 
                 else { ctx.fillRect(this.x, this.y, this.size, this.size); }
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
@@ -598,9 +511,16 @@
             }
         }
 
+        // --- ОБНОВЛЕННАЯ ФИЗИКА ОХОТНИКА ---
         class Hunter {
             constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
-            reset() { this.x = canvas.width/2 - 19; this.y = canvas.height + 200; this.active = false; this.waitTimer = 0; this.angryTimer = 0;}
+            reset() { 
+                this.x = canvas.width/2 - 19; 
+                this.y = canvas.height + 200; 
+                this.active = false; 
+                this.waitTimer = 120; 
+                this.baseOffsetY = canvas.height - 40; // Базовая позиция (низ экрана)
+            }
             startTimer() { this.waitTimer = 120; } 
             update() {
                 if (gameState !== 'PLAYING') return;
@@ -611,31 +531,36 @@
                 }
                 
                 let dx = (this.game.player.x + 15) - (this.x + 19);
-                let dy = (this.game.player.y + 15) - (this.y + 19);
-                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                // Плавный возврат к базовой позиции внизу экрана
+                let normalOffsetY = canvas.height - 40;
+                this.baseOffsetY += (normalOffsetY - this.baseOffsetY) * 0.01;
 
-                if (this.angryTimer > 0) {
-                    this.angryTimer--;
-                    if (dist > 0) { 
-                        this.x += (dx/dist) * 12; 
-                        this.y += (dy/dist) * 12; 
-                    }
-                    if (Math.random() > 0.2) this.game.particles.push(new Particle(this.x + Math.random()*38, this.y + 19, this.color));
-                } else {
-                    let targetY = this.game.cameraY + canvas.height - 40;
-                    if (this.y < targetY) this.y += (targetY - this.y) * 0.1;
-                    else if (this.y > targetY) this.y -= (this.y - targetY) * 0.05;
-                    this.x += dx * 0.04; 
+                let targetY = this.game.cameraY + this.baseOffsetY;
+                
+                // Упругое движение по Y (догоняет камеру/свою цель)
+                if (this.y < targetY) this.y += (targetY - this.y) * 0.08;
+                else if (this.y > targetY) this.y -= (this.y - targetY) * 0.15; // Возвращается вниз быстрее
+                
+                // Движение по X к игроку
+                this.x += dx * 0.05; 
+                
+                // Эффекты если злой (разогнался)
+                if (this.baseOffsetY < normalOffsetY - 20 && Math.random() > 0.5) {
+                    this.game.particles.push(new Particle(this.x + Math.random()*38, this.y + 19, this.color));
                 }
             }
             draw(ctx) {
                 ctx.fillStyle = this.color; ctx.shadowBlur = 25; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, 38, 38);
                 let lx = (this.game.player.x - this.x) > 0 ? 3 : -3; let ly = (this.game.player.y - this.y) > 0 ? 3 : -3;
                 
-                if (this.angryTimer > 0) {
+                let normalOffsetY = canvas.height - 40;
+                if (this.baseOffsetY < normalOffsetY - 50) {
+                    // Злой взгляд
                     ctx.fillStyle = '#fff'; ctx.fillRect(this.x+6+lx, this.y+10+ly, 8, 8); ctx.fillRect(this.x+24+lx, this.y+10+ly, 8, 8);
                     ctx.fillStyle = '#ffeb3b'; ctx.shadowBlur = 10; ctx.fillRect(this.x+8+lx, this.y+12+ly, 4, 4); ctx.fillRect(this.x+26+lx, this.y+12+ly, 4, 4);
                 } else {
+                    // Обычный взгляд
                     ctx.fillStyle = '#550000'; ctx.fillRect(this.x+6+lx, this.y+10+ly, 8, 8); ctx.fillRect(this.x+24+lx, this.y+10+ly, 8, 8);
                 }
                 ctx.shadowBlur = 0;
@@ -647,9 +572,9 @@
             reset() { 
                 this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; 
                 this.jetpackTimer = 0; this.angle = 0; this.frameCount = 0;
-                this.lastPlatformId = null; this.samePlatformJumps = 0;
+                this.lastPlatformId = null; this.samePlatformJumps = 0; this.comboCount = 0;
                 this.color = SAVE.skin;
-                if (this.color === '#39ff14' || this.color === '#FFD700') this.color = '#00d2ff'; // Защита от старых скинов
+                if (this.color === '#39ff14' || this.color === '#FFD700') this.color = '#00d2ff'; 
             }
             
             update(input) {
@@ -666,9 +591,7 @@
 
                 if (SAVE.trail !== 'none') {
                     if (SAVE.trail === 'fire') {
-                        for(let i=0; i<2; i++) {
-                            this.game.particles.push(new Particle(this.x + 5 + Math.random()*20, this.y + 15 + Math.random()*15, Math.random() > 0.5 ? '#ff3300' : '#ffaa00', true, 0.6));
-                        }
+                        for(let i=0; i<2; i++) { this.game.particles.push(new Particle(this.x + 5 + Math.random()*20, this.y + 15 + Math.random()*15, Math.random() > 0.5 ? '#ff3300' : '#ffaa00', true, 0.6)); }
                     } else if (SAVE.trail === 'electro' && this.frameCount % 2 === 0) {
                         this.game.particles.push(new Particle(this.x - 10 + Math.random()*50, this.y + 10 + Math.random()*20, '#00ffff', false, 0.1, '⚡'));
                         this.game.particles.push(new Particle(this.x + Math.random()*30, this.y + 20, '#0055ff', true, 0.3));
@@ -689,24 +612,28 @@
                             if (this.y + 30 - this.vy <= p.y + 15) { 
                                 this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
                                 
-                                // ЛОГИКА ОХОТНИКА И КОМБО ПРЫЖКОВ
+                                // --- ЛОГИКА РЕАКЦИИ ОХОТНИКА НА ПРЫЖКИ ---
                                 if (this.lastPlatformId === p.id) {
                                     this.samePlatformJumps++;
+                                    this.comboCount = 0; // Сброс комбо
                                     if (this.samePlatformJumps >= 2 && this.game.hunter.active) {
-                                        this.game.hunter.angryTimer = 100; // Охотник агрится!
+                                        // Охотник разгоняется (целится выше)
+                                        this.game.hunter.baseOffsetY -= 100; 
+                                        if (this.game.hunter.baseOffsetY < 150) this.game.hunter.baseOffsetY = 150; // Ограничение
                                     }
                                 } else {
                                     this.lastPlatformId = p.id;
                                     this.samePlatformJumps = 1;
-                                    this.game.hunter.angryTimer = 0;
-                                    if (this.game.hunter.active) {
-                                        this.game.hunter.y = Math.min(this.game.hunter.y + 180, this.game.cameraY + canvas.height + 400); // Охотник отстает при комбо
+                                    this.comboCount++;
+                                    
+                                    if (this.comboCount >= 3 && this.game.hunter.active) {
+                                        // Охотник отстает (проваливается вниз)
+                                        this.game.hunter.baseOffsetY += 80;
+                                        if (this.game.hunter.baseOffsetY > canvas.height + 300) this.game.hunter.baseOffsetY = canvas.height + 300; // Ограничение
                                     }
                                 }
 
-                                // ПРОКАЧКА ПРЫЖКА
                                 let jumpBoost = SAVE.jumpLvl * 1.5;
-
                                 if (p.type === 'spring') { this.vy = -(28 + jumpBoost * 1.5); this.createJumpDust('#00ff00', 1.5); } 
                                 else { this.vy = -(19 + jumpBoost); this.createJumpDust('#ffffff', 1); } 
                                 
@@ -730,11 +657,8 @@
                 let isSuperSkin = (this.color === 'cat' || this.color === 'robot' || this.color === 'demon' || this.color === 'ghost');
                 
                 if (this.color === 'ghost') {
-                    ctx.globalAlpha = 0.7;
-                    ctx.fillStyle = '#fff';
-                    ctx.shadowBlur = 20; ctx.shadowColor = '#00ffff';
-                    ctx.beginPath(); ctx.arc(0, -5, 15, Math.PI, 0); ctx.lineTo(15, 15);
-                    ctx.lineTo(8, 10); ctx.lineTo(0, 15); ctx.lineTo(-8, 10); ctx.lineTo(-15, 15); ctx.fill();
+                    ctx.globalAlpha = 0.7; ctx.fillStyle = '#fff'; ctx.shadowBlur = 20; ctx.shadowColor = '#00ffff';
+                    ctx.beginPath(); ctx.arc(0, -5, 15, Math.PI, 0); ctx.lineTo(15, 15); ctx.lineTo(8, 10); ctx.lineTo(0, 15); ctx.lineTo(-8, 10); ctx.lineTo(-15, 15); ctx.fill();
                     ctx.fillStyle = '#000'; ctx.shadowBlur = 0;
                     ctx.beginPath(); ctx.arc(-5, -5, 3, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(5, -5, 3, 0, Math.PI*2); ctx.fill();
                     ctx.globalAlpha = 1.0;
@@ -746,8 +670,7 @@
                     ctx.fillStyle = '#ff0000'; ctx.shadowBlur = 10; ctx.fillRect(-8, -5, 4, 4); ctx.fillRect(4, -5, 4, 4); 
                 } else {
                     ctx.fillStyle = this.jetpackTimer > 0 ? '#fff' : (isSuperSkin ? '#222' : this.color); 
-                    ctx.shadowBlur = 20; 
-                    ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : (this.color === 'cat' ? '#e024ff' : (this.color === 'robot' ? '#00d2ff' : this.color)); 
+                    ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : (this.color === 'cat' ? '#e024ff' : (this.color === 'robot' ? '#00d2ff' : this.color)); 
                     ctx.fillRect(-15, -15, 30, 30); 
 
                     if (this.color === 'cat') {
@@ -761,9 +684,7 @@
                         ctx.fillStyle = '#444'; ctx.fillRect(-10, 5, 20, 8);
                     }
                 }
-                
-                ctx.shadowBlur = 0; 
-                ctx.restore();
+                ctx.shadowBlur = 0; ctx.restore();
             }
         }
 
@@ -775,7 +696,6 @@
                 this.tier = 0; this.currentScore = 0;
                 this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
                 this.finishSpawned = false;
-
                 this.platforms.push(new Platform(0, this.highestY, canvas.width, 'normal', this.tier));
                 this.player = new Player(this); this.hunter = new Hunter(this);
             }
@@ -847,7 +767,6 @@
                     this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) triggerWin(); });
                 }
 
-                // ЛОГИКА МАГНИТОВ (Усиленное притяжение сквозь всё)
                 let magCoinRadius = SAVE.magnetCoinLvl > 0 ? (SAVE.magnetCoinLvl * 80 + 50) : 0; 
                 let magJpRadius = SAVE.magnetJpLvl > 0 ? (SAVE.magnetJpLvl * 80 + 50) : 0;
 
@@ -858,7 +777,7 @@
                     let radius = item.type === 'coin' ? magCoinRadius : (item.type === 'jetpack' ? magJpRadius : 0);
                     
                     if (radius > 0 && dist < radius) { 
-                        let pullSpeed = Math.min(25, dist); // Не дает предмету дергаться
+                        let pullSpeed = Math.min(25, dist); 
                         item.x += (dx / dist) * pullSpeed; 
                         item.y += (dy / dist) * pullSpeed; 
                     }
