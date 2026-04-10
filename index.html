@@ -3,799 +3,874 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AAA Isometric Platformer - Module 3</title>
-    <!-- Telegram WebApp SDK -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Three.js (r128) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    
+    <title>Neon Tower: Escalation Update</title>
     <style>
-        :root {
-            --tg-theme-bg-color: #0f0f13;
-            --tg-theme-text-color: #ffffff;
-        }
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: var(--tg-theme-bg-color);
-            overflow: hidden; touch-action: none;
-            user-select: none; -webkit-user-select: none;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
-        #game-canvas {
-            display: block; width: 100%; height: 100%;
-        }
-        #loading-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; color: #fff; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 9999;
-            transition: opacity 0.5s ease;
-        }
-        .spinner {
-            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1);
-            border-top-color: #00ffcc; border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 20px;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
         
-        /* ==========================================
-           МОБИЛЬНЫЙ ИНТЕРФЕЙС (UI)
-           ========================================== */
-        #hud {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: flex; flex-direction: column;
-            justify-content: space-between; padding: 20px; box-sizing: border-box;
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: radial-gradient(circle at center, rgba(11,11,26,0.85) 0%, rgba(0,0,0,0.98) 100%);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            z-index: 20; color: white; transition: opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 0; visibility: hidden;
         }
-        .top-bar {
-            display: flex; justify-content: space-between; align-items: flex-start;
-        }
-        .stats-box {
-            background: rgba(15, 15, 20, 0.6); backdrop-filter: blur(8px);
-            border: 1px solid rgba(0, 255, 204, 0.3); border-radius: 12px;
-            padding: 10px 20px; color: #fff; font-weight: bold; text-shadow: 0 2px 4px #000;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        #btn-menu {
-            pointer-events: auto; background: rgba(15, 15, 20, 0.6);
-            backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff; padding: 10px 20px; border-radius: 12px; font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer;
-        }
-        #btn-menu:active { background: rgba(255, 255, 255, 0.2); }
+        .overlay.active { opacity: 1; visibility: visible; }
 
-        .controls {
-            display: flex; justify-content: space-between; align-items: flex-end;
-            pointer-events: none; padding-bottom: 20px;
+        @keyframes neonPulse {
+            0% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
+            50% { text-shadow: 0 0 20px #00d2ff, 0 0 40px #00d2ff; transform: scale(1.05); }
+            100% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
         }
-        .d-pad {
-            display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px);
-            gap: 5px; pointer-events: auto;
+
+        h1 { font-size: 42px; margin-bottom: 10px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 3px; margin-top:0;}
+        h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 30px; margin: 0 0 15px 0; text-align: center; letter-spacing: 2px; }
+
+        .ui-btn {
+            padding: 16px 40px; margin: 8px; border-radius: 40px; font-size: 16px; font-weight: bold;
+            border: 2px solid rgba(255,255,255,0.1); color: white; cursor: pointer; text-transform: uppercase; width: 280px;
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 5px 20px rgba(0, 210, 255, 0.3);
+            transition: all 0.2s ease;
         }
-        .ctrl-btn {
-            background: rgba(20, 30, 40, 0.5); backdrop-filter: blur(5px);
-            border: 1px solid rgba(0, 255, 204, 0.4); border-radius: 15px;
-            color: #00ffcc; font-size: 24px; display: flex; justify-content: center; align-items: center;
-            box-shadow: inset 0 0 10px rgba(0,255,204,0.1), 0 4px 10px rgba(0,0,0,0.5);
-        }
-        .ctrl-btn:active { background: rgba(0, 255, 204, 0.3); transform: scale(0.95); }
+        .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 5px 20px rgba(241, 39, 17, 0.3); }
+        .btn-endless { background: linear-gradient(45deg, #8A2387, #E94057, #F27121); box-shadow: 0 5px 20px rgba(233, 64, 87, 0.3); }
+        .btn-back { background: transparent; border: 2px solid #555; box-shadow: none; margin-top: 15px; }
         
-        .btn-up { grid-column: 2; grid-row: 1; }
-        .btn-left { grid-column: 1; grid-row: 2; }
-        .btn-right { grid-column: 3; grid-row: 2; }
-        .btn-down { grid-column: 2; grid-row: 3; }
+        .ui-btn:active { transform: scale(0.95); }
+        .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 
-        .action-pad { pointer-events: auto; }
-        .btn-jump {
-            width: 80px; height: 80px; border-radius: 40px;
-            background: rgba(20, 30, 40, 0.5); backdrop-filter: blur(5px);
-            border: 2px solid rgba(0, 255, 204, 0.6); color: #00ffcc; font-size: 32px;
-            display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 0 20px rgba(0,255,204,0.2), inset 0 0 15px rgba(0,255,204,0.2);
+        #levelGrid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+            width: 90%; max-width: 380px; max-height: 50vh; overflow-y: auto;
+            padding: 15px; border-radius: 15px; background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .btn-jump:active { background: rgba(0, 255, 204, 0.4); transform: scale(0.95); }
+        .lvl-btn {
+            aspect-ratio: 1; border-radius: 10px; border: none; font-size: 16px; font-weight: bold;
+            color: white; background: #222; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .lvl-btn.completed { background: #111; color: #4caf50; border: 1px solid #4caf50; cursor: not-allowed; }
+        .lvl-btn.current { background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 10px #00d2ff; animation: neonPulse 1.5s infinite; }
+        .lvl-btn.hard { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f12711; animation: neonPulse 1s infinite;}
+        .lvl-btn.locked { background: #1a1a2e; color: #555; cursor: not-allowed; }
+        .lvl-btn:active:not(:disabled) { transform: scale(0.9); }
+
+        #shopList { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 12px; width: 95%; max-width: 500px; max-height: 65vh; overflow-y: auto; padding: 5px; 
+        }
+        .shop-card {
+            background: rgba(255,255,255,0.05); padding: 12px; border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1); text-align: center;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative;
+        }
+        .shop-card h3 { margin: 10px 0 5px 0; font-size: 18px; }
+        .shop-card p { font-size: 12px; color: #aaa; margin: 0 0 10px 0; line-height: 1.2; flex-grow: 1; }
+        .shop-btn { padding: 8px; width: 100%; border-radius: 8px; font-size: 13px; border: none; cursor: pointer; font-weight: bold; color: white; background: #4caf50; transition: 0.2s; }
+        .shop-btn:disabled { background: #444; color: #777; }
+        .shop-btn.equip { background: #00d2ff; }
+        .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
+
+        .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
+        .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
+        .lives-hud { color: #ff0055; text-shadow: 0 0 10px #ff0055; margin-top: 5px; font-size: 18px;}
+        
+        .pause-btn {
+            background: rgba(0, 0, 0, 0.6); border: 2px solid rgba(255,255,255,0.2);
+            color: white; font-size: 20px; width: 40px; height: 40px;
+            border-radius: 50%; cursor: pointer; display: flex;
+            justify-content: center; align-items: center; transition: 0.2s;
+            pointer-events: auto; backdrop-filter: blur(5px);
+        }
+        .pause-btn:active { transform: scale(0.85); }
     </style>
 </head>
-<body>
+<body onclick="sfx.init()">
 
-<div id="loading-screen">
-    <div class="spinner"></div>
-    <h2 id="loading-text">Загрузка визуальных эффектов...</h2>
-</div>
+    <canvas id="gameCanvas"></canvas>
 
-<div id="hud" style="display: none;">
-    <div class="top-bar">
-        <div class="stats-box">
-            <div id="score-text">Монеты: 0</div>
-            <div id="time-text" style="font-size: 12px; color: #aaa; margin-top: 4px;">Время: 0.0с</div>
+    <div class="top-hud" id="gameHud" style="display:none;">
+        <div>
+            <div class="hud-text" id="hudLeft">УРОВЕНЬ 1</div>
+            <div class="lives-hud" id="hudLives"></div>
         </div>
-        <button id="btn-menu">МЕНЮ</button>
-    </div>
-    
-    <div class="controls">
-        <div class="d-pad">
-            <div class="ctrl-btn btn-up" id="btn-up">▲</div>
-            <div class="ctrl-btn btn-left" id="btn-left">◄</div>
-            <div class="ctrl-btn btn-right" id="btn-right">►</div>
-            <div class="ctrl-btn btn-down" id="btn-down">▼</div>
-        </div>
-        <div class="action-pad">
-            <div class="btn-jump" id="btn-jump">⇡</div>
+        <div style="display: flex; align-items: flex-start; gap: 15px;">
+            <div class="hud-text coin-hud" id="hudCoins" style="line-height: 40px;">💰 0</div>
+            <button class="pause-btn" onclick="togglePause()">⏸</button>
         </div>
     </div>
-</div>
 
-<canvas id="game-canvas"></canvas>
+    <div id="pauseMenu" class="overlay" style="z-index: 25;">
+        <h2 style="color: white; text-shadow: 0 0 15px #fff;">ПАУЗА</h2>
+        <button class="ui-btn" onclick="togglePause()">ПРОДОЛЖИТЬ</button>
+        <button class="ui-btn btn-back" onclick="quitGame()">В МЕНЮ</button>
+    </div>
 
-<script>
-/**
- * ============================================================================
- * МОДУЛИ 1, 2, 3: CORE + LEVELS + VFX & ENEMIES & MOBILE UI
- * ============================================================================
- */
+    <div id="reviveMenu" class="overlay" style="z-index: 30;">
+        <h2 style="color: #ff0055; text-shadow: 0 0 15px #ff0055;">КРИТИЧЕСКИЙ УРОН</h2>
+        <p style="font-size: 18px; color: #ccc; margin-bottom: 25px;">Использовать сердце? У вас: <span id="reviveLivesCount" style="color: #ff0055; font-weight: bold;">0</span> ❤️</p>
+        <button class="ui-btn" style="background: linear-gradient(45deg, #ff0055, #ff5e62);" onclick="confirmRevive()">ДА (❤️-1)</button>
+        <button class="ui-btn btn-back" onclick="declineRevive()">СДАТЬСЯ</button>
+    </div>
 
-// ==========================================
-// 1. TELEGRAM SDK & CLOUD STORAGE
-// ==========================================
-class TelegramManager {
-    static init() {
-        this.tg = window.Telegram?.WebApp || null;
-        if (this.tg) {
-            this.tg.expand();
-            this.tg.ready();
+    <div id="mainMenu" class="overlay active">
+        <h1>NEON RUN</h1>
+        <p style="color: #aaa; margin-bottom: 15px; font-size: 14px;">Нажми на экран для звука 🔊</p>
+        <button class="ui-btn" onclick="showState('LEVELS')">КАМПАНИЯ</button>
+        <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕСКОНЕЧНЫЙ</button>
+        <button class="ui-btn btn-shop" onclick="showState('SHOP')">МАГАЗИН</button>
+        <p class="coin-hud" style="font-size: 26px; margin-top: 15px;" id="menuCoins">💰 0</p>
+        <p class="hud-text" style="font-size: 14px; color: #888;" id="menuScore">Рекорд: 0 м</p>
+    </div>
+
+    <div id="levelMenu" class="overlay">
+        <h2>КАМПАНИЯ</h2>
+        <div id="levelGrid"></div>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
+    </div>
+
+    <div id="shopMenu" class="overlay">
+        <h2 style="margin-bottom: 5px;">АРСЕНАЛ</h2>
+        <p class="coin-hud" style="font-size: 22px; margin-top: 0; margin-bottom: 15px;" id="shopCoins">💰 0</p>
+        <div id="shopList"></div>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
+    </div>
+
+    <div id="endMenu" class="overlay">
+        <h2 id="endTitle">УРОВЕНЬ ПРОЙДЕН</h2>
+        <p id="endDesc" style="color: #ccc; font-size: 18px; margin-bottom: 30px;">Молодец!</p>
+        <button class="ui-btn" id="endBtn1" onclick="nextAction()">ДАЛЕЕ</button>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">В МЕНЮ</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        function resizeCanvas() {
+            canvas.width = window.innerWidth || document.documentElement.clientWidth || 400;
+            canvas.height = window.innerHeight || document.documentElement.clientHeight || 800;
         }
-    }
-    static vibrate(type = 'light') {
-        if (this.tg?.HapticFeedback) this.tg.HapticFeedback.impactOccurred(type);
-    }
-    static async saveRecord(levelIndex, time) {
-        const key = `level_${levelIndex}_record`;
-        const currentRecord = await this.loadRecord(levelIndex);
-        if (!currentRecord || time < currentRecord) {
-            if (this.tg?.CloudStorage) {
-                this.tg.CloudStorage.setItem(key, time.toString());
-            } else {
-                localStorage.setItem(key, time.toString());
-            }
-            return true; // Новый рекорд
-        }
-        return false;
-    }
-    static async loadRecord(levelIndex) {
-        const key = `level_${levelIndex}_record`;
-        return new Promise((resolve) => {
-            if (this.tg?.CloudStorage) {
-                this.tg.CloudStorage.getItem(key, (err, val) => resolve(val ? parseFloat(val) : null));
-            } else {
-                const val = localStorage.getItem(key);
-                resolve(val ? parseFloat(val) : null);
-            }
-        });
-    }
-}
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
-// ==========================================
-// 2. ФИЗИКА (AABB)
-// ==========================================
-class AABB {
-    constructor(x, y, z, width, height, depth) { this.update(x, y, z, width, height, depth); }
-    update(x, y, z, width, height, depth) {
-        this.minX = x - width/2; this.maxX = x + width/2;
-        this.minY = y - height/2; this.maxY = y + height/2;
-        this.minZ = z - depth/2; this.maxZ = z + depth/2;
-    }
-    intersects(other) {
-        return (this.minX <= other.maxX && this.maxX >= other.minX) &&
-               (this.minY <= other.maxY && this.maxY >= other.minY) &&
-               (this.minZ <= other.maxZ && this.maxZ >= other.minZ);
-    }
-}
-
-class PhysicsBody {
-    constructor(entity, isStatic = false, isTrigger = false) {
-        this.entity = entity; this.isStatic = isStatic; this.isTrigger = isTrigger;
-        this.position = new THREE.Vector3(); this.velocity = new THREE.Vector3(); this.acceleration = new THREE.Vector3();
-        this.size = new THREE.Vector3(1, 1, 1); this.aabb = new AABB(0,0,0, 1,1,1);
-        this.mass = isStatic ? 0 : 1; this.friction = 0.85; this.gravityScale = 1.0;
-        this.isGrounded = false; this.onTriggerEnter = null;
-    }
-    setSize(w, h, d) { this.size.set(w, h, d); this.updateAABB(); }
-    setPosition(x, y, z) { this.position.set(x, y, z); this.updateAABB(); }
-    updateAABB() { this.aabb.update(this.position.x, this.position.y, this.position.z, this.size.x, this.size.y, this.size.z); }
-    applyForce(force) { if (!this.isStatic) this.acceleration.add(force.clone().divideScalar(this.mass)); }
-}
-
-class PhysicsWorld {
-    constructor() {
-        this.bodies =[]; this.gravity = new THREE.Vector3(0, -50, 0);
-        this.bounds = { minX: -100, maxX: 100, minY: -5, maxY: 100, minZ: -100, maxZ: 100 };
-    }
-    addBody(body) { this.bodies.push(body); }
-    removeBody(body) {
-        const index = this.bodies.indexOf(body);
-        if (index > -1) this.bodies.splice(index, 1);
-    }
-    step(dt) {
-        const safeDt = Math.min(dt, 0.03); 
-        for (let i = 0; i < this.bodies.length; i++) {
-            const body = this.bodies[i];
-            if (body.isStatic && !body.entity.isKinematic) continue; // Кинематические тела (Враги) обновляются сами
-
-            if (!body.entity.isKinematic) {
-                body.applyForce(this.gravity.clone().multiplyScalar(body.gravityScale));
-                body.velocity.add(body.acceleration.clone().multiplyScalar(safeDt));
-                body.velocity.x *= body.friction; body.velocity.z *= body.friction;
-                body.acceleration.set(0, 0, 0);
-            }
-
-            const wasGrounded = body.isGrounded;
-            body.isGrounded = false;
-
-            body.position.y += body.velocity.y * safeDt; body.updateAABB(); this.resolveCollisions(body, 'y');
-            body.position.x += body.velocity.x * safeDt; body.updateAABB(); this.resolveCollisions(body, 'x');
-            body.position.z += body.velocity.z * safeDt; body.updateAABB(); this.resolveCollisions(body, 'z');
-
-            // Эффект приземления (VFX)
-            if (!wasGrounded && body.isGrounded && body.entity instanceof Player) {
-                body.entity.onLand();
-            }
-
-            this.checkBoundaries(body);
-            this.checkTriggers(body);
-
-            if (body.entity && body.entity.mesh) body.entity.mesh.position.copy(body.position);
-        }
-    }
-    resolveCollisions(body, axis) {
-        if (body.entity.isKinematic) return; // Врагов не толкаем
-        for (let j = 0; j < this.bodies.length; j++) {
-            const other = this.bodies[j];
-            if (body === other || other.isTrigger) continue;
-            if (body.aabb.intersects(other.aabb)) {
-                if (axis === 'y') {
-                    if (body.velocity.y < 0) { body.position.y = other.aabb.maxY + body.size.y/2; body.isGrounded = true; } 
-                    else if (body.velocity.y > 0) { body.position.y = other.aabb.minY - body.size.y/2; }
-                    body.velocity.y = 0;
-                } 
-                else if (axis === 'x') {
-                    if (body.velocity.x > 0) body.position.x = other.aabb.minX - body.size.x/2;
-                    else if (body.velocity.x < 0) body.position.x = other.aabb.maxX + body.size.x/2;
-                    body.velocity.x = 0;
-                }
-                else if (axis === 'z') {
-                    if (body.velocity.z > 0) body.position.z = other.aabb.minZ - body.size.z/2;
-                    else if (body.velocity.z < 0) body.position.z = other.aabb.maxZ + body.size.z/2;
-                    body.velocity.z = 0;
-                }
-                body.updateAABB();
-            }
-        }
-    }
-    checkTriggers(body) {
-        for (let j = 0; j < this.bodies.length; j++) {
-            const other = this.bodies[j];
-            if (!other.isTrigger || body === other) continue;
-            if (body.aabb.intersects(other.aabb)) {
-                if (other.onTriggerEnter) other.onTriggerEnter(body.entity);
-            }
-        }
-    }
-    checkBoundaries(body) {
-        if (body.position.y < this.bounds.minY) {
-            if (body.entity && typeof body.entity.die === 'function') body.entity.die();
-            else { body.position.y = this.bounds.minY; body.velocity.y = 0; }
-        }
-    }
-}
-
-// ==========================================
-// 3. GRAPHICS ENGINE & VFX (PARTICLES)
-// ==========================================
-class ParticleSystem {
-    constructor(scene) {
-        this.scene = scene;
-        this.particles =[];
-        this.boxGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
-        this.matDust = new THREE.MeshBasicMaterial({ color: 0x8899aa, transparent: true, opacity: 0.8 });
-        this.matSpark = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 1.0 });
-    }
-
-    emit(pos, type = 'dust', count = 5) {
-        for(let i=0; i<count; i++) {
-            const mesh = new THREE.Mesh(this.boxGeo, type === 'dust' ? this.matDust.clone() : this.matSpark.clone());
-            mesh.position.copy(pos);
-            // Случайный разброс
-            mesh.position.x += (Math.random() - 0.5) * 0.5;
-            mesh.position.z += (Math.random() - 0.5) * 0.5;
-            
-            const velocity = new THREE.Vector3(
-                (Math.random() - 0.5) * 2,
-                Math.random() * 2 + (type === 'spark' ? 2 : 0.5),
-                (Math.random() - 0.5) * 2
-            );
-            
-            this.scene.add(mesh);
-            this.particles.push({ mesh, velocity, life: 1.0, type });
-        }
-    }
-
-    update(dt) {
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            const p = this.particles[i];
-            p.life -= dt * (p.type === 'dust' ? 2 : 1.5); // Скорость исчезновения
-            
-            p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
-            p.mesh.rotation.x += dt * 5;
-            p.mesh.rotation.y += dt * 5;
-            
-            if (p.type === 'dust') p.velocity.y -= dt * 5; // Гравитация для пыли
-            
-            p.mesh.material.opacity = p.life;
-            p.mesh.scale.setScalar(p.life);
-
-            if (p.life <= 0) {
-                this.scene.remove(p.mesh);
-                p.mesh.material.dispose();
-                this.particles.splice(i, 1);
-            }
-        }
-    }
-}
-
-class RenderEngine {
-    constructor() {
-        this.canvas = document.getElementById('game-canvas');
-        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: "high-performance" });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-        this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x111118);
-        this.scene.fog = new THREE.FogExp2(0x111118, 0.02);
-
-        this.camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 1000);
-        this.cameraOffset = new THREE.Vector3(18, 22, 25);
-        this.camera.position.copy(this.cameraOffset);
-
-        this.setupLighting();
-        this.particles = new ParticleSystem(this.scene);
-        
-        this.shakeIntensity = 0; // Screen Shake
-
-        window.addEventListener('resize', this.onResize.bind(this), false);
-    }
-
-    setupLighting() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-        this.dirLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
-        this.dirLight.position.set(20, 40, 10);
-        this.dirLight.castShadow = true;
-        this.dirLight.shadow.mapSize.width = 2048;
-        this.dirLight.shadow.mapSize.height = 2048;
-        this.dirLight.shadow.camera.near = 0.5; this.dirLight.shadow.camera.far = 100;
-        const d = 20;
-        this.dirLight.shadow.camera.left = -d; this.dirLight.shadow.camera.right = d;
-        this.dirLight.shadow.camera.top = d; this.dirLight.shadow.camera.bottom = -d;
-        this.scene.add(this.dirLight);
-    }
-
-    onResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    shake(intensity) { this.shakeIntensity = intensity; }
-
-    followTarget(targetPosition, dt) {
-        const desiredPosition = targetPosition.clone().add(this.cameraOffset);
-        
-        // Применяем Screen Shake
-        if (this.shakeIntensity > 0.01) {
-            desiredPosition.x += (Math.random() - 0.5) * this.shakeIntensity;
-            desiredPosition.y += (Math.random() - 0.5) * this.shakeIntensity;
-            this.shakeIntensity *= 0.9; // Затухание
-        }
-
-        this.camera.position.lerp(desiredPosition, 4 * dt);
-        this.camera.lookAt(targetPosition.clone().add(new THREE.Vector3(0, 1, 0)));
-        
-        this.dirLight.position.copy(targetPosition).add(new THREE.Vector3(20, 40, 10));
-        this.dirLight.target.position.copy(targetPosition);
-        this.dirLight.target.updateMatrixWorld();
-    }
-    
-    render(dt) {
-        this.particles.update(dt);
-        this.renderer.render(this.scene, this.camera);
-    }
-}
-
-// ==========================================
-// 4. ENTITIES (PLAYER, ENEMY)
-// ==========================================
-class Player {
-    constructor(scene, physicsWorld, particleSystem, renderEngine) {
-        this.scene = scene; this.physicsWorld = physicsWorld;
-        this.particles = particleSystem; this.renderEngine = renderEngine;
-        this.spawnPoint = new THREE.Vector3(0, 5, 0);
-        this.coins = 0;
-        
-        this.buildMesh();
-        this.setupPhysics();
-        
-        this.speed = 450; this.jumpForce = 24;
-        this.maxJumps = 2; this.currentJumps = 0;
-    }
-
-    buildMesh() {
-        this.mesh = new THREE.Group();
-        const coreGeo = new THREE.IcosahedronGeometry(0.35, 2);
-        const coreMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8, roughness: 0.2, metalness: 1.0 });
-        this.coreMesh = new THREE.Mesh(coreGeo, coreMat); this.coreMesh.castShadow = true; this.mesh.add(this.coreMesh);
-
-        const shellGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-        const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.5, wireframe: true });
-        this.shellMesh = new THREE.Mesh(shellGeo, shellMat); this.shellMesh.castShadow = true; this.mesh.add(this.shellMesh);
-
-        this.pointLight = new THREE.PointLight(0x00ffcc, 1.5, 8); this.pointLight.position.set(0, 0.5, 0); this.mesh.add(this.pointLight);
-        this.scene.add(this.mesh);
-    }
-
-    setupPhysics() {
-        this.body = new PhysicsBody(this, false);
-        this.body.setSize(0.8, 0.8, 0.8); this.body.mass = 1.0; this.body.friction = 0.82;
-        this.physicsWorld.addBody(this.body);
-    }
-
-    setSpawn(x, y, z) {
-        this.spawnPoint.set(x, y, z);
-        this.respawn();
-    }
-
-    respawn() {
-        this.body.setPosition(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.z);
-        this.body.velocity.set(0,0,0); this.body.acceleration.set(0,0,0);
-        this.particles.emit(this.body.position, 'spark', 15);
-    }
-
-    die() {
-        TelegramManager.vibrate('heavy');
-        this.renderEngine.shake(1.0);
-        this.particles.emit(this.body.position, 'spark', 20);
-        this.respawn();
-    }
-
-    win() {
-        TelegramManager.vibrate('success');
-        this.particles.emit(this.body.position, 'spark', 30);
-        alert(`Уровень пройден! Собрано монет: ${this.coins}`);
-        this.respawn();
-    }
-
-    jump() {
-        if (this.body.isGrounded) {
-            this.currentJumps = 1; this.body.velocity.y = this.jumpForce;
-            this.particles.emit(this.body.position, 'dust', 5);
-            TelegramManager.vibrate('light');
-        } else if (this.currentJumps < this.maxJumps) {
-            this.currentJumps++; this.body.velocity.y = this.jumpForce * 0.8;
-            this.particles.emit(this.body.position, 'spark', 5);
-            TelegramManager.vibrate('medium');
-        }
-    }
-
-    onLand() {
-        this.renderEngine.shake(0.3); // Тряска при приземлении
-        this.particles.emit(this.body.position, 'dust', 8);
-        TelegramManager.vibrate('light');
-    }
-
-    move(dirX, dirZ) {
-        this.body.applyForce(new THREE.Vector3(dirX * this.speed, 0, dirZ * this.speed));
-        // Пыль при беге
-        if (this.body.isGrounded && Math.random() > 0.7) {
-            this.particles.emit(this.body.position.clone().add(new THREE.Vector3(0, -0.4, 0)), 'dust', 1);
-        }
-    }
-
-    update(dt) {
-        this.coreMesh.rotation.x += 2 * dt; this.coreMesh.rotation.y += 3 * dt;
-        if (this.body.isGrounded) this.currentJumps = 0;
-        const targetTiltZ = -this.body.velocity.x * 0.04; const targetTiltX = this.body.velocity.z * 0.04;
-        this.shellMesh.rotation.z += (targetTiltZ - this.shellMesh.rotation.z) * 10 * dt;
-        this.shellMesh.rotation.x += (targetTiltX - this.shellMesh.rotation.x) * 10 * dt;
-    }
-}
-
-// Враг: Парящий рунный ромб
-class Enemy {
-    constructor(scene, physicsWorld, x, y, z) {
-        this.scene = scene; this.physicsWorld = physicsWorld;
-        this.isKinematic = true; // Двигается сам, не подчиняется гравитации
-        
-        this.startZ = z;
-        this.time = Math.random() * 10; // Смещение по фазе
-
-        const geo = new THREE.OctahedronGeometry(0.6, 0);
-        const mat = new THREE.MeshStandardMaterial({ color: 0xff0055, emissive: 0xaa0022, roughness: 0.3, metalness: 0.8, flatShading: true });
-        this.mesh = new THREE.Mesh(geo, mat);
-        this.mesh.position.set(x, y + 1, z);
-        this.mesh.castShadow = true;
-        this.scene.add(this.mesh);
-
-        // Триггер смерти
-        this.body = new PhysicsBody(this, true, true);
-        this.body.setSize(1, 1, 1);
-        this.body.setPosition(x, y + 1, z);
-        this.body.onTriggerEnter = (entity) => {
-            if (entity instanceof Player) entity.die();
+        // --- СИСТЕМА СОХРАНЕНИЙ ---
+        const SAVE = {
+            coins: parseInt(localStorage.getItem('neonCoins')) || 0,
+            maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
+            highScore: parseInt(localStorage.getItem('neonScore')) || 0,
+            jetpackLevel: parseInt(localStorage.getItem('neonJetpackLvl')) || 1,
+            magnetCoinLvl: parseInt(localStorage.getItem('neonMagCoin')) || 0,
+            magnetJpLvl: parseInt(localStorage.getItem('neonMagJp')) || 0,
+            lives: parseInt(localStorage.getItem('neonLives')) || 0,
+            skin: localStorage.getItem('neonSkin') || '#00d2ff',
+            ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff'],
+            trail: localStorage.getItem('neonTrail') || 'none',
+            ownedTrails: JSON.parse(localStorage.getItem('neonTrails')) || ['none']
         };
-        this.physicsWorld.addBody(this.body);
-    }
 
-    update(dt) {
-        this.time += dt * 2;
-        this.mesh.rotation.y += dt;
-        this.mesh.rotation.z += dt * 0.5;
-        
-        // Патрулирование по оси Z (туда-сюда на 3 блока)
-        const newZ = this.startZ + Math.sin(this.time) * 3;
-        const newY = this.body.position.y + Math.cos(this.time * 2) * 0.02; // Левитация
-        
-        this.mesh.position.z = newZ;
-        this.mesh.position.y = newY;
-        this.body.setPosition(this.mesh.position.x, newY, newZ);
-    }
-}
+        function saveGame() {
+            localStorage.setItem('neonCoins', SAVE.coins);
+            localStorage.setItem('neonMaxLevel', SAVE.maxLevel);
+            localStorage.setItem('neonScore', SAVE.highScore);
+            localStorage.setItem('neonJetpackLvl', SAVE.jetpackLevel);
+            localStorage.setItem('neonMagCoin', SAVE.magnetCoinLvl);
+            localStorage.setItem('neonMagJp', SAVE.magnetJpLvl);
+            localStorage.setItem('neonLives', SAVE.lives);
+            localStorage.setItem('neonSkin', SAVE.skin);
+            localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
+            localStorage.setItem('neonTrail', SAVE.trail);
+            localStorage.setItem('neonTrails', JSON.stringify(SAVE.ownedTrails));
+            updateUI();
+        }
 
-// ==========================================
-// 5. LEVEL SYSTEM & GENERATOR
-// ==========================================
-class LevelGenerator {
-    constructor(scene, physicsWorld, particles) {
-        this.scene = scene; this.physicsWorld = physicsWorld; this.particles = particles;
-        this.gridSize = 2;
-        this.dynamicObjects = [];
-        this.torches =[];
-    }
+        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu'), REVIVE: document.getElementById('reviveMenu') };
+        const gameHud = document.getElementById('gameHud');
+        let gameState = 'START'; 
+        let pendingDeathReason = "";
 
-    getStoneMat() {
-        const color = new THREE.Color();
-        Math.random() > 0.7 ? color.setHSL(0.3, 0.2, 0.25 + Math.random()*0.1) : color.setHSL(0, 0, 0.3 + Math.random()*0.15);
-        return new THREE.MeshStandardMaterial({ color: color, roughness: 0.9 });
-    }
+        function showState(state) {
+            sfx.init();
+            Object.values(overlays).forEach(el => el.classList.remove('active'));
+            gameHud.style.display = 'none';
+            if(overlays[state]) overlays[state].classList.add('active');
+            updateUI();
+        }
 
-    createLevel(map, player) {
-        const boxGeo = new THREE.BoxGeometry(this.gridSize, this.gridSize, this.gridSize);
-        const pillarGeo = new THREE.CylinderGeometry(this.gridSize*0.4, this.gridSize*0.4, this.gridSize*2, 8);
-        const spikeGeo = new THREE.ConeGeometry(this.gridSize*0.4, this.gridSize, 4);
-        const altarGeo = new THREE.TorusGeometry(this.gridSize*0.6, 0.2, 16, 32);
-        const coinGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 16);
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                document.getElementById('pauseMenu').classList.add('active');
+                if (sfx.ctx && sfx.ctx.state === 'running') sfx.ctx.suspend(); 
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                document.getElementById('pauseMenu').classList.remove('active');
+                if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
+            }
+        }
 
-        const spikeMat = new THREE.MeshStandardMaterial({ color: 0xff2222, roughness: 0.4, metalness: 0.8 });
-        const portalMat = new THREE.MeshStandardMaterial({ color: 0xaa00ff, emissive: 0xaa00ff, emissiveIntensity: 2.0 });
-        const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.2 });
+        function quitGame() {
+            gameState = 'END'; 
+            document.getElementById('pauseMenu').classList.remove('active');
+            if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
+            sfx.stopBGM(); saveGame(); showState('MAIN');
+        }
 
-        for (let z = 0; z < map.length; z++) {
-            for (let x = 0; x < map[z].length; x++) {
-                const tile = map[z][x];
-                if (tile === 0) continue;
+        function confirmRevive() {
+            document.getElementById('reviveMenu').classList.remove('active');
+            gameState = 'PLAYING';
+            game.useExtraLife();
+        }
 
-                const worldX = x * this.gridSize; const worldZ = z * this.gridSize; const worldY = 0;
+        function declineRevive() {
+            document.getElementById('reviveMenu').classList.remove('active');
+            triggerGameOver(pendingDeathReason);
+        }
 
-                // Базовый блок
-                if (tile === 1 || tile === 'S' || tile === 'T' || tile === 'C' || tile === 'P') {
-                    const mesh = new THREE.Mesh(boxGeo, this.getStoneMat());
-                    mesh.position.set(worldX, worldY, worldZ); mesh.receiveShadow = true; mesh.castShadow = true;
-                    this.scene.add(mesh);
-                    const body = new PhysicsBody({ mesh }, true);
-                    body.setSize(this.gridSize, this.gridSize, this.gridSize); body.setPosition(worldX, worldY, worldZ);
-                    this.physicsWorld.addBody(body);
+        function updateUI() {
+            document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
+            document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`;
+            document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
+            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
+            document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
+            renderShop(); renderLevels();
+        }
+
+        function renderLevels() {
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 100; i++) {
+                let btn = document.createElement('button');
+                btn.className = 'lvl-btn'; 
+                if (i < SAVE.maxLevel) {
+                    btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true;
+                } else if (i === SAVE.maxLevel) {
+                    btn.innerText = i;
+                    if (i % 5 === 0) btn.classList.add('hard'); else btn.classList.add('current');
+                    btn.onclick = () => startGame('campaign', i);
+                } else {
+                    btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true;
+                }
+                grid.appendChild(btn);
+            }
+        }
+
+        function renderShop() {
+            const list = document.getElementById('shopList');
+            list.innerHTML = '';
+            const items = [
+                { id: 'upg_jp', name: 'РАКЕТА 🚀', desc: '+Время полета', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
+                { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус монет', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
+                { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус джетпаков', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
+                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Спасет от смерти.', price: 50, type: 'consumable', lvl: SAVE.lives },
+                { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
+                { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' },
+                { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Убрать шлейф.', price: 0, type: 'trail' },
+                { id: 'fire', name: 'ПЛАМЯ 🔥', desc: 'Огненный шлейф.', price: 800, type: 'trail' },
+                { id: 'rainbow', name: 'РАДУГА 🌈', desc: 'Неоновый перелив.', price: 1500, type: 'trail' },
+                { id: 'matrix', name: 'МАТРИЦА 🟩', desc: 'Цифровой след.', price: 2500, type: 'trail' }
+            ];
+
+            items.forEach(item => {
+                let actionText = `КУПИТЬ (${item.price} 💰)`;
+                let btnClass = 'shop-btn';
+                let disabled = SAVE.coins < item.price;
+                let badge = '';
+
+                if (item.type.startsWith('upg') || item.type.startsWith('mag')) {
+                    badge = `<div class="lvl-badge">LVL ${item.lvl}</div>`;
+                    if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
+                }
+                if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
+                
+                if (item.type === 'skin') {
+                    if (SAVE.ownedSkins.includes(item.id)) {
+                        disabled = false;
+                        if (SAVE.skin === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
+                        else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
+                    }
                 }
                 
-                // Декорации и ловушки поверх блоков
-                if (tile === 2) { // Колонна
-                    const mesh = new THREE.Mesh(pillarGeo, this.getStoneMat());
-                    mesh.position.set(worldX, worldY + this.gridSize/2, worldZ); mesh.receiveShadow = true; mesh.castShadow = true;
-                    this.scene.add(mesh);
-                    const body = new PhysicsBody({ mesh }, true);
-                    body.setSize(this.gridSize*0.8, this.gridSize*2, this.gridSize*0.8); body.setPosition(worldX, worldY + this.gridSize/2, worldZ);
-                    this.physicsWorld.addBody(body);
+                if (item.type === 'trail') {
+                    if (SAVE.ownedTrails.includes(item.id)) {
+                        disabled = false;
+                        if (SAVE.trail === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
+                        else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
+                    }
                 }
-                else if (tile === 'S') { // Шипы
-                    const spike = new THREE.Mesh(spikeGeo, spikeMat);
-                    spike.position.set(worldX, worldY + this.gridSize, worldZ); spike.castShadow = true; this.scene.add(spike);
-                    const trigger = new PhysicsBody({ mesh: spike }, true, true);
-                    trigger.setSize(this.gridSize*0.8, this.gridSize, this.gridSize*0.8); trigger.setPosition(worldX, worldY + this.gridSize, worldZ);
-                    trigger.onTriggerEnter = (ent) => { if(ent instanceof Player) ent.die(); };
-                    this.physicsWorld.addBody(trigger);
+
+                let titleColor = item.type === 'skin' ? item.id : (item.type === 'trail' && item.id !== 'none' ? '#00d2ff' : '#ff0055');
+
+                list.innerHTML += `
+                    <div class="shop-card">
+                        ${badge}
+                        <h3 style="color:${titleColor}">${item.name}</h3>
+                        <p>${item.desc}</p>
+                        <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price})">${actionText}</button>
+                    </div>
+                `;
+            });
+        }
+
+        function handleBuy(id, type, price) {
+            if (type === 'skin' && SAVE.ownedSkins.includes(id)) { SAVE.skin = id; sfx.jump(); saveGame(); return; }
+            if (type === 'trail' && SAVE.ownedTrails.includes(id)) { SAVE.trail = id; sfx.jump(); saveGame(); return; }
+            
+            if (SAVE.coins >= price) {
+                SAVE.coins -= price;
+                if (type === 'upg_jp') SAVE.jetpackLevel++;
+                if (type === 'mag_coin') SAVE.magnetCoinLvl++;
+                if (type === 'mag_jp') SAVE.magnetJpLvl++;
+                if (type === 'consumable') SAVE.lives++;
+                if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
+                if (type === 'trail') { SAVE.ownedTrails.push(id); SAVE.trail = id; }
+                sfx.purchase(); saveGame();
+            }
+        }
+
+        // --- БЕЗОПАСНОЕ АУДИО ---
+        class SoundEngine {
+            constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
+            init() {
+                if (!this.ctx) {
+                    try {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (AudioCtx) this.ctx = new AudioCtx();
+                    } catch(e) { console.log('Audio disabled', e); }
                 }
-                else if (tile === 'F') { // Финиш
-                    const portal = new THREE.Mesh(altarGeo, portalMat);
-                    portal.position.set(worldX, worldY + this.gridSize*0.8, worldZ); portal.rotation.x = Math.PI/2; this.scene.add(portal);
-                    portal.userData.isPortal = true; this.dynamicObjects.push(portal);
-                    const trigger = new PhysicsBody({ mesh: portal }, true, true);
-                    trigger.setSize(this.gridSize, this.gridSize*2, this.gridSize); trigger.setPosition(worldX, worldY + this.gridSize, worldZ);
-                    trigger.onTriggerEnter = (ent) => { if(ent instanceof Player) ent.win(); };
-                    this.physicsWorld.addBody(trigger);
+                if (this.ctx && this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume();
+                if (!this.bgmStarted) this.startBGM();
+            }
+            playTone(freq, type, duration, vol=0.2) {
+                if(!this.ctx || this.ctx.state !== 'running') return;
+                try {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
+            }
+            jump() {
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(250, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); 
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.15);
+                } catch(e) {}
+            }
+            coin() {
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
+                    osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    const osc2 = this.ctx.createOscillator(); const gain2 = this.ctx.createGain();
+                    osc2.type = 'square'; osc2.frequency.setValueAtTime(3000, now); gain2.gain.setValueAtTime(0.03, now); gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc1.connect(gain1); gain1.connect(this.ctx.destination); osc2.connect(gain2); gain2.connect(this.ctx.destination);
+                    osc1.start(now); osc1.stop(now + 0.5); osc2.start(now); osc2.stop(now + 0.2);
+                } catch(e) {}
+            }
+            purchase() {
+                if(!this.ctx) return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'square'; osc.frequency.setValueAtTime(1000, now); osc.frequency.setValueAtTime(1500, now + 0.1); 
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.3);
+                } catch(e) {}
+            }
+            powerup() {
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
+                    gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.4);
+                } catch(e) {}
+            }
+            thrust() {
+                if(!this.ctx || this.ctx.state !== 'running') return;
+                try {
+                    if(Math.random() > 0.7) {
+                        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
+                        gain.gain.setValueAtTime(0.05, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
+                        osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+                    }
+                } catch(e) {}
+            }
+            death() {
+                if(!this.ctx) return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
+                    osc.frequency.setValueAtTime(250, now + 0.2); osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+                    osc.frequency.setValueAtTime(200, now + 0.4); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0);
+                } catch(e) {}
+            }
+            startBGM() {
+                if (!this.ctx || this.bgmStarted) return;
+                this.bgmStarted = true;
+                const playNote = (time, freq, vol, type, duration) => {
+                    try {
+                        const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                        osc.type = type; osc.frequency.value = freq; g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration);
+                        osc.connect(g); g.connect(this.ctx.destination); osc.start(time); osc.stop(time + duration);
+                    } catch(e) {}
+                };
+                let step = 0;
+                this.bgmInterval = setInterval(() => {
+                    if(this.ctx.state !== 'running' || gameState === 'PAUSED' || gameState === 'REVIVE_PROMPT') return; 
+                    const now = this.ctx.currentTime;
+                    const bassNotes = [130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
+                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.15);
+                    const leadNotes = [523, 0, 659, 0, 783, 0, 659, 0, 1046, 0, 783, 0, 659, 0, 523, 0];
+                    if (leadNotes[step]) playNote(now, leadNotes[step], 0.03, 'sine', 0.2);
+                    step = (step + 1) % 16;
+                }, 180); 
+            }
+            stopBGM() {
+                clearInterval(this.bgmInterval);
+                this.bgmStarted = false;
+            }
+        }
+        const sfx = new SoundEngine();
+
+        class InputHandler {
+            constructor() {
+                this.keys = [];
+                window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
+                window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
+                const handleTouch = (e) => {
+                    if (gameState !== 'PLAYING') return; e.preventDefault(); this.keys = []; 
+                    for (let i = 0; i < e.touches.length; i++) {
+                        if (e.touches[i].clientX < canvas.width / 2) this.keys.push('ArrowLeft'); else this.keys.push('ArrowRight');
+                    }
+                };
+                const handleTouchEnd = (e) => { if (e.touches.length === 0) this.keys = []; else handleTouch(e); };
+                canvas.addEventListener('touchstart', handleTouch, {passive: false});
+                canvas.addEventListener('touchmove', handleTouch, {passive: false});
+                canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, isFire = false, speedMult = 1, text = null) {
+                this.x = x; this.y = y; this.color = color; this.text = text;
+                this.size = Math.random() * (isFire ? 10 : 6) + 2;
+                this.vx = (Math.random() - 0.5) * (isFire ? 5 : 12) * speedMult;
+                this.vy = isFire ? (Math.random() * 6 + 2) : (Math.random() - 0.8) * 12 * speedMult;
+                this.life = 1.0; this.decay = isFire ? 0.05 : 0.03;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
+            draw(ctx) { 
+                ctx.globalAlpha = Math.max(0, this.life); 
+                ctx.fillStyle = this.color; 
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
+                if (this.text) {
+                    ctx.font = 'bold 16px monospace';
+                    ctx.fillText(this.text, this.x, this.y);
+                } else {
+                    ctx.fillRect(this.x, this.y, this.size, this.size); 
                 }
-                else if (tile === 'E') { // Враг
-                    this.dynamicObjects.push(new Enemy(this.scene, this.physicsWorld, worldX, worldY, worldZ));
+                ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text) {
+                this.x = x; this.y = y; this.text = text;
+                this.life = 1.0; this.vy = -1.5;
+            }
+            update() { this.y += this.vy; this.life -= 0.02; }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = '#ff0055'; ctx.font = 'bold 24px Arial';
+                ctx.shadowBlur = 10; ctx.shadowColor = '#fff';
+                ctx.fillText(this.text, this.x - 30, this.y);
+                ctx.shadowBlur = 0; ctx.globalAlpha = 1.0;
+            }
+        }
+
+        // --- ИЗМЕНЕН КОНСТРУКТОР ПЛАТФОРМЫ (ПРИНИМАЕТ TIER) ---
+        class Platform {
+            constructor(x, y, width, type = 'normal', tier = 0) {
+                this.x = x; this.y = y; this.width = width; this.height = 20;
+                this.type = type; 
+                // Чем выше Tier, тем быстрее движутся платформы
+                this.moveSpeed = (0.8 + tier * 0.4) + Math.random() * 1.2; 
+                this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.flashTimer = 0; this.broken = false;
+            }
+            update() {
+                if (this.flashTimer > 0) this.flashTimer--;
+                if (this.type === 'moving') {
+                    this.x += this.moveSpeed * this.direction;
+                    if (this.x <= 0 || this.x + this.width >= canvas.width) this.direction *= -1;
                 }
-                else if (tile === 'T') { // Факел (Освещение)
-                    const torchLight = new THREE.PointLight(0xff8800, 1, 15);
-                    torchLight.position.set(worldX, worldY + this.gridSize, worldZ);
-                    this.scene.add(torchLight);
-                    this.torches.push(torchLight);
+            }
+            draw(ctx) {
+                if(this.broken) return;
+                if (this.type === 'finish') { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700'; }
+                else if (this.flashTimer > 0) { ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; } 
+                else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
+                else if (this.type === 'spring') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ff00'; }
+                else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00d2ff'; }
+                
+                if(this.type !== 'finish' && this.flashTimer === 0) ctx.fillRect(this.x, this.y, this.width, 4); 
+                else ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Item {
+            constructor(x, y, type) { this.x = x; this.y = y; this.type = type; this.width = 24; this.height = 24; this.baseY = y; this.angle = Math.random() * Math.PI * 2; this.markedForDeletion = false; }
+            update() { this.angle += 0.05; this.y = this.baseY + Math.sin(this.angle) * 5; }
+            draw(ctx) {
+                if(this.markedForDeletion) return;
+                ctx.beginPath();
+                if (this.type === 'coin') { ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 20; ctx.arc(this.x + 12, this.y + 12, 10, 0, Math.PI * 2); }
+                else if (this.type === 'jetpack') { ctx.fillStyle = '#ff0055'; ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 25; ctx.moveTo(this.x+12, this.y-4); ctx.lineTo(this.x+26, this.y+24); ctx.lineTo(this.x-2, this.y+24); }
+                ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+
+        class Hunter {
+            constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
+            reset() { this.x = canvas.width/2 - 19; this.y = canvas.height-88; this.active = false; this.waitTimer = 0; }
+            startTimer() { this.waitTimer = 120; } 
+            update() {
+                if (gameState !== 'PLAYING') return;
+                if (!this.active) { 
+                    if (this.waitTimer > 0) this.waitTimer--;
+                    else { 
+                        this.active = true; 
+                        for(let i=0; i<15; i++) this.game.particles.push(new Particle(this.x+19, this.y+19, '#ff0033', true));
+                    }
+                    return; 
                 }
-                else if (tile === 'C') { // Монета
-                    const coin = new THREE.Mesh(coinGeo, coinMat);
-                    coin.position.set(worldX, worldY + this.gridSize, worldZ);
-                    coin.rotation.x = Math.PI/2; coin.castShadow = true; this.scene.add(coin);
-                    coin.userData.isCoin = true; this.dynamicObjects.push(coin);
-                    const trigger = new PhysicsBody({ mesh: coin }, true, true);
-                    trigger.setSize(1, 1, 1); trigger.setPosition(worldX, worldY + this.gridSize, worldZ);
-                    trigger.onTriggerEnter = (ent) => {
-                        if(ent instanceof Player && coin.visible) {
-                            coin.visible = false; ent.coins++;
-                            document.getElementById('score-text').innerText = `Монеты: ${ent.coins}`;
-                            this.particles.emit(coin.position, 'spark', 10);
-                            TelegramManager.vibrate('light');
+                let dx = (this.game.player.x + 15) - (this.x + 19);
+                let dy = (this.game.player.y + 15) - (this.y + 19);
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                let baseSpeed = this.game.isHard ? 1.75 : 1.25; 
+                let speed = baseSpeed + (this.game.level * 0.08); 
+                if (dist > 300) speed += (dist - 300) * 0.003; 
+                let maxSpeed = this.game.isHard ? 8.5 : 6.5;
+                if (speed > maxSpeed) speed = maxSpeed;
+                
+                if (dist > 0) { this.x += (dx/dist)*speed; this.y += (dy/dist)*speed; }
+                
+                let bottom = this.game.cameraY + canvas.height - 48;
+                if (this.y > bottom) this.y -= (this.y - bottom) * 0.08;
+                if (Math.random() > 0.4) this.game.particles.push(new Particle(this.x + Math.random()*38, this.y + 19, this.color));
+            }
+            draw(ctx) {
+                ctx.fillStyle = this.color; ctx.shadowBlur = 25; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, 38, 38);
+                let lx = (this.game.player.x - this.x) > 0 ? 3 : -3; let ly = (this.game.player.y - this.y) > 0 ? 3 : -3;
+                ctx.fillStyle = '#fff'; ctx.fillRect(this.x+6+lx, this.y+10+ly, 8, 8); ctx.fillRect(this.x+24+lx, this.y+10+ly, 8, 8);
+                ctx.fillStyle = '#000'; ctx.fillRect(this.x+8+lx, this.y+12+ly, 4, 4); ctx.fillRect(this.x+26+lx, this.y+12+ly, 4, 4);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Player {
+            constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; this.reset(); }
+            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin; this.angle = 0; this.frameCount = 0;}
+            update(input) {
+                if (gameState !== 'PLAYING') return;
+                this.frameCount++;
+
+                if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
+                
+                let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
+                this.angle += (this.jetpackTimer > 0 ? 0.3 : 0.12) * dir;
+
+                if (SAVE.trail !== 'none') {
+                    if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) {
+                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15 + Math.random()*10, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.3));
+                    } else if (SAVE.trail === 'matrix' && this.frameCount % 3 === 0) {
+                        let char = Math.random() > 0.5 ? '0' : '1';
+                        this.game.particles.push(new Particle(this.x + Math.random()*20, this.y + 30, '#00ff00', false, 0.2, char));
+                    } else if (SAVE.trail === 'fire' && this.frameCount % 2 === 0) {
+                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 20, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.4));
+                    }
+                }
+
+                if (this.jetpackTimer > 0) { 
+                    this.vy = -18; this.jetpackTimer--; sfx.thrust(); 
+                    this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); 
+                    this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff0055', true)); 
+                } else { this.vy += 0.8; }
+                
+                this.y += this.vy;
+                if (this.vy > 0) {
+                    this.game.platforms.forEach(p => {
+                        if (p.type === 'finish' || p.broken) return;
+                        
+                        if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
+                            if (this.y + 30 - this.vy <= p.y + 15) { 
+                                this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
+                                if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
+                                else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
+                                
+                                if (this.game.isHard && p.type !== 'finish') {
+                                    p.broken = true;
+                                    for(let i=0; i<15; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y + 10, '#555'));
+                                }
+                            }
                         }
-                    };
-                    this.physicsWorld.addBody(trigger);
+                    });
                 }
-                else if (tile === 'P') { // Чекпоинт
-                    const cp = new THREE.Mesh(new THREE.BoxGeometry(1, 0.2, 1), new THREE.MeshStandardMaterial({color: 0x00aaff, emissive: 0x00aaff}));
-                    cp.position.set(worldX, worldY + this.gridSize/2 + 0.1, worldZ); this.scene.add(cp);
-                    const trigger = new PhysicsBody({ mesh: cp }, true, true);
-                    trigger.setSize(2, 2, 2); trigger.setPosition(worldX, worldY + this.gridSize, worldZ);
-                    trigger.onTriggerEnter = (ent) => {
-                        if(ent instanceof Player && ent.spawnPoint.x !== worldX) {
-                            ent.setSpawn(worldX, worldY + this.gridSize*1.5, worldZ);
-                            this.particles.emit(cp.position, 'spark', 15);
-                            TelegramManager.vibrate('medium');
+                this.x += this.vx; if (this.x > canvas.width) this.x = -30; if (this.x < -30) this.x = canvas.width;
+            }
+            createJumpDust(color, speedMult) { for(let i=0; i<12; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color, false, speedMult)); }
+            draw(ctx) { 
+                ctx.save();
+                ctx.translate(this.x + 15, this.y + 15);
+                ctx.rotate(this.angle);
+
+                ctx.fillStyle = this.jetpackTimer > 0 ? '#fff' : this.color; 
+                ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : this.color; 
+                
+                ctx.fillRect(-15, -15, 30, 30); 
+                
+                ctx.shadowBlur = 0; 
+                ctx.restore();
+            }
+        }
+
+        class Game {
+            constructor(mode, level) {
+                this.mode = mode; 
+                this.level = level || 1;
+                this.isHard = (this.mode === 'campaign' && this.level % 5 === 0);
+                
+                this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = []; this.floatingTexts = [];
+                this.cameraY = 0; this.highestY = canvas.height - 50;
+                this.maxReachedY = this.highestY; 
+                
+                this.tier = 0; // Фаза сложности для бесконечного режима
+                this.currentScore = 0;
+
+                this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
+                this.finishSpawned = false;
+
+                this.platforms.push(new Platform(0, this.highestY, canvas.width, 'normal', this.tier));
+                this.player = new Player(this); this.hunter = new Hunter(this);
+            }
+
+            // --- ЛОГИКА ГЕНЕРАЦИИ С УЧЕТОМ ФАЗ (TIERS) ---
+            generateChunk() {
+                while (this.highestY > this.cameraY - canvas.height * 2) {
+                    if (this.mode === 'campaign' && this.highestY <= this.targetY) {
+                        if (!this.finishSpawned) { this.platforms.push(new Platform(0, this.targetY - 100, canvas.width, 'finish', 0)); this.finishSpawned = true; }
+                        break;
+                    }
+                    
+                    // Расстояние между платформами растет с каждой фазой
+                    let gap = 90 + (this.tier * 10) + Math.random() * (this.isHard ? 60 : 40 + (this.tier * 5));
+                    this.highestY -= gap;
+                    
+                    // Ширина платформ уменьшается с каждой фазой (минимум 40px)
+                    let w = Math.max(40, 85 - (this.tier * 10)) + Math.random() * (this.isHard ? 50 : 80 - (this.tier * 5)); 
+                    let x = Math.random() * (canvas.width - w);
+                    
+                    let type = 'normal'; let r = Math.random();
+                    if (this.isHard) { 
+                        if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; 
+                    } else { 
+                        if (r > 0.85) type = 'spring'; 
+                        // Шанс на появление движущейся платформы растет с каждой фазой
+                        else if (r > Math.max(0.2, 0.65 - (this.tier * 0.15))) type = 'moving'; 
+                    }
+                    
+                    this.platforms.push(new Platform(x, this.highestY, w, type, this.tier));
+                    
+                    let ri = Math.random();
+                    if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
+                    else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
+                }
+            }
+
+            handleDeath(reason) {
+                if (SAVE.lives > 0 && gameState === 'PLAYING') {
+                    gameState = 'REVIVE_PROMPT';
+                    pendingDeathReason = reason;
+                    document.getElementById('reviveLivesCount').innerText = SAVE.lives;
+                    document.getElementById('reviveMenu').classList.add('active');
+                } else if (gameState === 'PLAYING') {
+                    triggerGameOver(reason);
+                }
+            }
+
+            useExtraLife() {
+                SAVE.lives--; saveGame(); sfx.powerup();
+                for(let i=0; i<50; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ffffff', false, 2));
+                this.player.vy = -30; 
+                this.player.y -= 100;
+                this.hunter.y = this.cameraY + canvas.height + 300; 
+                this.hunter.active = false; this.hunter.startTimer(); 
+                this.floatingTexts.push(new FloatingText(this.player.x, this.player.y, "❤️ СПАСЕН!"));
+            }
+
+            update() {
+                if (gameState !== 'PLAYING') return;
+
+                if (this.player.y < this.maxReachedY) this.maxReachedY = this.player.y;
+
+                if (this.mode === 'endless') {
+                    this.currentScore = Math.floor(Math.max(0, ((canvas.height - 50) - this.maxReachedY) / 10));
+                    // СМЕНА ФАЗЫ КАЖДЫЕ 3000 МЕТРОВ
+                    this.tier = Math.floor(this.currentScore / 3000); 
+                    
+                    document.getElementById('hudLeft').innerText = `${this.currentScore} м`;
+                    if (this.currentScore > SAVE.highScore) SAVE.highScore = this.currentScore; 
+                }
+
+                this.generateChunk(); 
+                let cleanupY = this.cameraY + canvas.height + 300;
+                this.platforms = this.platforms.filter(p => p.y < cleanupY && !p.broken); 
+                this.items = this.items.filter(i => i.y < cleanupY && !i.markedForDeletion); 
+
+                this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
+                this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
+                this.floatingTexts.forEach(ft => ft.update()); this.floatingTexts = this.floatingTexts.filter(ft => ft.life > 0);
+                
+                let targetCamera = this.player.y - canvas.height / 2;
+                if (targetCamera < this.cameraY) {
+                    this.cameraY += (targetCamera - this.cameraY) * 0.15; 
+                }
+                
+                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
+                    this.handleDeath("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
+                }
+
+                if (this.player.y > this.cameraY + canvas.height + 100) {
+                    this.handleDeath("УПАЛ В БЕЗДНУ");
+                }
+
+                if (this.mode === 'campaign') {
+                    this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) triggerWin(); });
+                }
+
+                let magCoinRadius = SAVE.magnetCoinLvl * 45; 
+                let magJpRadius = SAVE.magnetJpLvl * 45;
+
+                this.items.forEach(item => {
+                    if (item.markedForDeletion) return;
+                    
+                    let dx = (this.player.x + 15) - (item.x + 12);
+                    let dy = (this.player.y + 15) - (item.y + 12);
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    let radius = item.type === 'coin' ? magCoinRadius : (item.type === 'jetpack' ? magJpRadius : 0);
+                    if (radius > 0 && dist < radius) {
+                        item.x += (dx / dist) * 12;
+                        item.y += (dy / dist) * 12;
+                    }
+
+                    if (this.player.x < item.x + 24 && this.player.x + 30 > item.x && this.player.y < item.y + 24 && this.player.y + 30 > item.y) {
+                        item.markedForDeletion = true;
+                        
+                        if (item.type === 'coin') { 
+                            let reward = this.isHard ? 3 : 1; 
+                            SAVE.coins += reward; sfx.coin(); saveGame(); 
+                            for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
+                            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
+                        } else if (item.type === 'jetpack') { 
+                            this.player.jetpackTimer = 90 + (SAVE.jetpackLevel * 30); 
+                            sfx.powerup(); 
+                            for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
                         }
-                    };
-                    this.physicsWorld.addBody(trigger);
+                    }
+                });
+            }
+            draw(ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // --- СМЕНА АТМОСФЕРЫ (ЦВЕТ ФОНА) ---
+                if (this.isHard) { 
+                    ctx.fillStyle = 'rgba(50, 0, 10, 0.3)'; ctx.fillRect(0,0,canvas.width, canvas.height); 
+                } else if (this.mode === 'endless' && this.tier > 0) {
+                    let bgAlpha = Math.min(0.8, this.tier * 0.15); // Чем выше фаза, тем темнее красный фон
+                    ctx.fillStyle = `rgba(60, 0, 15, ${bgAlpha})`; 
+                    ctx.fillRect(0,0,canvas.width, canvas.height);
+                }
+
+                ctx.save(); ctx.translate(0, -this.cameraY);
+                this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
+                this.hunter.draw(ctx); if (gameState === 'PLAYING' || gameState === 'END' || gameState === 'REVIVE_PROMPT') this.player.draw(ctx);
+                this.particles.forEach(p => p.draw(ctx)); this.floatingTexts.forEach(ft => ft.draw(ctx));
+                ctx.restore();
+                
+                if ((gameState === 'PLAYING' || gameState === 'REVIVE_PROMPT') && this.player.jetpackTimer > 0) {
+                    let maxTimer = 90 + (SAVE.jetpackLevel * 30);
+                    let prog = this.player.jetpackTimer / maxTimer;
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 50, 100, 6);
+                    ctx.fillStyle = '#ff0055'; ctx.fillRect(canvas.width/2 - 50, 50, 100 * prog, 6);
                 }
             }
         }
-        player.setSpawn(0, 5, 0); 
-    }
 
-    update(dt) {
-        // Анимация порталов, монет и врагов
-        this.dynamicObjects.forEach(obj => {
-            if (obj.userData?.isPortal) {
-                obj.rotation.x += 1 * dt; obj.rotation.y += 2 * dt;
-                if(Math.random() > 0.8) this.particles.emit(obj.position, 'spark', 1);
-            }
-            if (obj.userData?.isCoin && obj.visible) {
-                obj.rotation.y += 3 * dt;
-            }
-            if (obj instanceof Enemy) obj.update(dt);
-        });
+        let game = null;
+        let lastPlayedMode = 'campaign';
+        let lastPlayedLevel = 1;
 
-        // Мерцание факелов
-        this.torches.forEach(torch => {
-            torch.intensity = 1 + Math.random() * 0.3;
-        });
-    }
-}
-
-// ==========================================
-// 6. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ & MOBILE UI
-// ==========================================
-class GameCore {
-    constructor() {
-        this.physics = new PhysicsWorld();
-        this.renderEngine = new RenderEngine();
-        this.levelGen = new LevelGenerator(this.renderEngine.scene, this.physics, this.renderEngine.particles);
-        
-        this.clock = new THREE.Clock();
-        this.isRunning = false;
-        this.input = { up: false, down: false, left: false, right: false };
-        this.timeElapsed = 0;
-
-        // Расширенная карта (1-Блок, 2-Колонна, S-Шипы, F-Финиш, E-Враг, T-Факел, C-Монета, P-Чекпоинт)
-        this.LEVEL_MAP = [[1, 1, 1, 1, 1, 0, 0, 0, 0, 0],[1, 'C', 0, 0, 1, 1, 'S', 1, 1, 0],[1, 2, 0, 2, 'T', 0, 0, 0, 1, 0],[1, 0, 0, 0, 1, 'E', 1, 'C', 1, 0],[1, 1, 'P', 1, 1, 0, 1, 2, 1, 'F']
-        ];
-        
-        this.init();
-    }
-
-    async init() {
-        TelegramManager.init();
-        this.player = new Player(this.renderEngine.scene, this.physics, this.renderEngine.particles, this.renderEngine);
-        this.levelGen.createLevel(this.LEVEL_MAP, this.player);
-
-        this.setupInput();
-        this.setupMobileUI();
-
-        document.getElementById('loading-screen').style.opacity = '0';
-        setTimeout(() => {
-            document.getElementById('loading-screen').style.display = 'none';
-            document.getElementById('hud').style.display = 'flex';
-        }, 500);
-
-        this.isRunning = true;
-        this.loop();
-    }
-
-    setupInput() {
-        // Клавиатура (для ПК тестов)
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = true;
-            if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = true;
-            if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = true;
-            if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = true;
-            if (e.code === 'Space') this.player.jump();
-        });
-        window.addEventListener('keyup', (e) => {
-            if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = false;
-            if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = false;
-            if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = false;
-            if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = false;
-        });
-    }
-
-    setupMobileUI() {
-        const bindBtn = (id, key) => {
-            const el = document.getElementById(id);
-            el.addEventListener('touchstart', (e) => { e.preventDefault(); this.input[key] = true; });
-            el.addEventListener('touchend', (e) => { e.preventDefault(); this.input[key] = false; });
-            el.addEventListener('mousedown', (e) => { this.input[key] = true; });
-            el.addEventListener('mouseup', (e) => { this.input[key] = false; });
-            el.addEventListener('mouseleave', (e) => { this.input[key] = false; });
-        };
-
-        bindBtn('btn-up', 'up'); bindBtn('btn-down', 'down');
-        bindBtn('btn-left', 'left'); bindBtn('btn-right', 'right');
-        
-        const jumpBtn = document.getElementById('btn-jump');
-        const doJump = (e) => { e.preventDefault(); this.player.jump(); };
-        jumpBtn.addEventListener('touchstart', doJump);
-        jumpBtn.addEventListener('mousedown', doJump);
-    }
-
-    processInput() {
-        let dirX = 0; let dirZ = 0;
-        // Изометрия: смешиваем оси
-        if (this.input.up) { dirX -= 1; dirZ -= 1; }
-        if (this.input.down) { dirX += 1; dirZ += 1; }
-        if (this.input.left) { dirX -= 1; dirZ += 1; }
-        if (this.input.right) { dirX += 1; dirZ -= 1; }
-
-        if (dirX !== 0 || dirZ !== 0) {
-            const len = Math.sqrt(dirX*dirX + dirZ*dirZ);
-            this.player.move(dirX/len, dirZ/len);
+        function animate() { 
+            if (game) { game.update(); game.draw(ctx); }
+            requestAnimationFrame(animate); 
         }
-    }
-
-    loop() {
-        requestAnimationFrame(() => this.loop());
-        if (!this.isRunning) return;
-
-        const dt = this.clock.getDelta();
-        this.timeElapsed += dt;
-        document.getElementById('time-text').innerText = `Время: ${this.timeElapsed.toFixed(1)}с`;
-
-        this.processInput();
-        this.physics.step(dt);
-        this.player.update(dt);
-        this.levelGen.update(dt);
         
-        this.renderEngine.followTarget(this.player.body.position, dt);
-        this.renderEngine.render(dt);
-    }
-}
+        function startGame(mode, level = 1) {
+            lastPlayedMode = mode; lastPlayedLevel = level;
+            game = new Game(mode, level);
+            gameState = 'PLAYING'; 
+            
+            document.getElementById('hudLeft').innerText = mode === 'campaign' ? `УРОВЕНЬ ${level}` : `0 м`;
+            document.getElementById('hudLeft').style.color = game.isHard ? '#ff0055' : 'white';
+            updateUI();
+            
+            showState('NONE'); 
+            gameHud.style.display = 'flex';
 
-window.onload = () => { const game = new GameCore(); };
+            if (game.player.vy === 0) game.player.vy = -17; 
+            game.hunter.startTimer();
+        }
 
-</script>
+        function triggerGameOver(reason) { 
+            gameState = 'END'; sfx.death(); saveGame(); 
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; 
+                document.getElementById('endTitle').style.color = "#ff0055";
+                document.getElementById('endDesc').innerText = reason; 
+                document.getElementById('endBtn1').innerText = "ПОВТОРИТЬ";
+                document.getElementById('endBtn1').onclick = () => startGame(lastPlayedMode, lastPlayedLevel);
+                showState('END');
+            }, 800); 
+        }
+
+        function triggerWin() { 
+            gameState = 'END'; sfx.coin(); 
+            if (lastPlayedLevel === SAVE.maxLevel && SAVE.maxLevel < 100) SAVE.maxLevel++;
+            saveGame();
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "УРОВЕНЬ ПРОЙДЕН"; 
+                document.getElementById('endTitle').style.color = "#00ff00";
+                document.getElementById('endDesc').innerText = game.isHard ? "ХАРДКОР ЗАВЕРШЕН!" : "Отличная работа!"; 
+                document.getElementById('endBtn1').innerText = "СЛЕДУЮЩИЙ";
+                document.getElementById('endBtn1').onclick = () => startGame('campaign', lastPlayedLevel + 1);
+                showState('END');
+            }, 500); 
+        }
+        
+        showState('MAIN'); 
+        animate();
+    </script>
 </body>
 </html>
