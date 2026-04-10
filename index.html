@@ -72,6 +72,7 @@
         .shop-btn.equip { background: #00d2ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
+        /* HUD И КНОПКА ПАУЗЫ */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
@@ -456,7 +457,10 @@
         class Platform {
             constructor(x, y, width, type = 'normal') {
                 this.x = x; this.y = y; this.width = width; this.height = 20;
-                this.type = type; this.moveSpeed = 1.5 + Math.random() * 2; this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.type = type; 
+                // УМЕНЬШЕНА СКОРОСТЬ ПЛАТФОРМ
+                this.moveSpeed = 0.8 + Math.random() * 1.2; 
+                this.direction = Math.random() > 0.5 ? 1 : -1;
                 this.flashTimer = 0; this.broken = false;
             }
             update() {
@@ -495,7 +499,7 @@
         class Hunter {
             constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
             reset() { this.x = canvas.width/2 - 19; this.y = canvas.height-88; this.active = false; this.waitTimer = 0; }
-            startTimer() { this.waitTimer = 120; } // Кадровый таймер, работает корректно с паузой
+            startTimer() { this.waitTimer = 120; } 
             update() {
                 if (gameState !== 'PLAYING') return;
                 if (!this.active) { 
@@ -510,7 +514,6 @@
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 
-                // Баланс скорости
                 let baseSpeed = this.game.isHard ? 1.75 : 1.25; 
                 let speed = baseSpeed + (this.game.level * 0.08); 
                 if (dist > 300) speed += (dist - 300) * 0.003; 
@@ -539,7 +542,6 @@
                 if (gameState !== 'PLAYING') return;
                 if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 
-                // Вращение (Сальто)
                 let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
                 this.angle += (this.jetpackTimer > 0 ? 0.3 : 0.12) * dir;
 
@@ -621,7 +623,6 @@
                     this.platforms.push(new Platform(x, this.highestY, w, type));
                     
                     let ri = Math.random();
-                    // Шанс джетпака снижен с 2% до 0.7%
                     if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
                 }
