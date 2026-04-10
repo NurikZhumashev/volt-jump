@@ -3,653 +3,642 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Adventure Platformer</title>
+    <title>AAA Isometric Platformer - Core</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Three.js (r128) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <style>
-        /* Сброс стилей и мобильная адаптация */
+        /* Базовые стили. UI будет добавлен в следующих модулях */
+        :root {
+            --tg-theme-bg-color: #0f0f13;
+            --tg-theme-text-color: #ffffff;
+        }
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #111; overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: none; user-select: none; -webkit-user-select: none;
+            background-color: var(--tg-theme-bg-color);
+            overflow: hidden; touch-action: none;
+            user-select: none; -webkit-user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
-        
         #game-canvas {
             display: block; width: 100%; height: 100%;
         }
-
-        /* UI Слой поверх 3D Canvas */
-        #ui-layer {
+        #loading-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* Пропускаем клики сквозь пустые области */
-            display: flex; flex-direction: column;
+            background: #000; color: #fff; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            transition: opacity 0.5s ease;
         }
-
-        .screen {
-            pointer-events: auto; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);
-            color: white; text-align: center;
+        .spinner {
+            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #00ffcc; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
         }
-
-        .hidden { display: none !important; }
-
-        h1 { font-size: 36px; margin-bottom: 30px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        h2 { font-size: 28px; color: #ffd700; margin-bottom: 20px; }
-
-        .btn {
-            background: linear-gradient(135deg, #2ecc71, #27ae60);
-            border: none; border-radius: 15px; color: white;
-            padding: 15px 40px; font-size: 24px; font-weight: bold;
-            margin: 10px; box-shadow: 0 6px 0 #1e8449;
-            cursor: pointer; transition: transform 0.1s;
-        }
-        .btn:active { transform: translateY(6px); box-shadow: 0 0 0 #1e8449; }
-        .btn-shop { background: linear-gradient(135deg, #f1c40f, #f39c12); box-shadow: 0 6px 0 #d68910; color: #333; }
-        .btn-back { background: linear-gradient(135deg, #e74c3c, #c0392b); box-shadow: 0 6px 0 #922b21; }
-        .btn-buy { background: #34495e; box-shadow: 0 6px 0 #2c3e50; font-size: 18px; padding: 10px 20px; }
-        .btn-buy.owned { background: #27ae60; box-shadow: 0 6px 0 #1e8449; }
-
-        .shop-item {
-            display: flex; justify-content: space-between; align-items: center;
-            width: 280px; background: rgba(255,255,255,0.1);
-            padding: 15px; border-radius: 10px; margin-bottom: 15px;
-        }
-
-        /* Игровой интерфейс (HUD) */
-        #hud {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
-        }
-
-        #top-bar {
-            display: flex; justify-content: space-between; padding: 20px; pointer-events: auto;
-        }
-        #score-text { font-size: 24px; font-weight: bold; color: #ffd700; text-shadow: 0 2px 4px #000; }
-        
-        #btn-menu {
-            background: #e74c3c; border: none; color: white; padding: 8px 15px;
-            border-radius: 10px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 0 #c0392b;
-        }
-        #btn-menu:active { transform: translateY(4px); box-shadow: 0 0 0 #c0392b; }
-
-        #controls {
-            display: flex; justify-content: space-between; padding: 20px; padding-bottom: 40px;
-            pointer-events: auto;
-        }
-        .ctrl-group { display: flex; gap: 15px; }
-        .ctrl-btn {
-            width: 70px; height: 70px; border-radius: 35px; border: 3px solid rgba(255,255,255,0.5);
-            background: rgba(255,255,255,0.2); color: white; font-size: 30px;
-            display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
-        }
-        .ctrl-btn:active { background: rgba(255,255,255,0.5); }
-
+        @keyframes spin { 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<!-- 3D Canvas -->
-<canvas id="game-canvas"></canvas>
-
-<!-- UI Слой -->
-<div id="ui-layer">
-    <!-- Главное меню -->
-    <div id="menu-screen" class="screen">
-        <h1>3D ADVENTURE<br>PLATFORMER</h1>
-        <button class="btn" id="btn-play">▶ ИГРАТЬ</button>
-        <button class="btn btn-shop" id="btn-open-shop">🛒 МАГАЗИН</button>
-    </div>
-
-    <!-- Магазин -->
-    <div id="shop-screen" class="screen hidden">
-        <h1>МАГАЗИН</h1>
-        <h2 id="shop-coins">Монеты: 0</h2>
-        
-        <div class="shop-item">
-            <span>Белый Куб</span>
-            <button class="btn btn-buy" onclick="buyItem(0, 0xffffff, false)">ВЫБРАН</button>
-        </div>
-        <div class="shop-item">
-            <span>Красный Куб (10)</span>
-            <button class="btn btn-buy" onclick="buyItem(10, 0xff3333, false)" id="buy-red">КУПИТЬ</button>
-        </div>
-        <div class="shop-item">
-            <span>Синий Куб (10)</span>
-            <button class="btn btn-buy" onclick="buyItem(10, 0x3388ff, false)" id="buy-blue">КУПИТЬ</button>
-        </div>
-        <div class="shop-item">
-            <span>2x Прыжок (20)</span>
-            <button class="btn btn-buy" onclick="buyItem(20, null, true)" id="buy-jump">КУПИТЬ</button>
-        </div>
-
-        <button class="btn btn-back" id="btn-close-shop" style="margin-top: 30px;">НАЗАД</button>
-    </div>
-
-    <!-- Игровой HUD -->
-    <div id="hud" class="hidden">
-        <div id="top-bar">
-            <div id="score-text">Монеты: 0</div>
-            <button id="btn-menu">МЕНЮ</button>
-        </div>
-        <div id="controls">
-            <div class="ctrl-group">
-                <div class="ctrl-btn" id="ctrl-left">◄</div>
-                <div class="ctrl-btn" id="ctrl-right">►</div>
-            </div>
-            <div class="ctrl-btn" id="ctrl-jump">▲</div>
-        </div>
-    </div>
+<div id="loading-screen">
+    <div class="spinner"></div>
+    <h2 id="loading-text">Инициализация Ядра...</h2>
 </div>
 
+<canvas id="game-canvas"></canvas>
+
 <script>
-    // ==========================================
-    // 1. ИНИЦИАЛИЗАЦИЯ TELEGRAM
-    // ==========================================
-    let tg = null;
-    if (typeof window !== 'undefined' && window.Telegram && window.Telegram.WebApp) {
-        tg = window.Telegram.WebApp;
-        if (typeof tg.expand === 'function') tg.expand();
-        if (typeof tg.ready === 'function') tg.ready();
-    }
+/**
+ * ============================================================================
+ * МОДУЛЬ 1: CORE ARCHITECTURE (ЯДРО ИГРЫ)
+ * ============================================================================
+ */
 
-    // ==========================================
-    // 2. ДАННЫЕ ИГРОКА И ЭКОНОМИКА
-    // ==========================================
-    const GameData = {
-        coins: 0,
-        unlockedSkins: [0xffffff],
-        currentSkin: 0xffffff,
-        doubleJump: false,
-        currentLevel: 0,
-
-        init() {
-            try {
-                this.coins = Number(localStorage.getItem('3d_coins')) || 0;
-                this.unlockedSkins = JSON.parse(localStorage.getItem('3d_skins')) || [0xffffff];
-                this.currentSkin = Number(localStorage.getItem('3d_skin')) || 0xffffff;
-                this.doubleJump = localStorage.getItem('3d_jump') === 'true';
-                this.currentLevel = Number(localStorage.getItem('3d_level')) || 0;
-            } catch (e) {}
-        },
-        save() {
-            try {
-                localStorage.setItem('3d_coins', this.coins);
-                localStorage.setItem('3d_skins', JSON.stringify(this.unlockedSkins));
-                localStorage.setItem('3d_skin', this.currentSkin);
-                localStorage.setItem('3d_jump', this.doubleJump);
-                localStorage.setItem('3d_level', this.currentLevel);
-            } catch (e) {}
-        },
-        vibrate(type = 'light') {
-            if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred(type);
-        }
-    };
-    GameData.init();
-
-    // ==========================================
-    // 3. УРОВНИ (3D Сетка)
-    // ==========================================
-    // 0: Пусто, 1: Блок, 2: Шипы, 3: Монета, 4: Рычаг, 5: Дверь, 6: Флаг, 9: Спавн
-    const LEVELS = [
-        [[0,0,0,0,0,0,0,0,0,0,6,0],[0,0,0,0,0,0,0,0,1,1,1,1],[0,0,0,0,1,1,1,0,0,0,0,0],[1,1,1,0,0,0,0,1,1,1,0,0],[0,0,0,4,0,0,0,0,0,0,0,0],[1,1,1,1,1,1,0,0,0,1,1,1],[0,0,1,1,1,5,1,1,1,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0],[9,3,3,0,0,0,0,2,2,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1]
-        ],
-        [[0,0,0,0,0,0,0,0,0,0,6,0],[0,0,0,0,0,0,0,0,1,1,1,1],[0,0,0,2,2,0,0,0,0,0,0,0],[0,1,1,1,1,1,0,0,0,0,0,0],
-            [0,0,0,0,0,3,0,0,0,0,0,0],
-            [0,0,0,1,1,1,0,0,0,0,0,0],[0,1,1,0,0,0,0,1,1,0,0,0],[0,0,0,0,1,1,0,0,0,0,0,0],[9,0,0,2,2,2,2,0,0,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1]
-        ]
-    ];
-
-    // ==========================================
-    // 4. ДВИЖОК ИГРЫ (THREE.JS)
-    // ==========================================
-    const Input = { left: false, right: false, jump: false };
-
-    class GameEngine {
-        constructor() {
-            this.canvas = document.getElementById('game-canvas');
-            this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-            this.renderer.shadowMap.enabled = true;
-            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-            this.scene = new THREE.Scene();
-            
-            // Настройка цвета фона из Telegram
-            const bgColor = (tg && tg.themeParams && tg.themeParams.bg_color) ? tg.themeParams.bg_color : '#1a1a2e';
-            this.scene.background = new THREE.Color(bgColor);
-            this.scene.fog = new THREE.Fog(bgColor, 10, 30); // Эффект глубины
-
-            // Камера (2.5D изометрия)
-            this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-            
-            // Освещение
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            this.scene.add(ambientLight);
-
-            this.playerLight = new THREE.PointLight(0xffffff, 0.8, 20);
-            this.playerLight.castShadow = true;
-            this.scene.add(this.playerLight);
-
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.3);
-            dirLight.position.set(5, 10, 5);
-            dirLight.castShadow = true;
-            this.scene.add(dirLight);
-
-            // Игровые объекты
-            this.player = null;
-            this.walls = [];
-            this.doors =[];
-            this.coins = [];
-            this.spikes = [];
-            this.levers =[];
-            this.flag = null;
-
-            // Физика
-            this.velocity = new THREE.Vector3();
-            this.isGrounded = false;
-            this.jumpsCount = 0;
-            this.playerSize = new THREE.Vector3(0.8, 0.8, 0.8);
-            this.gravity = -35;
-            this.moveSpeed = 7;
-            this.jumpPower = 14;
-
-            this.clock = new THREE.Clock();
-            this.isRunning = false;
-
-            window.addEventListener('resize', () => this.onWindowResize(), false);
-            this.onWindowResize();
-
-            this.animate = this.animate.bind(this);
-            requestAnimationFrame(this.animate);
-        }
-
-        onWindowResize() {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        clearScene() {
-            while(this.scene.children.length > 0){ 
-                this.scene.remove(this.scene.children[0]); 
-            }
-            this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            this.scene.add(this.playerLight);
-            
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.3);
-            dirLight.position.set(5, 10, 5);
-            dirLight.castShadow = true;
-            this.scene.add(dirLight);
-
-            this.walls =[]; this.doors = []; this.coins = [];
-            this.spikes = []; this.levers =[]; this.flag = null;
-        }
-
-        loadLevel(levelIndex) {
-            this.clearScene();
-            const levelData = LEVELS[levelIndex] || LEVELS[0];
-            
-            const matWall = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.8 });
-            const matDoor = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9 });
-            const matCoin = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 });
-            const matSpike = new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.5 });
-            const matFlag = new THREE.MeshStandardMaterial({ color: 0x2ecc71 });
-
-            const geoBox = new THREE.BoxGeometry(1, 1, 1);
-            const geoSpike = new THREE.ConeGeometry(0.4, 0.8, 4);
-            const geoCoin = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
-
-            for (let y = 0; y < levelData.length; y++) {
-                for (let x = 0; x < levelData[y].length; x++) {
-                    const type = levelData[y][x];
-                    if (type === 0) continue;
-
-                    const posX = x;
-                    const posY = (levelData.length - y); // Инвертируем Y для 3D
-                    const posZ = 0;
-
-                    if (type === 1) {
-                        let mesh = new THREE.Mesh(geoBox, matWall);
-                        mesh.position.set(posX, posY, posZ);
-                        mesh.receiveShadow = true; mesh.castShadow = true;
-                        this.scene.add(mesh);
-                        this.walls.push({ box: new THREE.Box3().setFromObject(mesh) });
-                    }
-                    else if (type === 2) {
-                        let mesh = new THREE.Mesh(geoSpike, matSpike);
-                        mesh.position.set(posX, posY - 0.1, posZ);
-                        mesh.receiveShadow = true; mesh.castShadow = true;
-                        this.scene.add(mesh);
-                        this.spikes.push({ mesh, box: new THREE.Box3().setFromObject(mesh) });
-                    }
-                    else if (type === 3) {
-                        let mesh = new THREE.Mesh(geoCoin, matCoin);
-                        mesh.position.set(posX, posY, posZ);
-                        mesh.rotation.x = Math.PI / 2;
-                        mesh.castShadow = true;
-                        this.scene.add(mesh);
-                        this.coins.push({ mesh, box: new THREE.Box3().setFromCenterAndSize(mesh.position, new THREE.Vector3(0.6, 0.6, 0.6)), active: true });
-                    }
-                    else if (type === 4) {
-                        let base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.6), matWall);
-                        let handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8), matSpike);
-                        base.position.set(posX, posY - 0.4, posZ);
-                        handle.position.set(posX, posY, posZ);
-                        handle.rotation.z = Math.PI / 4; // Наклонен выключен
-                        this.scene.add(base); this.scene.add(handle);
-                        this.levers.push({ handle, active: false, box: new THREE.Box3().setFromCenterAndSize(base.position, new THREE.Vector3(1, 1, 1)) });
-                    }
-                    else if (type === 5) {
-                        let mesh = new THREE.Mesh(geoBox, matDoor);
-                        mesh.position.set(posX, posY, posZ);
-                        mesh.receiveShadow = true; mesh.castShadow = true;
-                        this.scene.add(mesh);
-                        this.doors.push({ mesh, box: new THREE.Box3().setFromObject(mesh), active: true });
-                        this.walls.push({ box: new THREE.Box3().setFromObject(mesh), isDoor: true, mesh: mesh }); // Дверь работает как стена
-                    }
-                    else if (type === 6) {
-                        let pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2), new THREE.MeshStandardMaterial({color: 0xaaaaaa}));
-                        let cloth = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.05), matFlag);
-                        pole.position.set(posX, posY + 0.5, posZ);
-                        cloth.position.set(posX + 0.3, posY + 1.3, posZ);
-                        this.scene.add(pole); this.scene.add(cloth);
-                        this.flag = { box: new THREE.Box3().setFromCenterAndSize(pole.position, new THREE.Vector3(1, 2, 1)) };
-                    }
-                    else if (type === 9) {
-                        // Создаем игрока
-                        const geoPlayer = new THREE.BoxGeometry(this.playerSize.x, this.playerSize.y, this.playerSize.z);
-                        const matPlayer = new THREE.MeshStandardMaterial({ color: GameData.currentSkin, roughness: 0.4, metalness: 0.2 });
-                        this.player = new THREE.Mesh(geoPlayer, matPlayer);
-                        this.player.position.set(posX, posY, posZ);
-                        this.player.castShadow = true;
-                        this.scene.add(this.player);
-                        this.velocity.set(0,0,0);
-                    }
-                }
-            }
-            
-            // Если спавн не найден
-            if(!this.player) {
-                this.player = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.8,0.8), new THREE.MeshStandardMaterial({ color: GameData.currentSkin }));
-                this.player.position.set(2, 5, 0);
-                this.scene.add(this.player);
-            }
-        }
-
-        start() {
-            this.loadLevel(GameData.currentLevel);
-            this.isRunning = true;
-        }
-
-        stop() {
-            this.isRunning = false;
-        }
-
-        doJump() {
-            if (!this.isRunning || !this.player) return;
-            if (this.isGrounded) {
-                this.velocity.y = this.jumpPower;
-                this.jumpsCount = 1;
-                this.isGrounded = false;
-            } else if (GameData.doubleJump && this.jumpsCount < 2) {
-                this.velocity.y = this.jumpPower * 0.9;
-                this.jumpsCount = 2;
-            }
-        }
-
-        die() {
-            GameData.vibrate('heavy');
-            Input.left = false; Input.right = false;
-            this.loadLevel(GameData.currentLevel); // Перезапуск
-        }
-
-        win() {
-            GameData.vibrate('medium');
-            GameData.currentLevel++;
-            GameData.save();
-            Input.left = false; Input.right = false;
-            
-            if (GameData.currentLevel >= LEVELS.length) {
-                GameData.currentLevel = 0; GameData.save();
-                UI.showMenu();
-            } else {
-                this.loadLevel(GameData.currentLevel);
-            }
-        }
-
-        updatePhysics(dt) {
-            if (!this.player) return;
-
-            // Горизонтальное движение
-            if (Input.left) this.velocity.x = -this.moveSpeed;
-            else if (Input.right) this.velocity.x = this.moveSpeed;
-            else this.velocity.x = 0;
-
-            // Гравитация
-            this.velocity.y += this.gravity * dt;
-
-            let playerBox = new THREE.Box3();
-
-            // 1. Движение по Y и коллизии
-            this.player.position.y += this.velocity.y * dt;
-            playerBox.setFromCenterAndSize(this.player.position, this.playerSize);
-            this.isGrounded = false;
-
-            for (let wall of this.walls) {
-                if (wall.isDoor && !wall.mesh.visible) continue; // Открытая дверь не имеет коллизии
-                
-                if (playerBox.intersectsBox(wall.box)) {
-                    if (this.velocity.y < 0) {
-                        this.player.position.y = wall.box.max.y + this.playerSize.y / 2;
-                        this.isGrounded = true;
-                        this.jumpsCount = 0;
-                    } else {
-                        this.player.position.y = wall.box.min.y - this.playerSize.y / 2;
-                    }
-                    this.velocity.y = 0;
-                    playerBox.setFromCenterAndSize(this.player.position, this.playerSize); // Обновляем бокс
-                }
-            }
-
-            // 2. Движение по X и коллизии
-            this.player.position.x += this.velocity.x * dt;
-            playerBox.setFromCenterAndSize(this.player.position, this.playerSize);
-
-            for (let wall of this.walls) {
-                if (wall.isDoor && !wall.mesh.visible) continue;
-
-                if (playerBox.intersectsBox(wall.box)) {
-                    if (this.velocity.x < 0) {
-                        this.player.position.x = wall.box.max.x + this.playerSize.x / 2;
-                    } else {
-                        this.player.position.x = wall.box.min.x - this.playerSize.x / 2;
-                    }
-                    this.velocity.x = 0;
-                    playerBox.setFromCenterAndSize(this.player.position, this.playerSize);
-                }
-            }
-
-            // Фиксация Z (2.5D)
-            this.player.position.z = 0;
-
-            // Смерть при падении
-            if (this.player.position.y < -2) this.die();
-
-            // Оверлапы (Шипы)
-            for (let spike of this.spikes) {
-                // Немного уменьшаем хитбокс шипов для честности
-                let sBox = spike.box.clone().expandByScalar(-0.2);
-                if (playerBox.intersectsBox(sBox)) this.die();
-            }
-
-            // Оверлапы (Монеты)
-            for (let coin of this.coins) {
-                if (coin.active && playerBox.intersectsBox(coin.box)) {
-                    coin.active = false;
-                    coin.mesh.visible = false;
-                    GameData.addCoins(1);
-                    GameData.vibrate('light');
-                    UI.updateScore();
-                }
-                if(coin.active) coin.mesh.rotation.y += 3 * dt; // Анимация вращения
-            }
-
-            // Оверлапы (Рычаги)
-            for (let lever of this.levers) {
-                if (!lever.active && playerBox.intersectsBox(lever.box)) {
-                    lever.active = true;
-                    lever.handle.rotation.z = -Math.PI / 4; // Переключаем ручку
-                    lever.handle.material.color.setHex(0x00ff00);
-                    GameData.vibrate('medium');
-                    
-                    // Открываем двери
-                    for (let door of this.doors) {
-                        door.active = false;
-                        door.mesh.visible = false;
-                    }
-                }
-            }
-
-            // Оверлапы (Флаг)
-            if (this.flag && playerBox.intersectsBox(this.flag.box)) {
-                this.win();
-            }
-        }
-
-        animate() {
-            requestAnimationFrame(this.animate);
-            const dt = Math.min(this.clock.getDelta(), 0.1); // Ограничиваем dt
-
-            if (this.isRunning && this.player) {
-                this.updatePhysics(dt);
-
-                // Плавное следование камеры и света за игроком
-                this.camera.position.lerp(new THREE.Vector3(this.player.position.x, this.player.position.y + 4, 12), 5 * dt);
-                this.camera.lookAt(this.player.position);
-                
-                this.playerLight.position.copy(this.player.position).add(new THREE.Vector3(0, 2, 2));
-            } else {
-                // Медленное вращение камеры в меню
-                this.camera.position.x = Math.sin(Date.now() * 0.0005) * 10 + 5;
-                this.camera.position.z = Math.cos(Date.now() * 0.0005) * 10;
-                this.camera.position.y = 5;
-                this.camera.lookAt(5, 5, 0);
-            }
-
-            this.renderer.render(this.scene, this.camera);
+// ==========================================
+// 1. TELEGRAM CLOUD STORAGE & SDK MANAGER
+// ==========================================
+class TelegramManager {
+    static init() {
+        this.tg = window.Telegram?.WebApp || null;
+        this.isReady = false;
+        
+        if (this.tg) {
+            this.tg.expand();
+            this.tg.ready();
+            this.applyTheme();
         }
     }
 
-    const Engine = new GameEngine();
-
-    // ==========================================
-    // 5. УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ (UI)
-    // ==========================================
-    const UI = {
-        menuScreen: document.getElementById('menu-screen'),
-        shopScreen: document.getElementById('shop-screen'),
-        hud: document.getElementById('hud'),
-        scoreText: document.getElementById('score-text'),
-        shopCoins: document.getElementById('shop-coins'),
-
-        showMenu() {
-            Engine.stop();
-            this.menuScreen.classList.remove('hidden');
-            this.shopScreen.classList.add('hidden');
-            this.hud.classList.add('hidden');
-            Input.left = false; Input.right = false;
-        },
-
-        showShop() {
-            this.menuScreen.classList.add('hidden');
-            this.shopScreen.classList.remove('hidden');
-            this.updateShopUI();
-        },
-
-        startGame() {
-            this.menuScreen.classList.add('hidden');
-            this.hud.classList.remove('hidden');
-            this.updateScore();
-            Engine.start();
-        },
-
-        updateScore() {
-            this.scoreText.innerText = `Монеты: ${GameData.coins}`;
-        },
-
-        updateShopUI() {
-            this.shopCoins.innerText = `Монеты: ${GameData.coins}`;
-            
-            const updateBtn = (id, cost, conditionBought, conditionActive) => {
-                const btn = document.getElementById(id);
-                if (conditionActive) {
-                    btn.innerText = "ВЫБРАН";
-                    btn.className = "btn btn-buy owned";
-                } else if (conditionBought) {
-                    btn.innerText = "ВЫБРАТЬ";
-                    btn.className = "btn btn-buy";
-                } else {
-                    btn.innerText = `КУПИТЬ (${cost})`;
-                    btn.className = "btn btn-buy";
-                }
-            };
-
-            updateBtn('buy-red', 10, GameData.unlockedSkins.includes(0xff3333), GameData.currentSkin === 0xff3333);
-            updateBtn('buy-blue', 10, GameData.unlockedSkins.includes(0x3388ff), GameData.currentSkin === 0x3388ff);
-            updateBtn('buy-jump', 20, GameData.doubleJump, GameData.doubleJump);
+    static applyTheme() {
+        if (!this.tg?.themeParams) return;
+        const root = document.documentElement;
+        if (this.tg.themeParams.bg_color) {
+            root.style.setProperty('--tg-theme-bg-color', this.tg.themeParams.bg_color);
         }
-    };
+    }
 
-    // События кнопок меню
-    document.getElementById('btn-play').addEventListener('click', () => { GameData.vibrate('light'); UI.startGame(); });
-    document.getElementById('btn-open-shop').addEventListener('click', () => { GameData.vibrate('light'); UI.showShop(); });
-    document.getElementById('btn-close-shop').addEventListener('click', () => { GameData.vibrate('light'); UI.showMenu(); });
-    document.getElementById('btn-menu').addEventListener('click', () => { GameData.vibrate('light'); UI.showMenu(); });
+    static vibrate(type = 'light') {
+        if (this.tg?.HapticFeedback) {
+            this.tg.HapticFeedback.impactOccurred(type);
+        }
+    }
 
-    // Функция покупки в магазине (глобальная для onclick в HTML)
-    window.buyItem = function(cost, skinColor, isDoubleJump) {
-        let isBought = isDoubleJump ? GameData.doubleJump : GameData.unlockedSkins.includes(skinColor);
-        
-        if (!isBought) {
-            if (GameData.coins >= cost) {
-                GameData.addCoins(-cost);
-                if (isDoubleJump) GameData.doubleJump = true;
-                else GameData.unlockedSkins.push(skinColor);
-                GameData.save();
-                GameData.vibrate('success');
+    // Асинхронная обертка для CloudStorage
+    static async saveData(key, value) {
+        return new Promise((resolve) => {
+            if (this.tg?.CloudStorage) {
+                this.tg.CloudStorage.setItem(key, JSON.stringify(value), (err, success) => {
+                    resolve(!err && success);
+                });
             } else {
-                GameData.vibrate('heavy'); // Нет денег
-                return;
+                localStorage.setItem(key, JSON.stringify(value));
+                resolve(true);
+            }
+        });
+    }
+
+    static async loadData(key, defaultValue = null) {
+        return new Promise((resolve) => {
+            if (this.tg?.CloudStorage) {
+                this.tg.CloudStorage.getItem(key, (err, value) => {
+                    if (err || !value) resolve(defaultValue);
+                    else resolve(JSON.parse(value));
+                });
+            } else {
+                const val = localStorage.getItem(key);
+                resolve(val ? JSON.parse(val) : defaultValue);
+            }
+        });
+    }
+}
+
+// ==========================================
+// 2. ФИЗИЧЕСКИЙ ДВИЖОК (CUSTOM PHYSICS ENGINE)
+// ==========================================
+/**
+ * Axis-Aligned Bounding Box (AABB)
+ */
+class AABB {
+    constructor(x, y, z, width, height, depth) {
+        this.update(x, y, z, width, height, depth);
+    }
+
+    update(x, y, z, width, height, depth) {
+        this.minX = x - width / 2; this.maxX = x + width / 2;
+        this.minY = y - height / 2; this.maxY = y + height / 2;
+        this.minZ = z - depth / 2; this.maxZ = z + depth / 2;
+    }
+
+    intersects(other) {
+        return (this.minX <= other.maxX && this.maxX >= other.minX) &&
+               (this.minY <= other.maxY && this.maxY >= other.minY) &&
+               (this.minZ <= other.maxZ && this.maxZ >= other.minZ);
+    }
+}
+
+/**
+ * Физическое тело
+ */
+class PhysicsBody {
+    constructor(entity, isStatic = false) {
+        this.entity = entity; // Ссылка на игровой объект
+        this.isStatic = isStatic;
+        
+        this.position = new THREE.Vector3();
+        this.velocity = new THREE.Vector3();
+        this.acceleration = new THREE.Vector3();
+        
+        this.size = new THREE.Vector3(1, 1, 1);
+        this.aabb = new AABB(0,0,0, 1,1,1);
+        
+        // Физические свойства
+        this.mass = isStatic ? 0 : 1;
+        this.friction = 0.85; // Трение (инерция)
+        this.restitution = 0.0; // Отскок
+        this.gravityScale = 1.0;
+        
+        this.isGrounded = false;
+    }
+
+    setSize(w, h, d) {
+        this.size.set(w, h, d);
+        this.updateAABB();
+    }
+
+    setPosition(x, y, z) {
+        this.position.set(x, y, z);
+        this.updateAABB();
+    }
+
+    updateAABB() {
+        this.aabb.update(this.position.x, this.position.y, this.position.z, this.size.x, this.size.y, this.size.z);
+    }
+
+    applyForce(force) {
+        if (this.isStatic) return;
+        // F = m * a  => a = F / m
+        this.acceleration.add(force.clone().divideScalar(this.mass));
+    }
+}
+
+/**
+ * Мир Физики (Обработка коллизий по осям для стабильности)
+ */
+class PhysicsWorld {
+    constructor() {
+        this.bodies =[];
+        this.gravity = new THREE.Vector3(0, -45, 0); // Сильная гравитация для платформера
+        
+        // Границы мира (Boundaries), чтобы не выпасть
+        this.bounds = {
+            minX: -50, maxX: 50,
+            minY: -10, maxY: 100,
+            minZ: -50, maxZ: 50
+        };
+    }
+
+    addBody(body) {
+        this.bodies.push(body);
+    }
+
+    step(dt) {
+        // Ограничиваем dt во избежание пролета сквозь стены при лагах
+        const safeDt = Math.min(dt, 0.03); 
+
+        for (let i = 0; i < this.bodies.length; i++) {
+            const body = this.bodies[i];
+            if (body.isStatic) continue;
+
+            // 1. Применяем гравитацию
+            body.applyForce(this.gravity.clone().multiplyScalar(body.gravityScale));
+
+            // 2. Интегрируем ускорение в скорость
+            body.velocity.add(body.acceleration.clone().multiplyScalar(safeDt));
+            
+            // 3. Применяем трение (инерция по X и Z)
+            body.velocity.x *= body.friction;
+            body.velocity.z *= body.friction;
+
+            // Сброс ускорения
+            body.acceleration.set(0, 0, 0);
+
+            // 4. Разрешение коллизий (Axis-by-Axis)
+            body.isGrounded = false;
+
+            // Ось Y
+            body.position.y += body.velocity.y * safeDt;
+            body.updateAABB();
+            this.resolveCollisions(body, 'y');
+
+            // Ось X
+            body.position.x += body.velocity.x * safeDt;
+            body.updateAABB();
+            this.resolveCollisions(body, 'x');
+
+            // Ось Z
+            body.position.z += body.velocity.z * safeDt;
+            body.updateAABB();
+            this.resolveCollisions(body, 'z');
+
+            // 5. Проверка границ мира (Boundaries)
+            this.checkBoundaries(body);
+
+            // 6. Синхронизация с 3D объектом
+            if (body.entity && body.entity.mesh) {
+                body.entity.mesh.position.copy(body.position);
             }
         }
-        
-        if (!isDoubleJump) {
-            GameData.currentSkin = skinColor;
-            GameData.save();
+    }
+
+    resolveCollisions(body, axis) {
+        for (let j = 0; j < this.bodies.length; j++) {
+            const other = this.bodies[j];
+            if (body === other) continue;
+
+            if (body.aabb.intersects(other.aabb)) {
+                // Если столкнулись, выталкиваем
+                if (axis === 'y') {
+                    if (body.velocity.y < 0) { // Падение
+                        body.position.y = other.aabb.maxY + body.size.y / 2;
+                        body.isGrounded = true;
+                    } else if (body.velocity.y > 0) { // Удар головой
+                        body.position.y = other.aabb.minY - body.size.y / 2;
+                    }
+                    body.velocity.y = 0;
+                } 
+                else if (axis === 'x') {
+                    if (body.velocity.x > 0) body.position.x = other.aabb.minX - body.size.x / 2;
+                    else if (body.velocity.x < 0) body.position.x = other.aabb.maxX + body.size.x / 2;
+                    body.velocity.x = 0;
+                }
+                else if (axis === 'z') {
+                    if (body.velocity.z > 0) body.position.z = other.aabb.minZ - body.size.z / 2;
+                    else if (body.velocity.z < 0) body.position.z = other.aabb.maxZ + body.size.z / 2;
+                    body.velocity.z = 0;
+                }
+                body.updateAABB();
+            }
         }
+    }
+
+    checkBoundaries(body) {
+        if (body.position.y < this.bounds.minY) {
+            body.position.y = this.bounds.minY;
+            body.velocity.y = 0;
+            body.isGrounded = true;
+            if (body.entity && typeof body.entity.onOutBounds === 'function') {
+                body.entity.onOutBounds();
+            }
+        }
+        if (body.position.x < this.bounds.minX) { body.position.x = this.bounds.minX; body.velocity.x = 0; }
+        if (body.position.x > this.bounds.maxX) { body.position.x = this.bounds.maxX; body.velocity.x = 0; }
+        if (body.position.z < this.bounds.minZ) { body.position.z = this.bounds.minZ; body.velocity.z = 0; }
+        if (body.position.z > this.bounds.maxZ) { body.position.z = this.bounds.maxZ; body.velocity.z = 0; }
+        body.updateAABB();
+    }
+}
+
+// ==========================================
+// 3. СИСТЕМА РЕНДЕРИНГА (GRAPHICS ENGINE)
+// ==========================================
+class RenderEngine {
+    constructor() {
+        this.canvas = document.getElementById('game-canvas');
         
-        UI.updateShopUI();
-    };
+        // AAA Настройки рендерера
+        this.renderer = new THREE.WebGLRenderer({ 
+            canvas: this.canvas, 
+            antialias: true,
+            powerPreference: "high-performance"
+        });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        // Физически корректный свет и тени
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.0;
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // Настройка мобильных кнопок управления
-    const setupCtrl = (id, onDown, onUp) => {
-        const el = document.getElementById(id);
-        el.addEventListener('pointerdown', (e) => { e.preventDefault(); onDown(); });
-        el.addEventListener('pointerup', (e) => { e.preventDefault(); onUp(); });
-        el.addEventListener('pointerout', (e) => { e.preventDefault(); onUp(); });
-    };
+        this.scene = new THREE.Scene();
+        
+        // Градиентный фон и туман
+        const bgColor = new THREE.Color(0x1a1a2e);
+        this.scene.background = bgColor;
+        this.scene.fog = new THREE.FogExp2(bgColor, 0.025);
 
-    setupCtrl('ctrl-left', () => Input.left = true, () => Input.left = false);
-    setupCtrl('ctrl-right', () => Input.right = true, () => Input.right = false);
-    setupCtrl('ctrl-jump', () => Engine.doJump(), () => {}); // Прыжок - разовое событие
+        // Изометрическая/2.5D Камера
+        const aspect = window.innerWidth / window.innerHeight;
+        // Используем Perspective, но с узким FOV и большим отдалением для эффекта изометрии
+        this.camera = new THREE.PerspectiveCamera(40, aspect, 1, 1000);
+        this.cameraOffset = new THREE.Vector3(15, 20, 25);
+        this.camera.position.copy(this.cameraOffset);
+        this.camera.lookAt(0, 0, 0);
 
-    // Запуск (показываем меню, на фоне крутится уровень)
-    Engine.loadLevel(0);
-    UI.showMenu();
+        this.setupLighting();
+
+        window.addEventListener('resize', this.onResize.bind(this), false);
+    }
+
+    setupLighting() {
+        // Мягкий глобальный свет
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        this.scene.add(ambientLight);
+
+        // Главный источник света (Солнце)
+        this.dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+        this.dirLight.position.set(20, 40, 20);
+        this.dirLight.castShadow = true;
+        
+        // Настройка качества теней
+        this.dirLight.shadow.mapSize.width = 2048;
+        this.dirLight.shadow.mapSize.height = 2048;
+        this.dirLight.shadow.camera.near = 0.5;
+        this.dirLight.shadow.camera.far = 100;
+        const d = 25;
+        this.dirLight.shadow.camera.left = -d;
+        this.dirLight.shadow.camera.right = d;
+        this.dirLight.shadow.camera.top = d;
+        this.dirLight.shadow.camera.bottom = -d;
+        this.dirLight.shadow.bias = -0.0005;
+
+        this.scene.add(this.dirLight);
+
+        // Свет от игрока (PointLight) будет добавлен в классе Player
+    }
+
+    onResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    render() {
+        this.renderer.render(this.scene, this.camera);
+    }
+
+    // Плавное следование камеры за целью
+    followTarget(targetPosition, dt) {
+        const desiredPosition = targetPosition.clone().add(this.cameraOffset);
+        // Lerp для плавности
+        this.camera.position.lerp(desiredPosition, 5 * dt);
+        
+        // Камера смотрит чуть впереди игрока
+        const lookTarget = targetPosition.clone().add(new THREE.Vector3(0, 2, 0));
+        
+        // Временный кватернион для плавного поворота камеры (опционально)
+        this.camera.lookAt(lookTarget);
+        
+        // Свет также следует за игроком, чтобы тени всегда были четкими
+        this.dirLight.position.copy(targetPosition).add(new THREE.Vector3(20, 40, 20));
+        this.dirLight.target.position.copy(targetPosition);
+        this.dirLight.target.updateMatrixWorld();
+    }
+}
+
+// ==========================================
+// 4. ИГРОВЫЕ СУЩНОСТИ (ENTITIES)
+// ==========================================
+
+/**
+ * Базовый класс для всех объектов в игре
+ */
+class Entity {
+    constructor(scene, physicsWorld) {
+        this.scene = scene;
+        this.physicsWorld = physicsWorld;
+        this.mesh = null;
+        this.body = null;
+    }
+
+    update(dt) {}
+}
+
+/**
+ * Класс Игрока (Player)
+ */
+class Player extends Entity {
+    constructor(scene, physicsWorld) {
+        super(scene, physicsWorld);
+        
+        this.buildMesh();
+        this.setupPhysics();
+        
+        // Параметры геймплея
+        this.speed = 400; // Сила ускорения
+        this.jumpForce = 22;
+        this.maxJumps = 2; // Двойной прыжок
+        this.currentJumps = 0;
+    }
+
+    buildMesh() {
+        // AAA-стиль: составной меш (Core + оболочка)
+        this.mesh = new THREE.Group();
+
+        // Внутреннее светящееся ядро
+        const coreGeo = new THREE.IcosahedronGeometry(0.4, 2);
+        const coreMat = new THREE.MeshStandardMaterial({ 
+            color: 0x00ffcc, 
+            emissive: 0x00ffcc, 
+            emissiveIntensity: 0.8,
+            roughness: 0.2,
+            metalness: 1.0
+        });
+        this.coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        this.coreMesh.castShadow = true;
+        this.mesh.add(this.coreMesh);
+
+        // Внешняя стеклянная/металлическая оболочка
+        const shellGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+        const shellMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.1,
+            metalness: 0.8,
+            transparent: true,
+            opacity: 0.6,
+            wireframe: true // Стильный киберпанк-лук
+        });
+        this.shellMesh = new THREE.Mesh(shellGeo, shellMat);
+        this.shellMesh.castShadow = true;
+        this.mesh.add(this.shellMesh);
+
+        // Динамический свет от игрока
+        this.pointLight = new THREE.PointLight(0x00ffcc, 1.5, 10);
+        this.pointLight.position.set(0, 0.5, 0);
+        this.mesh.add(this.pointLight);
+
+        this.scene.add(this.mesh);
+    }
+
+    setupPhysics() {
+        this.body = new PhysicsBody(this, false);
+        this.body.setSize(0.9, 0.9, 0.9);
+        this.body.setPosition(0, 5, 0);
+        this.body.mass = 1.5;
+        this.body.friction = 0.82; // Скольжение
+        this.physicsWorld.addBody(this.body);
+    }
+
+    jump() {
+        if (this.body.isGrounded) {
+            this.currentJumps = 1;
+            this.body.velocity.y = this.jumpForce;
+            TelegramManager.vibrate('light');
+        } else if (this.currentJumps < this.maxJumps) {
+            this.currentJumps++;
+            this.body.velocity.y = this.jumpForce * 0.8; // Второй прыжок чуть слабее
+            TelegramManager.vibrate('medium');
+            
+            // В Модуле 2 здесь будет вызов системы частиц
+        }
+    }
+
+    move(dirX, dirZ) {
+        // Применяем силу для движения (инерция обрабатывается физикой)
+        this.body.applyForce(new THREE.Vector3(dirX * this.speed, 0, dirZ * this.speed));
+    }
+
+    update(dt) {
+        // Анимация меша (вращение ядра)
+        this.coreMesh.rotation.x += 2 * dt;
+        this.coreMesh.rotation.y += 3 * dt;
+        
+        // Сброс прыжков при касании земли
+        if (this.body.isGrounded) {
+            this.currentJumps = 0;
+        }
+
+        // В Модуле 2 добавим наклон (Tilt) оболочки в сторону движения
+        const targetTiltZ = -this.body.velocity.x * 0.05;
+        const targetTiltX = this.body.velocity.z * 0.05;
+        this.shellMesh.rotation.z += (targetTiltZ - this.shellMesh.rotation.z) * 10 * dt;
+        this.shellMesh.rotation.x += (targetTiltX - this.shellMesh.rotation.x) * 10 * dt;
+    }
+
+    onOutBounds() {
+        // Респавн при падении
+        TelegramManager.vibrate('heavy');
+        this.body.setPosition(0, 10, 0);
+        this.body.velocity.set(0,0,0);
+    }
+}
+
+// ==========================================
+// 5. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (GAME CORE)
+// ==========================================
+class GameCore {
+    constructor() {
+        this.physics = new PhysicsWorld();
+        this.renderEngine = new RenderEngine();
+        
+        this.clock = new THREE.Clock();
+        this.isRunning = false;
+
+        // Временный ввод для ПК (в Модуле 2 будет заменен на экранный UI)
+        this.input = { up: false, down: false, left: false, right: false };
+        
+        this.init();
+    }
+
+    async init() {
+        TelegramManager.init();
+        
+        // Имитация загрузки ассетов и данных из CloudStorage
+        await new Promise(res => setTimeout(res, 1000));
+        
+        this.player = new Player(this.renderEngine.scene, this.physics);
+        
+        // Временная платформа для тестов
+        this.createTestPlatform();
+
+        this.setupInput();
+
+        document.getElementById('loading-screen').style.opacity = '0';
+        setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 500);
+
+        this.isRunning = true;
+        this.loop();
+    }
+
+    createTestPlatform() {
+        const geo = new THREE.BoxGeometry(20, 2, 20);
+        const mat = new THREE.MeshStandardMaterial({ 
+            color: 0x334455, roughness: 0.7, metalness: 0.1 
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(0, -1, 0);
+        mesh.receiveShadow = true;
+        this.renderEngine.scene.add(mesh);
+
+        const body = new PhysicsBody({ mesh }, true);
+        body.setSize(20, 2, 20);
+        body.setPosition(0, -1, 0);
+        this.physics.addBody(body);
+    }
+
+    setupInput() {
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = true;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = true;
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = true;
+            if (e.code === 'Space') this.player.jump();
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = false;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = false;
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = false;
+        });
+    }
+
+    processInput() {
+        let dirX = 0;
+        let dirZ = 0;
+        
+        // Изометрическое управление (движение относительно камеры)
+        if (this.input.up) { dirX -= 1; dirZ -= 1; }
+        if (this.input.down) { dirX += 1; dirZ += 1; }
+        if (this.input.left) { dirX -= 1; dirZ += 1; }
+        if (this.input.right) { dirX += 1; dirZ -= 1; }
+
+        // Нормализация вектора по диагонали
+        if (dirX !== 0 || dirZ !== 0) {
+            const len = Math.sqrt(dirX*dirX + dirZ*dirZ);
+            dirX /= len; dirZ /= len;
+            this.player.move(dirX, dirZ);
+        }
+    }
+
+    loop() {
+        requestAnimationFrame(() => this.loop());
+        
+        if (!this.isRunning) return;
+
+        const dt = this.clock.getDelta();
+
+        this.processInput();
+        
+        // Шаг физики
+        this.physics.step(dt);
+        
+        // Обновление сущностей
+        this.player.update(dt);
+
+        // Обновление камеры
+        this.renderEngine.followTarget(this.player.body.position, dt);
+
+        // Рендер кадра
+        this.renderEngine.render();
+    }
+}
+
+// Запуск приложения
+window.onload = () => {
+    const game = new GameCore();
+};
 
 </script>
 </body>
