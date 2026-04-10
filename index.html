@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Parkour: Smart Buttons</title>
+    <title>Neon Parkour: Level Maker Update</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -28,12 +28,13 @@
         h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 30px; margin: 0 0 15px 0; text-align: center; letter-spacing: 2px; }
 
         .ui-btn {
-            padding: 16px 40px; margin: 8px; border-radius: 40px; font-size: 16px; font-weight: bold;
+            padding: 14px 30px; margin: 6px; border-radius: 40px; font-size: 15px; font-weight: bold;
             border: 2px solid rgba(255,255,255,0.1); color: white; cursor: pointer; text-transform: uppercase; width: 280px;
             background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 5px 20px rgba(0, 210, 255, 0.3);
             transition: all 0.2s ease;
         }
         .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 5px 20px rgba(241, 39, 17, 0.3); }
+        .btn-edit { background: linear-gradient(45deg, #8A2387, #E94057, #F27121); box-shadow: 0 5px 20px rgba(233, 64, 87, 0.3); }
         .btn-back { background: transparent; border: 2px solid #555; box-shadow: none; margin-top: 15px; }
         .ui-btn:active { transform: scale(0.95); }
         .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
@@ -59,43 +60,32 @@
         }
         .shop-card {
             background: rgba(255,255,255,0.05); padding: 12px; border-radius: 15px;
-            border: 1px solid rgba(255,255,255,0.1); text-align: center;
-            display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative;
+            border: 1px solid rgba(255,255,255,0.1); text-align: center; display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative;
         }
-        .shop-card h3 { margin: 10px 0 5px 0; font-size: 18px; }
-        .shop-card p { font-size: 12px; color: #aaa; margin: 0 0 10px 0; line-height: 1.2; flex-grow: 1; }
         .shop-btn { padding: 8px; width: 100%; border-radius: 8px; font-size: 13px; border: none; cursor: pointer; font-weight: bold; color: white; background: #4caf50; transition: 0.2s; }
         .shop-btn:disabled { background: #444; color: #777; }
         .shop-btn.equip { background: #00d2ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
-        /* HUD И КНОПКА ПАУЗЫ */
+        /* HUD */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
         .lives-hud { color: #ff0055; text-shadow: 0 0 10px #ff0055; margin-top: 5px; font-size: 18px;}
         
-        .pause-btn {
-            background: rgba(0, 0, 0, 0.6); border: 2px solid rgba(255,255,255,0.2);
-            color: white; font-size: 20px; width: 40px; height: 40px;
-            border-radius: 50%; cursor: pointer; display: flex;
-            justify-content: center; align-items: center; transition: 0.2s;
-            pointer-events: auto; backdrop-filter: blur(5px);
-        }
-        .pause-btn:active { transform: scale(0.85); }
+        .pause-btn { background: rgba(0, 0, 0, 0.6); border: 2px solid rgba(255,255,255,0.2); color: white; font-size: 20px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; pointer-events: auto; backdrop-filter: blur(5px); }
 
-        /* МОБИЛЬНОЕ УПРАВЛЕНИЕ (КНОПКИ) */
-        #mobileControls {
-            position: fixed; bottom: 30px; left: 20px;
-            display: flex; gap: 20px; z-index: 15; pointer-events: none;
-        }
-        .touch-arrow {
-            width: 70px; height: 70px; border-radius: 50%;
-            background: rgba(0, 210, 255, 0.15); border: 2px solid rgba(0, 210, 255, 0.4);
-            color: white; font-size: 28px; display: flex; justify-content: center; align-items: center;
-            pointer-events: auto; backdrop-filter: blur(4px); user-select: none; transition: 0.1s;
-        }
+        /* МОБИЛЬНОЕ УПРАВЛЕНИЕ */
+        #mobileControls { position: fixed; bottom: 30px; left: 20px; display: flex; gap: 20px; z-index: 15; pointer-events: none; }
+        .touch-arrow { width: 70px; height: 70px; border-radius: 50%; background: rgba(0, 210, 255, 0.15); border: 2px solid rgba(0, 210, 255, 0.4); color: white; font-size: 28px; display: flex; justify-content: center; align-items: center; pointer-events: auto; backdrop-filter: blur(4px); user-select: none; transition: 0.1s; }
         .touch-arrow:active { background: rgba(0, 210, 255, 0.4); transform: scale(0.9); }
+
+        /* РЕДАКТОР УРОВНЕЙ */
+        #editorContainer { overflow: auto; max-width: 95vw; max-height: 50vh; border: 2px solid #00d2ff; background: rgba(0,0,0,0.8); border-radius: 10px; margin-bottom: 10px; }
+        #editorTable { border-collapse: collapse; }
+        .edit-cell { width: 25px; height: 25px; border: 1px solid #333; cursor: pointer; box-sizing: border-box; }
+        .palette-btn { width: 40px; height: 40px; border-radius: 10px; border: 2px solid #fff; cursor: pointer; display: inline-flex; justify-content: center; align-items: center; font-weight: bold; background: #222; color: white;}
+        .palette-btn.active { border-color: #00d2ff; box-shadow: 0 0 15px #00d2ff; }
     </style>
 </head>
 <body onclick="sfx.init()">
@@ -133,9 +123,10 @@
 
     <div id="mainMenu" class="overlay active">
         <h1 style="font-size: 48px; color: #00d2ff; text-shadow: 0 0 20px #00d2ff; animation: none;">NEON</h1>
-        <h1 style="margin-top: -15px;">PARKOUR</h1>
+        <h1 style="margin-top: -15px;">MAKER</h1>
         <p style="color: #ccc; margin-bottom: 5px; font-size: 14px; text-align: center;">СТРЕЛКИ - Движение<br>ТАП В ЛЮБОМ МЕСТЕ - Прыжок</p>
         <button class="ui-btn" onclick="showState('LEVELS')">ИГРАТЬ</button>
+        <button class="ui-btn btn-edit" onclick="openEditor()">СОЗДАТЬ УРОВЕНЬ</button>
         <button class="ui-btn btn-shop" onclick="showState('SHOP')">АРСЕНАЛ</button>
         <p class="coin-hud" style="font-size: 26px; margin-top: 15px;" id="menuCoins">💰 0</p>
     </div>
@@ -143,7 +134,34 @@
     <div id="levelMenu" class="overlay">
         <h2>СЕКТОРА</h2>
         <div id="levelGrid"></div>
+        <button class="ui-btn btn-edit" onclick="startGame('custom')" style="margin-top: 15px; width: auto;">▶ ИГРАТЬ СВОЙ УРОВЕНЬ</button>
         <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
+    </div>
+
+    <div id="editorOverlay" class="overlay">
+        <h2 style="font-size: 24px; margin-bottom: 5px;">КОНСТРУКТОР КАРТ</h2>
+        
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <div class="palette-btn active" id="pal_#" onclick="setBrush('#')" style="background: #222; border-color:#00d2ff;">#</div>
+            <div class="palette-btn" id="pal_^" onclick="setBrush('^')" style="background: #ff0033;">^</div>
+            <div class="palette-btn" id="pal_C" onclick="setBrush('C')" style="color: #FFD700;">C</div>
+            <div class="palette-btn" id="pal_B" onclick="setBrush('B')" style="background: #ff0033; font-size: 10px;">BTN</div>
+            <div class="palette-btn" id="pal_L" onclick="setBrush('L')" style="background: #ff0033; width: 15px;">L</div>
+            <div class="palette-btn" id="pal_D" onclick="setBrush('D')" style="background: #00ff00; color: #000;">D</div>
+            <div class="palette-btn" id="pal_@" onclick="setBrush('@')" style="color: #00d2ff;">@</div>
+            <div class="palette-btn" id="pal_." onclick="setBrush('.')" style="background: #111;">X</div>
+        </div>
+
+        <div id="editorContainer">
+            <table id="editorTable" onmouseleave="isDrawing = false;"></table>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="ui-btn" onclick="playCustomLevel()" style="width: auto; padding: 10px 20px;">ИГРАТЬ</button>
+            <button class="ui-btn btn-edit" onclick="exportLevel()" style="width: auto; padding: 10px 20px;">ЭКСПОРТ</button>
+            <button class="ui-btn btn-shop" onclick="importLevel()" style="width: auto; padding: 10px 20px;">ИМПОРТ</button>
+        </div>
+        <button class="ui-btn btn-back" onclick="saveEditorMap(); showState('MAIN')">В МЕНЮ</button>
     </div>
 
     <div id="shopMenu" class="overlay">
@@ -163,14 +181,16 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        // --- ГЛАВНАЯ ФИШКА: ОТДАЛЕНИЕ КАМЕРЫ ---
+        const ZOOM = 0.7; 
+
         function resizeCanvas() {
             canvas.width = window.innerWidth || document.documentElement.clientWidth || 400;
             canvas.height = window.innerHeight || document.documentElement.clientHeight || 800;
         }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); window.addEventListener('resize', resizeCanvas);
 
-        // --- БЕЗОПАСНАЯ СИСТЕМА СОХРАНЕНИЙ ---
         function getSafeArray(key, defaultArray) {
             try {
                 let val = localStorage.getItem(key);
@@ -190,7 +210,8 @@
             skin: localStorage.getItem('neonSkin') || '#00d2ff',
             ownedSkins: getSafeArray('neonSkins', ['#00d2ff']),
             trail: localStorage.getItem('neonTrail') || 'none',
-            ownedTrails: getSafeArray('neonTrails', ['none'])
+            ownedTrails: getSafeArray('neonTrails', ['none']),
+            customMap: getSafeArray('neonCustomMap', [])
         };
 
         function saveGame() {
@@ -202,10 +223,11 @@
             localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
             localStorage.setItem('neonTrail', SAVE.trail);
             localStorage.setItem('neonTrails', JSON.stringify(SAVE.ownedTrails));
+            localStorage.setItem('neonCustomMap', JSON.stringify(SAVE.customMap));
             updateUI();
         }
 
-        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu'), REVIVE: document.getElementById('reviveMenu') };
+        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu'), REVIVE: document.getElementById('reviveMenu'), EDITOR: document.getElementById('editorOverlay') };
         const gameHud = document.getElementById('gameHud');
         const mobileControls = document.getElementById('mobileControls');
         let gameState = 'START'; 
@@ -215,9 +237,7 @@
         function showState(state) {
             sfx.init();
             Object.values(overlays).forEach(el => el.classList.remove('active'));
-            gameHud.style.display = 'none';
-            mobileControls.style.display = 'none';
-            
+            gameHud.style.display = 'none'; mobileControls.style.display = 'none';
             if(overlays[state]) overlays[state].classList.add('active');
             updateUI();
         }
@@ -238,17 +258,8 @@
             sfx.stopBGM(); saveGame(); showState('MAIN');
         }
 
-        // --- ВОСКРЕШЕНИЕ (ЩИТ) ---
-        function confirmRevive() {
-            document.getElementById('reviveMenu').classList.remove('active');
-            gameState = 'PLAYING';
-            game.useExtraLife(); // Телепортирует на старт
-        }
-
-        function declineRevive() {
-            document.getElementById('reviveMenu').classList.remove('active');
-            triggerGameOver(pendingDeathReason);
-        }
+        function confirmRevive() { document.getElementById('reviveMenu').classList.remove('active'); gameState = 'PLAYING'; game.useExtraLife(); }
+        function declineRevive() { document.getElementById('reviveMenu').classList.remove('active'); triggerGameOver(pendingDeathReason); }
 
         function updateUI() {
             document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
@@ -266,8 +277,7 @@
                 if (i < SAVE.maxLevel) { btn.classList.add('completed'); btn.innerText = i; } 
                 else if (i === SAVE.maxLevel) { btn.classList.add('current'); btn.innerText = i; } 
                 else { btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true; }
-                btn.onclick = () => startGame(i);
-                grid.appendChild(btn);
+                btn.onclick = () => startGame(i); grid.appendChild(btn);
             }
         }
 
@@ -276,10 +286,10 @@
             list.innerHTML = '';
             const items = [
                 { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
-                { id: 'shield', name: 'ЭНЕРГО-ЩИТ 🛡️', desc: 'Спасет от смерти (Возврат на старт).', price: 100, type: 'consumable', lvl: SAVE.lives },
+                { id: 'shield', name: 'ЭНЕРГО-ЩИТ 🛡️', desc: 'Возврат на старт.', price: 100, type: 'consumable', lvl: SAVE.lives },
                 { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
                 { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' },
-                { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Убрать шлейф.', price: 0, type: 'trail' },
+                { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Без шлейфа.', price: 0, type: 'trail' },
                 { id: 'fire', name: 'ПЛАМЯ 🔥', desc: 'Огненный шлейф.', price: 800, type: 'trail' },
                 { id: 'rainbow', name: 'РАДУГА 🌈', desc: 'Неоновый перелив.', price: 1500, type: 'trail' }
             ];
@@ -288,45 +298,19 @@
                 let actionText = `КУПИТЬ (${item.price} 💰)`;
                 let btnClass = 'shop-btn'; let disabled = SAVE.coins < item.price; let badge = '';
 
-                if (item.type === 'mag_coin') {
-                    badge = `<div class="lvl-badge">LVL ${item.lvl}</div>`;
-                    if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
-                }
+                if (item.type === 'mag_coin') { badge = `<div class="lvl-badge">LVL ${item.lvl}</div>`; if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; } }
                 if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
-                
-                if (item.type === 'skin') {
-                    if (SAVE.ownedSkins.includes(item.id)) {
-                        disabled = false;
-                        if (SAVE.skin === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
-                        else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
-                    }
-                }
-                
-                if (item.type === 'trail') {
-                    if (SAVE.ownedTrails.includes(item.id)) {
-                        disabled = false;
-                        if (SAVE.trail === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
-                        else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
-                    }
-                }
-
+                if (item.type === 'skin') { if (SAVE.ownedSkins.includes(item.id)) { disabled = false; if (SAVE.skin === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; } else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; } } }
+                if (item.type === 'trail') { if (SAVE.ownedTrails.includes(item.id)) { disabled = false; if (SAVE.trail === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; } else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; } } }
                 let titleColor = item.type === 'skin' ? item.id : (item.type === 'trail' && item.id !== 'none' ? '#00d2ff' : '#ff0055');
 
-                list.innerHTML += `
-                    <div class="shop-card">
-                        ${badge}
-                        <h3 style="color:${titleColor}">${item.name}</h3>
-                        <p>${item.desc}</p>
-                        <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price})">${actionText}</button>
-                    </div>
-                `;
+                list.innerHTML += `<div class="shop-card">${badge}<h3 style="color:${titleColor}">${item.name}</h3><p>${item.desc}</p><button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price})">${actionText}</button></div>`;
             });
         }
 
         function handleBuy(id, type, price) {
             if (type === 'skin' && SAVE.ownedSkins.includes(id)) { SAVE.skin = id; sfx.jump(); saveGame(); return; }
             if (type === 'trail' && SAVE.ownedTrails.includes(id)) { SAVE.trail = id; sfx.jump(); saveGame(); return; }
-            
             if (SAVE.coins >= price) {
                 SAVE.coins -= price;
                 if (type === 'mag_coin') SAVE.magnetCoinLvl++;
@@ -334,6 +318,124 @@
                 if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
                 if (type === 'trail') { SAVE.ownedTrails.push(id); SAVE.trail = id; }
                 sfx.purchase(); saveGame();
+            }
+        }
+
+        // --- ЛОГИКА РЕДАКТОРА ---
+        let currentBrush = '#';
+        let editorRows = 12;
+        let editorCols = 60;
+        let editMapArray = [];
+        let isDrawing = false;
+
+        function getCellColor(char) {
+            if (char === '#') return '#222'; // Стена (с обводкой в движке)
+            if (char === '^') return '#ff0033'; // Шипы
+            if (char === 'C') return '#FFD700'; // Монета
+            if (char === 'B') return '#8B0000'; // Кнопка
+            if (char === 'L') return '#ff5555'; // Лазер
+            if (char === 'D') return '#00ff00'; // Дверь
+            if (char === '@') return '#00d2ff'; // Спавн
+            return 'transparent';
+        }
+
+        function openEditor() {
+            if (!SAVE.customMap || SAVE.customMap.length !== editorRows) {
+                // Создаем пустую карту, если нет сохраненной
+                editMapArray = [];
+                for(let r=0; r<editorRows; r++) editMapArray.push(Array(editorCols).fill('.'));
+                
+                // Делаем пол
+                for(let c=0; c<editorCols; c++) editMapArray[11][c] = '#';
+                editMapArray[10][2] = '@'; // Старт
+                editMapArray[10][58] = 'D'; // Финиш
+            } else {
+                // Загружаем из строки в массив массивов для удобства редктирования
+                editMapArray = SAVE.customMap.map(row => row.split(''));
+            }
+            
+            buildEditorGrid();
+            showState('EDITOR');
+        }
+
+        function buildEditorGrid() {
+            const table = document.getElementById('editorTable');
+            table.innerHTML = '';
+            for (let r = 0; r < editorRows; r++) {
+                let tr = document.createElement('tr');
+                for (let c = 0; c < editorCols; c++) {
+                    let td = document.createElement('td');
+                    td.className = 'edit-cell';
+                    td.style.backgroundColor = getCellColor(editMapArray[r][c]);
+                    if (editMapArray[r][c] !== '.' && editMapArray[r][c] !== '#') {
+                        td.innerText = editMapArray[r][c];
+                        td.style.color = '#fff'; td.style.fontSize = '12px'; td.style.textAlign = 'center';
+                    }
+                    
+                    // Рисование зажатием
+                    td.onmousedown = (e) => { e.preventDefault(); isDrawing = true; paintCell(r, c, td); };
+                    td.onmouseenter = (e) => { if (isDrawing) paintCell(r, c, td); };
+                    td.onmouseup = () => { isDrawing = false; };
+                    
+                    // Тач поддержка (простая)
+                    td.ontouchstart = (e) => { e.preventDefault(); paintCell(r, c, td); };
+
+                    tr.appendChild(td);
+                }
+                table.appendChild(tr);
+            }
+        }
+
+        function paintCell(r, c, tdElement) {
+            editMapArray[r][c] = currentBrush;
+            tdElement.style.backgroundColor = getCellColor(currentBrush);
+            tdElement.innerText = (currentBrush !== '.' && currentBrush !== '#') ? currentBrush : '';
+        }
+
+        function setBrush(char) {
+            currentBrush = char;
+            document.querySelectorAll('.palette-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.borderColor = '#fff';
+                btn.style.boxShadow = 'none';
+            });
+            let activeBtn = document.getElementById('pal_' + char);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                activeBtn.style.borderColor = '#00d2ff';
+                activeBtn.style.boxShadow = '0 0 15px #00d2ff';
+            }
+        }
+
+        function saveEditorMap() {
+            SAVE.customMap = editMapArray.map(row => row.join(''));
+            saveGame();
+        }
+
+        function playCustomLevel() {
+            saveEditorMap();
+            startGame('custom');
+        }
+
+        function exportLevel() {
+            saveEditorMap();
+            let code = JSON.stringify(SAVE.customMap);
+            // Используем prompt чтобы игрок мог скопировать
+            prompt("Твой уникальный код уровня! Скопируй его (Ctrl+C / Удержание) и отправь друзьям:", code);
+        }
+
+        function importLevel() {
+            let code = prompt("Вставь код уровня от друга сюда:");
+            if (code) {
+                try {
+                    let parsed = JSON.parse(code);
+                    if (Array.isArray(parsed) && parsed.length === editorRows) {
+                        SAVE.customMap = parsed;
+                        saveGame();
+                        openEditor(); // Перерисовываем
+                        alert("Уровень успешно импортирован!");
+                    } else { alert("Ошибка: Неверный формат уровня."); }
+                } catch(e) { alert("Ошибка при чтении кода."); }
             }
         }
 
@@ -354,55 +456,35 @@
                     osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
                 } catch(e) {}
             }
-            jump() { this.playTone(350, 'sine', 0.15, 0.2); } 
-            doubleJump() { this.playTone(450, 'sine', 0.15, 0.2); } 
-            button() { this.playTone(500, 'square', 0.2, 0.2); }
-            coin() { this.playTone(2000, 'sine', 0.1, 0.1); setTimeout(() => this.playTone(3000, 'square', 0.1, 0.05), 50); }
-            purchase() { this.playTone(1000, 'square', 0.3, 0.1); }
+            jump() { this.playTone(350, 'sine', 0.15, 0.2); } doubleJump() { this.playTone(450, 'sine', 0.15, 0.2); } button() { this.playTone(500, 'square', 0.2, 0.2); }
+            coin() { this.playTone(2000, 'sine', 0.1, 0.1); setTimeout(() => this.playTone(3000, 'square', 0.1, 0.05), 50); } purchase() { this.playTone(1000, 'square', 0.3, 0.1); }
             powerup() { this.playTone(600, 'sawtooth', 0.4, 0.15); }
             death() {
                 if(!this.ctx) return; 
-                try {
-                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
-                    gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
-                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0);
-                } catch(e) {}
+                try { const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0); gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 1.0); osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0); } catch(e) {}
             }
             startBGM() {
                 if (!this.ctx || this.bgmStarted) return;
                 this.bgmStarted = true;
-                const playNote = (time, freq, vol, type, duration) => {
-                    try {
-                        const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
-                        osc.type = type; osc.frequency.value = freq; g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration);
-                        osc.connect(g); g.connect(this.ctx.destination); osc.start(time); osc.stop(time + duration);
-                    } catch(e) {}
-                };
+                const playNote = (time, freq, vol, type, duration) => { try { const osc = this.ctx.createOscillator(); const g = this.ctx.createGain(); osc.type = type; osc.frequency.value = freq; g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration); osc.connect(g); g.connect(this.ctx.destination); osc.start(time); osc.stop(time + duration); } catch(e) {} };
                 let step = 0;
                 this.bgmInterval = setInterval(() => {
-                    if(this.ctx.state !== 'running' || gameState === 'PAUSED') return; 
-                    const now = this.ctx.currentTime;
-                    const bassNotes = [130, 0, 146, 0, 164, 0, 146, 0];
-                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'triangle', 0.2);
-                    step = (step + 1) % 8;
+                    if(this.ctx.state !== 'running' || gameState === 'PAUSED' || gameState === 'EDITOR') return; 
+                    const now = this.ctx.currentTime; const bassNotes = [130, 0, 146, 0, 164, 0, 146, 0];
+                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'triangle', 0.2); step = (step + 1) % 8;
                 }, 200); 
             }
             stopBGM() { clearInterval(this.bgmInterval); this.bgmStarted = false; }
         }
         const sfx = new SoundEngine();
 
-        // --- ГЛОБАЛЬНЫЙ КОНТРОЛЛЕР ВВОДА ---
         class InputHandler {
             constructor() {
                 this.keys = [];
                 window.addEventListener('keydown', e => { if (!this.keys.includes(e.code)) this.keys.push(e.code); });
                 window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.code); });
                 
-                let btnL = document.getElementById('btnLeft');
-                let btnR = document.getElementById('btnRight');
-                
+                let btnL = document.getElementById('btnLeft'); let btnR = document.getElementById('btnRight');
                 const addKey = (k) => { if (!this.keys.includes(k)) this.keys.push(k); };
                 const remKey = (k) => { this.keys = this.keys.filter(x => x !== k); };
 
@@ -411,18 +493,13 @@
                 btnR.addEventListener('touchstart', (e) => { e.preventDefault(); addKey('ArrowRight'); });
                 btnR.addEventListener('touchend', (e) => { e.preventDefault(); remKey('ArrowRight'); });
 
-                // Тап в ЛЮБОЕ ДРУГОЕ МЕСТО - Прыжок
                 window.addEventListener('touchstart', (e) => {
                     if (gameState !== 'PLAYING') return;
-                    if (e.target !== btnL && e.target !== btnR && !e.target.closest('.pause-btn')) {
-                        addKey('Jump');
-                    }
+                    if (e.target !== btnL && e.target !== btnR && !e.target.closest('.pause-btn')) { addKey('Jump'); }
                 }, {passive: false});
 
                 window.addEventListener('touchend', (e) => {
-                    if (e.target !== btnL && e.target !== btnR && !e.target.closest('.pause-btn')) {
-                        remKey('Jump');
-                    }
+                    if (e.target !== btnL && e.target !== btnR && !e.target.closest('.pause-btn')) { remKey('Jump'); }
                 });
             }
         }
@@ -438,17 +515,14 @@
             }
             update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
             draw(ctx) { 
-                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; 
-                ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
+                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
                 if (this.text) { ctx.font = 'bold 16px monospace'; ctx.fillText(this.text, this.x, this.y); } 
                 else { ctx.fillRect(this.x, this.y, this.size, this.size); }
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
             }
         }
 
-        // --- ДИЗАЙН УДЛИНЕННЫХ УРОВНЕЙ (40x40 пикселей тайл) ---
         const LEVEL_MAPS = [
-            // 1: Обучение (Очень длинный коридор)
             {
                 map: [
                     "................................................................................",
@@ -463,13 +537,12 @@
                     "############################################################################"
                 ],
                 texts: [
-                    {x: 100, y: 220, t: "СТРЕЛКИ НА ЭКРАНЕ - ДВИЖЕНИЕ"},
-                    {x: 500, y: 150, t: "ТАПНИ В ЛЮБОМ МЕСТЕ ДЛЯ ПРЫЖКА"},
-                    {x: 1100, y: 100, t: "ТАПНИ В ВОЗДУХЕ ДЛЯ ДВОЙНОГО ПРЫЖКА"},
-                    {x: 2000, y: 200, t: "НАЖМИ КНОПКУ, ЧТОБЫ ОТКЛЮЧИТЬ ЛАЗЕР"}
+                    {x: 100, y: 220, t: "СТРЕЛКИ - ДВИЖЕНИЕ"},
+                    {x: 500, y: 150, t: "ТАПНИ ДЛЯ ПРЫЖКА"},
+                    {x: 1100, y: 100, t: "ТАПНИ В ВОЗДУХЕ (ДВОЙНОЙ)"},
+                    {x: 2000, y: 200, t: "НАЖМИ КНОПКУ"}
                 ]
             },
-            // 2: Первые шипы и точность (Длиннее)
             {
                 map: [
                     "..........................................................................",
@@ -483,10 +556,8 @@
                     "@..........B.......................................B...............L.#",
                     "####..#^^^^^^^^^^^^^^^^^^#.........#^^^^^^^^^^^^^^^^^^^^#..........L.#",
                     "#######^^^^^^^^^^^^^^^^^^###########^^^^^^^^^^^^^^^^^^^^############"
-                ],
-                texts: []
+                ], texts: []
             },
-            // 3: Паркур по столбам (Вертикаль + Горизонталь)
             {
                 map: [
                     "..........................................................................",
@@ -500,27 +571,23 @@
                     "@..........B...................................B..........L..........#",
                     "####...#########...#####...#######...#####...########...###..........#",
                     "####^^^#########^^^#####^^^#######^^^#####^^^########^^^##############"
-                ],
-                texts: []
+                ], texts: []
             },
-            // 4: Лабиринты Лазеров (Логика и скорость)
             {
                 map: [
                     "................................................................................",
                     "................................................................L............D..",
                     "................................C...............................L..........#####",
                     "...................B...........###.............B................L..........#",
-                    ".................#####.......................#####..............L..........#",
+                    ".................#####.......................#####..............L.......###.#",
                     ".......C...................L...............................L....L..........#",
-                    "......###..................L......C........................L....L..........#",
+                    "......###..................L......C........................L....L...###....#",
                     "...........................L.....###.......................L....L..........#",
                     "@......................B...L...........................B...L....L..........#",
                     "####.......#^^^^^^^^^^^^^^^#...........#^^^^^^^^^^^^^^^^^^^#....L..........#",
                     "############^^^^^^^^^^^^^^^#############^^^^^^^^^^^^^^^^^^^#################"
-                ],
-                texts: []
+                ], texts: []
             },
-            // 5: Финал (Хардкор тест)
             {
                 map: [
                     "..........................................................................................",
@@ -534,31 +601,19 @@
                     "@........###.....................###.....................#####...L......#####..........#",
                     "###...#.......#...#.......#...#.......#...#.......#...#........L..#...#.......L........#",
                     "###^^^#^^^^^^^#^^^#^^^^^^^#^^^#^^^^^^^#^^^#^^^^^^^#^^^#^^^^^^^^L^^#^^^#^^^^^^^L^^^^^^^^#"
-                ],
-                texts: [
-                    {x: 200, y: 100, t: "ТОЛЬКО ИДЕАЛЬНЫЙ ТАЙМИНГ ДВОЙНОГО ПРЫЖКА!"}
-                ]
+                ], texts: [{x: 200, y: 100, t: "ТОЛЬКО ИДЕАЛЬНЫЙ ТАЙМИНГ!"}]
             }
         ];
 
         const TILE = 40;
 
         class Game {
-            constructor(levelIdx) {
-                this.levelIdx = levelIdx;
-                this.input = globalInput; 
-                this.input.keys = [];     
-                this.particles = [];
-                
-                this.walls = []; this.spikes = []; this.coins = [];
-                this.buttons = []; this.lasers = []; this.door = null;
-                this.texts = [];
-                
-                this.cameraX = 0; this.cameraY = 0;
-                this.spawnX = 0; this.spawnY = 0; // Для возрождения
+            constructor(levelData) {
+                this.input = globalInput; this.input.keys = []; this.particles = [];
+                this.walls = []; this.spikes = []; this.coins = []; this.buttons = []; this.lasers = []; this.door = null; this.texts = [];
+                this.cameraX = 0; this.cameraY = 0; this.spawnX = 0; this.spawnY = 0; 
                 this.player = new Player(this);
-
-                this.loadLevel(LEVEL_MAPS[levelIdx - 1]);
+                this.loadLevel(levelData);
             }
 
             loadLevel(levelData) {
@@ -572,15 +627,11 @@
                         
                         if (char === '#') this.walls.push({x, y, w: TILE, h: TILE});
                         if (char === '^') this.spikes.push({x, y: y+20, w: TILE, h: 20});
-                        // ТАЙМЕР ДЛЯ КНОПКИ (180 кадров = 3 секунды)
                         if (char === 'B') this.buttons.push({x: x+5, y: y+30, w: 30, h: 10, timer: 0, pressed: false});
                         if (char === 'L') this.lasers.push({x: x+15, y, w: 10, h: TILE, active: true});
                         if (char === 'C') this.coins.push({x: x + TILE/2, y: y + TILE/2, collected: false});
                         if (char === 'D') this.door = {x: x, y: y-40, w: 60, h: 80}; 
-                        if (char === '@') { 
-                            this.player.x = x; this.player.y = y; 
-                            this.spawnX = x; this.spawnY = y;
-                        }
+                        if (char === '@') { this.player.x = x; this.player.y = y; this.spawnX = x; this.spawnY = y; }
                     }
                 }
             }
@@ -589,65 +640,40 @@
                 if (gameState !== 'PLAYING') return;
 
                 this.player.update(this.input);
-                this.particles.forEach(p => p.update()); 
-                this.particles = this.particles.filter(p => p.life > 0);
+                this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
                 
-                let targetCX = this.player.x - canvas.width / 3;
-                let targetCY = this.player.y - canvas.height / 2;
+                // КАМЕРА С УЧЕТОМ ЗУМА
+                let targetCX = this.player.x - (canvas.width / ZOOM) / 3;
+                let targetCY = this.player.y - (canvas.height / ZOOM) / 2;
                 if (targetCX < 0) targetCX = 0; 
                 this.cameraX += (targetCX - this.cameraX) * 0.1;
                 this.cameraY += (targetCY - this.cameraY) * 0.1;
 
-                // --- НОВАЯ ЛОГИКА КНОПОК С ТАЙМЕРОМ ---
                 let anyButtonPressed = false;
                 this.buttons.forEach(b => {
-                    // Проверка коллизии игрока с кнопкой
                     if (this.player.x < b.x + b.w && this.player.x + 30 > b.x && this.player.y + 30 >= b.y && this.player.y < b.y + b.h) {
-                        if (b.timer === 0) sfx.button(); // Звук только в момент первого нажатия
-                        b.timer = 180; // 3 секунды задержки (180 кадров при 60 fps)
+                        if (b.timer === 0) sfx.button(); b.timer = 180; 
                     }
-                    
-                    // Если таймер еще не истек, кнопка считается нажатой
-                    if (b.timer > 0) {
-                        b.timer--;
-                        b.pressed = true;
-                        anyButtonPressed = true;
-                    } else {
-                        b.pressed = false;
-                    }
+                    if (b.timer > 0) { b.timer--; b.pressed = true; anyButtonPressed = true; } else { b.pressed = false; }
                 });
 
                 this.lasers.forEach(l => l.active = !anyButtonPressed);
 
                 let dead = false;
-                this.spikes.forEach(s => {
-                    if (this.player.x < s.x + s.w - 5 && this.player.x + 30 > s.x + 5 && this.player.y + 30 > s.y + 5) dead = true;
-                });
-                this.lasers.forEach(l => {
-                    if (l.active && this.player.x < l.x + l.w && this.player.x + 30 > l.x && this.player.y + 30 > l.y && this.player.y < l.y + l.h) dead = true;
-                });
+                this.spikes.forEach(s => { if (this.player.x < s.x + s.w - 5 && this.player.x + 30 > s.x + 5 && this.player.y + 30 > s.y + 5) dead = true; });
+                this.lasers.forEach(l => { if (l.active && this.player.x < l.x + l.w && this.player.x + 30 > l.x && this.player.y + 30 > l.y && this.player.y < l.y + l.h) dead = true; });
                 if (this.player.y > 3000) dead = true;
 
                 if (dead && this.player.invincibleTimer === 0) {
-                    if (SAVE.lives > 0) {
-                        this.handleDeath("ВЫ СЛИШКОМ БЛИЗКО К СМЕРТИ");
-                    } else {
-                        for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
-                        triggerGameOver("ВЫ ПОГИБЛИ");
-                    }
+                    if (SAVE.lives > 0) { this.handleDeath("СИСТЕМА ЗАЩИТЫ АКТИВНА"); } 
+                    else { for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5)); triggerGameOver("ВЫ ПОГИБЛИ"); }
                 }
 
                 let magCoinRadius = SAVE.magnetCoinLvl * 45; 
                 this.coins.forEach(c => {
                     if (!c.collected) {
-                        let dx = (this.player.x + 15) - c.x;
-                        let dy = (this.player.y + 15) - c.y;
-                        let dist = Math.sqrt(dx*dx + dy*dy);
-                        
-                        if (magCoinRadius > 0 && dist < magCoinRadius) {
-                            c.x += (dx / dist) * 8; c.y += (dy / dist) * 8;
-                        }
-
+                        let dx = (this.player.x + 15) - c.x; let dy = (this.player.y + 15) - c.y; let dist = Math.sqrt(dx*dx + dy*dy);
+                        if (magCoinRadius > 0 && dist < magCoinRadius) { c.x += (dx / dist) * 8; c.y += (dy / dist) * 8; }
                         if (Math.abs((this.player.x+15) - c.x) < 25 && Math.abs((this.player.y+15) - c.y) < 25) {
                             c.collected = true; SAVE.coins++; sfx.coin(); saveGame();
                             for(let i=0; i<10; i++) this.particles.push(new Particle(c.x, c.y, '#FFD700'));
@@ -656,72 +682,42 @@
                     }
                 });
 
-                if (this.door && this.player.x < this.door.x + this.door.w && this.player.x + 30 > this.door.x && this.player.y < this.door.y + this.door.h && this.player.y + 30 > this.door.y) {
-                    triggerWin();
-                }
+                if (this.door && this.player.x < this.door.x + this.door.w && this.player.x + 30 > this.door.x && this.player.y < this.door.y + this.door.h && this.player.y + 30 > this.door.y) { triggerWin(); }
             }
 
             handleDeath(reason) {
                 gameState = 'REVIVE_PROMPT'; pendingDeathReason = reason;
-                document.getElementById('reviveLivesCount').innerText = SAVE.lives; 
-                document.getElementById('reviveMenu').classList.add('active');
+                document.getElementById('reviveLivesCount').innerText = SAVE.lives; document.getElementById('reviveMenu').classList.add('active');
             }
 
             useExtraLife() {
-                SAVE.lives--; saveGame(); sfx.powerup();
-                this.player.invincibleTimer = 120; // 2 секунды бессмертия
-                // ТЕЛЕПОРТ НА СТАРТ УРОВНЯ
-                this.player.x = this.spawnX;
-                this.player.y = this.spawnY - 20;
-                this.player.vx = 0; this.player.vy = 0;
-                
+                SAVE.lives--; saveGame(); sfx.powerup(); this.player.invincibleTimer = 120; 
+                this.player.x = this.spawnX; this.player.y = this.spawnY - 20; this.player.vx = 0; this.player.vy = 0;
                 for(let i=0; i<30; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#00d2ff', false, 2));
             }
 
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.save(); ctx.translate(-this.cameraX, -this.cameraY);
+                
+                ctx.save(); 
+                ctx.scale(ZOOM, ZOOM); // ПРИМЕНЯЕМ ЗУМ!
+                ctx.translate(-this.cameraX, -this.cameraY);
 
-                // Обучающий текст
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; 
-                ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center';
-                this.texts.forEach(txt => { ctx.fillText(txt.t, txt.x, txt.y); });
-                ctx.textAlign = 'left';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center';
+                this.texts.forEach(txt => { ctx.fillText(txt.t, txt.x, txt.y); }); ctx.textAlign = 'left';
 
                 ctx.fillStyle = '#222'; ctx.shadowBlur = 10; ctx.shadowColor = '#00d2ff';
                 this.walls.forEach(w => { ctx.fillRect(w.x, w.y, w.w, w.h); ctx.fillStyle = '#00d2ff'; ctx.fillRect(w.x, w.y, w.w, 2); ctx.fillStyle = '#222';});
                 ctx.shadowBlur = 0;
 
                 ctx.fillStyle = '#ff0033';
-                this.spikes.forEach(s => {
-                    ctx.beginPath(); ctx.moveTo(s.x, s.y+s.h); ctx.lineTo(s.x+s.w/2, s.y); ctx.lineTo(s.x+s.w, s.y+s.h); ctx.fill();
-                });
+                this.spikes.forEach(s => { ctx.beginPath(); ctx.moveTo(s.x, s.y+s.h); ctx.lineTo(s.x+s.w/2, s.y); ctx.lineTo(s.x+s.w, s.y+s.h); ctx.fill(); });
 
-                this.buttons.forEach(b => {
-                    ctx.fillStyle = b.pressed ? '#4caf50' : '#ff0033';
-                    ctx.fillRect(b.x, b.pressed ? b.y+5 : b.y, b.w, b.pressed ? b.h-5 : b.h);
-                });
+                this.buttons.forEach(b => { ctx.fillStyle = b.pressed ? '#4caf50' : '#ff0033'; ctx.fillRect(b.x, b.pressed ? b.y+5 : b.y, b.w, b.pressed ? b.h-5 : b.h); });
+                this.lasers.forEach(l => { if (l.active) { ctx.fillStyle = '#ff0033'; ctx.shadowBlur = 15; ctx.shadowColor = '#ff0033'; ctx.fillRect(l.x, l.y, l.w, l.h); ctx.shadowBlur = 0; } });
+                this.coins.forEach(c => { if(!c.collected) { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700'; ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; } });
 
-                this.lasers.forEach(l => {
-                    if (l.active) {
-                        ctx.fillStyle = '#ff0033'; ctx.shadowBlur = 15; ctx.shadowColor = '#ff0033';
-                        ctx.fillRect(l.x, l.y, l.w, l.h); ctx.shadowBlur = 0;
-                    }
-                });
-
-                this.coins.forEach(c => {
-                    if(!c.collected) {
-                        ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700';
-                        ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
-                    }
-                });
-
-                if (this.door) {
-                    ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 20; ctx.shadowColor = '#00ff00';
-                    ctx.fillRect(this.door.x, this.door.y, this.door.w, this.door.h);
-                    ctx.fillStyle = '#000'; ctx.fillRect(this.door.x+10, this.door.y+10, this.door.w-20, this.door.h-10);
-                    ctx.shadowBlur = 0;
-                }
+                if (this.door) { ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 20; ctx.shadowColor = '#00ff00'; ctx.fillRect(this.door.x, this.door.y, this.door.w, this.door.h); ctx.fillStyle = '#000'; ctx.fillRect(this.door.x+10, this.door.y+10, this.door.w-20, this.door.h-10); ctx.shadowBlur = 0; }
 
                 if (gameState === 'PLAYING' || gameState === 'END' || gameState === 'REVIVE_PROMPT') this.player.draw(ctx);
                 this.particles.forEach(p => p.draw(ctx)); 
@@ -733,15 +729,11 @@
             constructor(game) { 
                 this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; 
                 this.x = 0; this.y = 0; this.vx = 0; this.vy = 0; 
-                this.onGround = false; this.frameCount = 0;
-                this.invincibleTimer = 0;
-                this.jumps = 0; 
-                this.jumpPressed = false;
+                this.onGround = false; this.frameCount = 0; this.invincibleTimer = 0; this.jumps = 0; this.jumpPressed = false;
             }
             
             update(input) {
-                this.frameCount++;
-                if (this.invincibleTimer > 0) this.invincibleTimer--;
+                this.frameCount++; if (this.invincibleTimer > 0) this.invincibleTimer--;
                 
                 if (input.keys.includes('ArrowRight') || input.keys.includes('Right')) { this.vx += 1.5; }
                 else if (input.keys.includes('ArrowLeft') || input.keys.includes('Left')) { this.vx -= 1.5; }
@@ -750,24 +742,17 @@
                 if (this.vx > 7) this.vx = 7; if (this.vx < -7) this.vx = -7;
 
                 let isJumping = input.keys.includes('ArrowUp') || input.keys.includes('Jump') || input.keys.includes('Space');
-                
                 if (isJumping && !this.jumpPressed) {
                     this.jumpPressed = true;
                     if (this.jumps < 2) { 
-                        this.vy = -15;
-                        this.jumps++;
-                        this.onGround = false;
+                        this.vy = -15; this.jumps++; this.onGround = false;
                         if (this.jumps === 1) sfx.jump(); else sfx.doubleJump();
-                        
                         for(let i=0; i<8; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, '#fff', false, 0.5));
                     }
                 }
-                if (!isJumping) {
-                    this.jumpPressed = false;
-                }
+                if (!isJumping) { this.jumpPressed = false; }
 
-                this.vy += 0.8; 
-                if (this.vy > 20) this.vy = 20;
+                this.vy += 0.8; if (this.vy > 20) this.vy = 20;
 
                 if (SAVE.trail !== 'none' && (Math.abs(this.vx)>2 || Math.abs(this.vy)>2)) {
                     if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.2));
@@ -778,21 +763,15 @@
                 this.x += this.vx;
                 this.game.walls.forEach(w => {
                     if (this.x < w.x + w.w && this.x + this.width > w.x && this.y < w.y + w.h && this.y + this.height > w.y) {
-                        if (this.vx > 0) this.x = w.x - this.width;
-                        else if (this.vx < 0) this.x = w.x + w.w;
+                        if (this.vx > 0) this.x = w.x - this.width; else if (this.vx < 0) this.x = w.x + w.w;
                         this.vx = 0;
                     }
                 });
 
-                this.y += this.vy;
-                this.onGround = false;
+                this.y += this.vy; this.onGround = false;
                 this.game.walls.forEach(w => {
                     if (this.x < w.x + w.w && this.x + this.width > w.x && this.y < w.y + w.h && this.y + this.height > w.y) {
-                        if (this.vy > 0) { 
-                            this.y = w.y - this.height; 
-                            this.onGround = true; 
-                            this.jumps = 0; 
-                        }
+                        if (this.vy > 0) { this.y = w.y - this.height; this.onGround = true; this.jumps = 0; }
                         else if (this.vy < 0) { this.y = w.y + w.h; }
                         this.vy = 0;
                     }
@@ -801,11 +780,9 @@
 
             draw(ctx) { 
                 if (this.invincibleTimer > 0 && this.frameCount % 10 < 5) return; 
-                
                 ctx.fillStyle = this.invincibleTimer > 0 ? '#ffffff' : this.color; 
                 ctx.shadowBlur = 15; ctx.shadowColor = this.invincibleTimer > 0 ? '#00d2ff' : this.color; 
-                ctx.fillRect(this.x, this.y, this.width, this.height); 
-                ctx.shadowBlur = 0; 
+                ctx.fillRect(this.x, this.y, this.width, this.height); ctx.shadowBlur = 0; 
             }
         }
 
@@ -813,13 +790,20 @@
 
         function animate() { if (game) { game.update(); game.draw(ctx); } requestAnimationFrame(animate); }
         
-        function startGame(levelIdx) {
-            currentLevelIdx = levelIdx;
-            game = new Game(levelIdx); gameState = 'PLAYING'; 
-            document.getElementById('hudLeft').innerText = `СЕКТОР ${levelIdx}`;
-            updateUI(); showState('NONE'); 
-            gameHud.style.display = 'flex';
-            mobileControls.style.display = 'flex'; 
+        function startGame(modeOrLevel) {
+            if (modeOrLevel === 'custom') {
+                if (SAVE.customMap.length === 0) { alert("Сначала создай уровень в редакторе!"); return; }
+                currentLevelIdx = 'custom';
+                game = new Game({map: SAVE.customMap});
+                document.getElementById('hudLeft').innerText = `СВОЙ УРОВЕНЬ`;
+            } else {
+                currentLevelIdx = modeOrLevel;
+                game = new Game(LEVEL_MAPS[modeOrLevel - 1]);
+                document.getElementById('hudLeft').innerText = `СЕКТОР ${modeOrLevel}`;
+            }
+            
+            gameState = 'PLAYING'; updateUI(); showState('NONE'); 
+            gameHud.style.display = 'flex'; mobileControls.style.display = 'flex'; 
         }
 
         function triggerGameOver(reason) { 
@@ -834,16 +818,21 @@
 
         function triggerWin() { 
             gameState = 'END'; sfx.coin(); 
-            if (currentLevelIdx === SAVE.maxLevel && SAVE.maxLevel < 5) SAVE.maxLevel++;
-            saveGame();
-            setTimeout(() => { 
-                document.getElementById('endTitle').innerText = "СЕКТОР ЗАЧИЩЕН"; document.getElementById('endTitle').style.color = "#00ff00";
+            
+            let btn = document.getElementById('endBtn1');
+            if (currentLevelIdx === 'custom') {
+                document.getElementById('endDesc').innerText = "Твой уровень работает!"; 
+                btn.innerText = "В МЕНЮ"; btn.onclick = () => showState('MAIN');
+            } else {
+                if (currentLevelIdx === SAVE.maxLevel && SAVE.maxLevel < 5) SAVE.maxLevel++;
+                saveGame();
                 document.getElementById('endDesc').innerText = "Дверь открыта!"; 
-                
-                let btn = document.getElementById('endBtn1');
                 if (currentLevelIdx < 5) { btn.innerText = "СЛЕДУЮЩИЙ"; btn.onclick = () => startGame(currentLevelIdx + 1); } 
                 else { btn.innerText = "ФИНАЛ ПРОЙДЕН!"; btn.onclick = () => showState('MAIN'); }
-                
+            }
+            
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "СЕКТОР ЗАЧИЩЕН"; document.getElementById('endTitle').style.color = "#00ff00";
                 showState('END');
             }, 500); 
         }
