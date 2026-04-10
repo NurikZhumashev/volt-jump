@@ -9,7 +9,7 @@
     <!-- Подключаем Phaser 3 -->
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
-        /* Идеальная центровка и запрет скролла для Telegram Mini App */
+        /* Идеальная центровка и запрет скролла для мобильных устройств */
         body, html {
             margin: 0;
             padding: 0;
@@ -38,23 +38,31 @@
 
 <script>
     // ==========================================
-    // 1. TELEGRAM SDK И ДАННЫЕ (Data Layer)
+    // 1. БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ TELEGRAM
     // ==========================================
-    const tg = window.Telegram.WebApp;
-    tg.expand(); // Открываем приложение на весь экран
-    tg.ready();  // Сообщаем Telegram, что приложение готово к отображению
+    let tg = null;
+    // Проверяем, запущен ли код внутри Telegram
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        tg = window.Telegram.WebApp;
+        try {
+            tg.expand(); // Открываем приложение на весь экран
+            tg.ready();  // Сообщаем Telegram, что приложение готово
+        } catch (e) {
+            console.warn("Ошибка инициализации Telegram:", e);
+        }
+    }
 
+    // Класс для управления данными игрока
     class GameData {
         static init() {
             try {
-                // Пытаемся загрузить данные из localStorage
                 this.coins = Number(localStorage.getItem('adv_coins')) || 0;
                 this.unlockedSkins = JSON.parse(localStorage.getItem('adv_skins')) || [0xffffff];
                 this.currentSkin = Number(localStorage.getItem('adv_current_skin')) || 0xffffff;
                 this.doubleJump = localStorage.getItem('adv_double_jump') === 'true';
                 this.currentLevel = Number(localStorage.getItem('adv_level')) || 0;
             } catch (e) {
-                // Защита на случай отключенного localStorage (например, в инкогнито)
+                // Фолбэк, если localStorage недоступен
                 this.coins = 0;
                 this.unlockedSkins = [0xffffff];
                 this.currentSkin = 0xffffff;
@@ -65,7 +73,6 @@
 
         static save() {
             try {
-                // Сохраняем прогресс
                 localStorage.setItem('adv_coins', this.coins);
                 localStorage.setItem('adv_skins', JSON.stringify(this.unlockedSkins));
                 localStorage.setItem('adv_current_skin', this.currentSkin);
@@ -80,8 +87,8 @@
         }
 
         static vibrate(type = 'light') {
-            // Вызываем тактильный отклик, если он поддерживается
-            if (tg.HapticFeedback) {
+            // Безопасный вызов вибрации (сработает только в Telegram на телефоне)
+            if (tg && tg.HapticFeedback) {
                 tg.HapticFeedback.impactOccurred(type);
             }
         }
@@ -90,20 +97,25 @@
     GameData.init();
 
     // ==========================================
-    // 2. БАЗА УРОВНЕЙ (9 - точка старта игрока)
+    // 2. БАЗА УРОВНЕЙ
     // ==========================================
-    const LEVELS = [[ // Уровень 1: Обучение (прыжки, монеты, рычаг и дверь)[1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,6,1],[1,0,0,0,0,0,0,0,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,1,1,1,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,0,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,4,0,0,0,0,0,0,1],[1,1,1,1,1,1,0,0,0,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,1,1,1,5,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,1,1,1,0,0,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,9,3,3,0,0,0,0,2,2,0,1], // 9 - Точка спавна[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1]
-        ],[ // Уровень 2: Опасности и пропасти[1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,6,1],[1,0,0,0,0,0,0,0,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,2,2,0,0,0,0,0,1],[1,0,0,1,1,1,1,1,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,0,0,0,0,1,1,1],[1,0,0,0,0,0,3,0,0,0,0,1],[1,0,0,0,0,1,1,1,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,0,0,0,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,1,1,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,0,0,0,0,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,9,0,0,2,2,2,2,0,0,0,1], // 9 - Точка спавна[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1]
+    // Легенда:
+    // 0 - пусто, 1 - стена, 2 - шипы, 3 - монета, 4 - рычаг, 5 - потайная дверь, 6 - финиш, 9 - точка старта игрока
+    // Комментарии перенесены на отдельные строки, чтобы не ломать код!
+    const LEVELS = [[
+            // Уровень 1: Обучение (прыжки, монеты, рычаг и дверь)[1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,6,1],[1,0,0,0,0,0,0,0,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,1,1,1,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,0,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,4,0,0,0,0,0,0,1],[1,1,1,1,1,1,0,0,0,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,1,1,1,5,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,1,1,1,0,0,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,9,3,3,0,0,0,0,2,2,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1]
+        ],
+        [
+            // Уровень 2: Опасности и пропасти[1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,6,1],[1,0,0,0,0,0,0,0,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,2,2,0,0,0,0,0,1],[1,0,0,1,1,1,1,1,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,0,0,0,0,1,1,1],[1,0,0,0,0,0,3,0,0,0,0,1],[1,0,0,0,0,1,1,1,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,0,0,0,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,1,1,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,0,0,0,0,0,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,9,0,0,2,2,2,2,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1]
         ]
     ];
 
-    // Глобальное состояние ввода для связи UI и Игры
+    // Состояние кнопок управления (связь UI и Игры)
     const InputState = { left: false, right: false };
 
     // ==========================================
     // 3. UI ПОМОЩНИКИ
     // ==========================================
-    // Функция для создания надежных кнопок меню
     function createButton(scene, x, y, width, height, text, color, callback) {
         const bg = scene.add.rectangle(x, y, width, height, color).setInteractive();
         const txt = scene.add.text(x, y, text, { fontSize: '24px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
@@ -122,48 +134,21 @@
     class BootScene extends Phaser.Scene {
         constructor() { super('BootScene'); }
         create() {
-            // Безопасная проверка темы Telegram (чтобы игра не падала в браузере)
-            const bgColor = (tg.themeParams && tg.themeParams.bg_color) ? tg.themeParams.bg_color : '#111111';
+            // Безопасная установка цвета фона (работает и в браузере, и в Telegram)
+            const bgColor = (tg && tg.themeParams && tg.themeParams.bg_color) ? tg.themeParams.bg_color : '#111111';
             this.cameras.main.setBackgroundColor(bgColor);
 
             // Программная генерация текстур
             let g = this.add.graphics();
             
-            // Игрок
             g.fillStyle(0xffffff); g.fillRect(0, 0, 24, 24); g.generateTexture('player', 24, 24); g.clear();
-            
-            // Стена
-            g.fillStyle(0x555555); g.fillRect(0, 0, 32, 32); 
-            g.lineStyle(2, 0x333333); g.strokeRect(0, 0, 32, 32); 
-            g.generateTexture('wall', 32, 32); g.clear();
-            
-            // Шипы
+            g.fillStyle(0x555555); g.fillRect(0, 0, 32, 32); g.lineStyle(2, 0x333333); g.strokeRect(0, 0, 32, 32); g.generateTexture('wall', 32, 32); g.clear();
             g.fillStyle(0xff0000); g.fillTriangle(0, 32, 16, 0, 32, 32); g.generateTexture('spike', 32, 32); g.clear();
-            
-            // Монета
-            g.fillStyle(0xffd700); g.fillCircle(16, 16, 10); 
-            g.lineStyle(2, 0xdaa520); g.strokeCircle(16, 16, 10); 
-            g.generateTexture('coin', 32, 32); g.clear();
-            
-            // Рычаг выключен
-            g.fillStyle(0x888888); g.fillRect(8, 24, 16, 8); 
-            g.lineStyle(4, 0xff0000); g.beginPath(); g.moveTo(16, 24); g.lineTo(8, 8); g.strokePath(); 
-            g.generateTexture('lever_off', 32, 32); g.clear();
-            
-            // Рычаг включен
-            g.fillStyle(0x888888); g.fillRect(8, 24, 16, 8); 
-            g.lineStyle(4, 0x00ff00); g.beginPath(); g.moveTo(16, 24); g.lineTo(24, 8); g.strokePath(); 
-            g.generateTexture('lever_on', 32, 32); g.clear();
-            
-            // Дверь
-            g.fillStyle(0x8b4513); g.fillRect(0, 0, 32, 32); 
-            g.lineStyle(2, 0x5c2e0b); g.strokeRect(0, 0, 32, 32); 
-            g.generateTexture('door', 32, 32); g.clear();
-            
-            // Флаг
-            g.fillStyle(0xaaaaaa); g.fillRect(4, 0, 4, 32); 
-            g.fillStyle(0x00ff00); g.fillRect(8, 0, 20, 14); 
-            g.generateTexture('flag', 32, 32); g.clear();
+            g.fillStyle(0xffd700); g.fillCircle(16, 16, 10); g.lineStyle(2, 0xdaa520); g.strokeCircle(16, 16, 10); g.generateTexture('coin', 32, 32); g.clear();
+            g.fillStyle(0x888888); g.fillRect(8, 24, 16, 8); g.lineStyle(4, 0xff0000); g.beginPath(); g.moveTo(16, 24); g.lineTo(8, 8); g.strokePath(); g.generateTexture('lever_off', 32, 32); g.clear();
+            g.fillStyle(0x888888); g.fillRect(8, 24, 16, 8); g.lineStyle(4, 0x00ff00); g.beginPath(); g.moveTo(16, 24); g.lineTo(24, 8); g.strokePath(); g.generateTexture('lever_on', 32, 32); g.clear();
+            g.fillStyle(0x8b4513); g.fillRect(0, 0, 32, 32); g.lineStyle(2, 0x5c2e0b); g.strokeRect(0, 0, 32, 32); g.generateTexture('door', 32, 32); g.clear();
+            g.fillStyle(0xaaaaaa); g.fillRect(4, 0, 4, 32); g.fillStyle(0x00ff00); g.fillRect(8, 0, 20, 14); g.generateTexture('flag', 32, 32); g.clear();
 
             this.scene.start('MenuScene');
         }
@@ -179,8 +164,7 @@
             }).setOrigin(0.5);
 
             createButton(this, cx, 350, 250, 60, '▶ ИГРАТЬ', 0x228822, () => {
-                if(GameData.currentLevel >= LEVELS.length) GameData.currentLevel = 0;
-                // Запускаем ТОЛЬКО GameScene. UIScene будет запущен изнутри GameScene.
+                // Запускаем только игровую сцену!
                 this.scene.start('GameScene');
             });
 
@@ -197,9 +181,8 @@
             this.add.text(cx, 60, 'МАГАЗИН', { fontSize: '32px', fill: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
             this.coinsText = this.add.text(cx, 110, `Монеты: ${GameData.coins}`, { fontSize: '24px', fill: '#ffd700' }).setOrigin(0.5);
 
-            this.shopItems =[]; // Массив для кнопок магазина
+            this.shopItems =[];
 
-            // Функция добавления товара
             const addShopItem = (y, name, cost, skinColor, isDoubleJump) => {
                 this.add.text(cx - 70, y, name, { fontSize: '20px', fill: '#fff' }).setOrigin(0.5);
                 const btn = createButton(this, cx + 80, y, 140, 40, '', 0x000000, () => {
@@ -217,7 +200,7 @@
                 this.scene.start('MenuScene');
             });
 
-            this.updateUI(); // Обновляем текст и цвета при старте
+            this.updateUI();
         }
 
         handlePurchase(cost, skinColor, isDoubleJump) {
@@ -231,18 +214,17 @@
                     GameData.save();
                     GameData.vibrate('success');
                 } else {
-                    GameData.vibrate('heavy'); // Нет денег
+                    GameData.vibrate('heavy');
                     return;
                 }
             }
             
-            // Экипировка скина
             if (!isDoubleJump) {
                 GameData.currentSkin = skinColor;
                 GameData.save();
             }
             
-            this.updateUI(); // Динамическое обновление без мерцания
+            this.updateUI();
         }
 
         updateUI() {
@@ -271,15 +253,19 @@
             this.isDead = false;
             this.jumpsCount = 0;
 
-            // Создаем игрока СРАЗУ за пределами экрана, чтобы избежать ошибок физики
+            // Защита от ошибки массива: если уровень не найден, сбрасываем на 0
+            if (!LEVELS[GameData.currentLevel]) {
+                GameData.currentLevel = 0;
+                GameData.save();
+            }
+
+            // Создаем игрока за пределами экрана
             this.player = this.physics.add.sprite(-100, -100, 'player');
             this.player.setTint(GameData.currentSkin);
             this.player.setBounce(0);
             this.player.setCollideWorldBounds(true);
-            // Немного уменьшаем хитбокс игрока для удобного прохождения узких мест
             this.player.body.setSize(20, 24);
 
-            // Инициализация физических групп
             this.walls = this.physics.add.staticGroup();
             this.spikes = this.physics.add.staticGroup();
             this.coins = this.physics.add.group({ allowGravity: false, immovable: true });
@@ -287,17 +273,14 @@
             this.levers = this.physics.add.staticGroup();
             this.flags = this.physics.add.staticGroup();
 
-            // Парсинг уровня
             this.loadLevel(LEVELS[GameData.currentLevel]);
 
-            // Границы мира и камеры
             const levelWidth = LEVELS[GameData.currentLevel][0].length * 32;
             const levelHeight = LEVELS[GameData.currentLevel].length * 32;
             this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
             this.cameras.main.setBounds(0, 0, levelWidth, levelHeight);
             this.physics.world.setBounds(0, 0, levelWidth, levelHeight);
 
-            // Коллизии и оверлапы
             this.physics.add.collider(this.player, this.walls);
             this.physics.add.collider(this.player, this.doors);
             this.physics.add.overlap(this.player, this.coins, this.collectCoin, null, this);
@@ -305,7 +288,7 @@
             this.physics.add.overlap(this.player, this.flags, this.reachFlag, null, this);
             this.physics.add.overlap(this.player, this.levers, this.activateLever, null, this);
 
-            // ВАЖНО: Запускаем интерфейс управления ПОВЕРХ игровой сцены
+            // ВАЖНО: Запускаем UI поверх игровой сцены
             this.scene.launch('UIScene');
         }
 
@@ -321,7 +304,7 @@
                         this.walls.create(posX, posY, 'wall');
                     } else if (tile === 2) {
                         let spike = this.spikes.create(posX, posY, 'spike');
-                        spike.body.setSize(20, 12); // Уменьшенный хитбокс шипов
+                        spike.body.setSize(20, 12);
                         spike.body.setOffset(6, 20);
                     } else if (tile === 3) {
                         this.coins.create(posX, posY, 'coin');
@@ -333,7 +316,7 @@
                     } else if (tile === 6) {
                         this.flags.create(posX, posY, 'flag');
                     } else if (tile === 9) {
-                        // Точка спавна (перемещаем игрока сюда)
+                        // Точка старта игрока
                         this.player.setPosition(posX, posY);
                     }
                 }
@@ -344,7 +327,6 @@
             if (this.isDead) return;
 
             const speed = 200;
-            // Управление влево/вправо на основе InputState
             if (InputState.left) {
                 this.player.setVelocityX(-speed);
             } else if (InputState.right) {
@@ -353,12 +335,10 @@
                 this.player.setVelocityX(0);
             }
 
-            // Обнуление счетчика прыжков при касании земли
             if (this.player.body.blocked.down || this.player.body.touching.down) {
                 this.jumpsCount = 0;
             }
 
-            // Смерть при падении за пределы экрана
             if (this.player.y > this.physics.world.bounds.height) {
                 this.hitSpike();
             }
@@ -373,17 +353,15 @@
                 this.player.setVelocityY(jumpPower);
                 this.jumpsCount = 1;
             } else if (GameData.doubleJump && this.jumpsCount < 2) {
-                // Двойной прыжок, если куплен
                 this.player.setVelocityY(jumpPower);
                 this.jumpsCount = 2;
             }
         }
 
         collectCoin(player, coin) {
-            coin.disableBody(true, true); // Безопасное удаление монеты
+            coin.disableBody(true, true);
             GameData.addCoins(1);
             GameData.vibrate('light');
-            // Обновляем счет в UIScene
             const uiScene = this.scene.get('UIScene');
             if (uiScene) uiScene.updateScore();
         }
@@ -393,11 +371,9 @@
             this.isDead = true;
             GameData.vibrate('heavy');
             
-            // Сбрасываем инпут
             InputState.left = false;
             InputState.right = false;
             
-            // Перезагружаем уровень
             this.scene.restart();
         }
 
@@ -407,15 +383,9 @@
                 lever.setTexture('lever_on');
                 GameData.vibrate('medium');
                 
-                // Убираем все двери
                 this.doors.getChildren().forEach(door => {
-                    door.body.enable = false; // Отключаем физику
-                    this.tweens.add({ 
-                        targets: door, 
-                        alpha: 0, 
-                        duration: 300, 
-                        onComplete: () => door.destroy() 
-                    });
+                    door.body.enable = false;
+                    this.tweens.add({ targets: door, alpha: 0, duration: 300, onComplete: () => door.destroy() });
                 });
             }
         }
@@ -430,14 +400,11 @@
             InputState.left = false;
             InputState.right = false;
             
-            // Останавливаем UI перед сменой сцены
             this.scene.stop('UIScene');
 
             if (GameData.currentLevel < LEVELS.length) {
-                // Идем на следующий уровень
                 this.scene.start('GameScene');
             } else {
-                // Конец игры, возвращаемся в меню
                 GameData.currentLevel = 0; 
                 GameData.save();
                 this.scene.start('MenuScene');
@@ -448,21 +415,19 @@
     class UIScene extends Phaser.Scene {
         constructor() { super('UIScene'); }
         create() {
-            this.input.addPointer(3); // Поддержка до 3 пальцев одновременно (Мультитач)
+            this.input.addPointer(3);
 
             this.scoreText = this.add.text(16, 16, `Монеты: ${GameData.coins}`, { 
                 fontSize: '24px', fill: '#ffd700', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 
             });
 
-            // Кнопка возврата в меню
             createButton(this, 300, 30, 90, 40, 'МЕНЮ', 0xaa2222, () => {
                 InputState.left = false;
                 InputState.right = false;
-                this.scene.stop('GameScene'); // Останавливаем игру
-                this.scene.start('MenuScene'); // Возвращаемся в меню (UI остановится автоматически)
+                this.scene.stop('GameScene');
+                this.scene.start('MenuScene');
             });
 
-            // Функция для круглых кнопок управления
             const createControlBtn = (x, y, textStr, onDown, onUp) => {
                 const circle = this.add.circle(x, y, 40, 0xffffff, 0.2).setInteractive();
                 circle.setStrokeStyle(2, 0xffffff, 0.8);
@@ -474,11 +439,9 @@
             };
 
             const btnY = 560;
-            // Установка глобальных флагов движения
             createControlBtn(60, btnY, '◄', () => InputState.left = true, () => InputState.left = false);
             createControlBtn(160, btnY, '►', () => InputState.right = true, () => InputState.right = false);
             
-            // Прыжок вызывает метод напрямую из GameScene
             const gameScene = this.scene.get('GameScene');
             createControlBtn(300, btnY, '▲', () => gameScene.doJump(), () => {});
         }
@@ -498,13 +461,13 @@
         parent: 'game-container',
         backgroundColor: '#000000',
         scale: {
-            mode: Phaser.Scale.FIT, // Сохранение пропорций и масштабирование под любой экран
+            mode: Phaser.Scale.FIT,
             autoCenter: Phaser.Scale.CENTER_BOTH
         },
         physics: {
             default: 'arcade',
             arcade: { 
-                gravity: { y: 1200 }, // Сила притяжения
+                gravity: { y: 1200 },
                 debug: false 
             }
         },
