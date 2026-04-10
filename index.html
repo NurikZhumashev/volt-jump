@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Ultimate Edition</title>
+    <title>Neon Tower: Perfect Balance</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -40,7 +40,6 @@
         .ui-btn:active { transform: scale(0.95); }
         .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 
-        /* СЕТКА УРОВНЕЙ */
         #levelGrid {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
             width: 90%; max-width: 380px; max-height: 50vh; overflow-y: auto;
@@ -57,7 +56,6 @@
         .lvl-btn.locked { background: #1a1a2e; color: #555; cursor: not-allowed; }
         .lvl-btn:active:not(:disabled) { transform: scale(0.9); }
 
-        /* МАГАЗИН GRID */
         #shopList { 
             display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
             gap: 12px; width: 95%; max-width: 500px; max-height: 65vh; overflow-y: auto; padding: 5px; 
@@ -74,7 +72,6 @@
         .shop-btn.equip { background: #00d2ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
-        /* HUD */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
@@ -171,7 +168,6 @@
             renderShop(); renderLevels();
         }
 
-        // Блокировка пройденных уровней
         function renderLevels() {
             const grid = document.getElementById('levelGrid');
             grid.innerHTML = '';
@@ -193,7 +189,6 @@
             }
         }
 
-        // Продвинутый магазин
         function renderShop() {
             const list = document.getElementById('shopList');
             list.innerHTML = '';
@@ -435,10 +430,11 @@
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 
-                let baseSpeed = this.game.isHard ? 2.1 : 1.6; 
-                let speed = baseSpeed + (this.game.level * 0.1); 
-                if (dist > 300) speed += (dist - 300) * 0.005; 
-                let maxSpeed = this.game.isHard ? 10 : 8;
+                // ИСПРАВЛЕНИЕ: СКОРОСТЬ СТАЛА МЕНЬШЕ!
+                let baseSpeed = this.game.isHard ? 1.75 : 1.25; 
+                let speed = baseSpeed + (this.game.level * 0.08); 
+                if (dist > 300) speed += (dist - 300) * 0.003; 
+                let maxSpeed = this.game.isHard ? 8.5 : 6.5;
                 if (speed > maxSpeed) speed = maxSpeed;
                 
                 if (dist > 0) { this.x += (dx/dist)*speed; this.y += (dy/dist)*speed; }
@@ -458,11 +454,15 @@
 
         class Player {
             constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; this.reset(); }
-            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin;}
+            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin; this.angle = 0;}
             update(input) {
                 if (gameState !== 'PLAYING') return;
                 if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 
+                // АНИМАЦИЯ САЛЬТО (Вращение)
+                let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
+                this.angle += (this.jetpackTimer > 0 ? 0.3 : 0.12) * dir;
+
                 if (this.jetpackTimer > 0) { 
                     this.vy = -18; this.jetpackTimer--; sfx.thrust(); 
                     this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); 
@@ -492,9 +492,18 @@
             }
             createJumpDust(color, speedMult) { for(let i=0; i<12; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color, false, speedMult)); }
             draw(ctx) { 
+                ctx.save();
+                ctx.translate(this.x + 15, this.y + 15); // Смещаем центр для вращения
+                ctx.rotate(this.angle);
+
                 ctx.fillStyle = this.jetpackTimer > 0 ? '#fff' : this.color; 
                 ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : this.color; 
-                ctx.fillRect(this.x, this.y, 30, 30); ctx.shadowBlur = 0; 
+                
+                // Рисуем куб от нового центра
+                ctx.fillRect(-15, -15, 30, 30); 
+                
+                ctx.shadowBlur = 0; 
+                ctx.restore();
             }
         }
 
@@ -533,7 +542,6 @@
                     this.platforms.push(new Platform(x, this.highestY, w, type));
                     
                     let ri = Math.random();
-                    // Джетпак спавнится гораздо реже
                     if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
                 }
