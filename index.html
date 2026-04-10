@@ -3,701 +3,874 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Run - Phaser 3 Port</title>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <title>Neon Tower: Escalation Update</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #0b0b1a; }
+        body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
+        
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: radial-gradient(circle at center, rgba(11,11,26,0.85) 0%, rgba(0,0,0,0.98) 100%);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            z-index: 20; color: white; transition: opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 0; visibility: hidden;
+        }
+        .overlay.active { opacity: 1; visibility: visible; }
+
+        @keyframes neonPulse {
+            0% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
+            50% { text-shadow: 0 0 20px #00d2ff, 0 0 40px #00d2ff; transform: scale(1.05); }
+            100% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
+        }
+
+        h1 { font-size: 42px; margin-bottom: 10px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 3px; margin-top:0;}
+        h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 30px; margin: 0 0 15px 0; text-align: center; letter-spacing: 2px; }
+
+        .ui-btn {
+            padding: 16px 40px; margin: 8px; border-radius: 40px; font-size: 16px; font-weight: bold;
+            border: 2px solid rgba(255,255,255,0.1); color: white; cursor: pointer; text-transform: uppercase; width: 280px;
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 5px 20px rgba(0, 210, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+        .btn-shop { background: linear-gradient(45deg, #f5af19, #f12711); box-shadow: 0 5px 20px rgba(241, 39, 17, 0.3); }
+        .btn-endless { background: linear-gradient(45deg, #8A2387, #E94057, #F27121); box-shadow: 0 5px 20px rgba(233, 64, 87, 0.3); }
+        .btn-back { background: transparent; border: 2px solid #555; box-shadow: none; margin-top: 15px; }
+        
+        .ui-btn:active { transform: scale(0.95); }
+        .ui-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
+
+        #levelGrid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+            width: 90%; max-width: 380px; max-height: 50vh; overflow-y: auto;
+            padding: 15px; border-radius: 15px; background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .lvl-btn {
+            aspect-ratio: 1; border-radius: 10px; border: none; font-size: 16px; font-weight: bold;
+            color: white; background: #222; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .lvl-btn.completed { background: #111; color: #4caf50; border: 1px solid #4caf50; cursor: not-allowed; }
+        .lvl-btn.current { background: linear-gradient(45deg, #00d2ff, #3a7bd5); box-shadow: 0 0 10px #00d2ff; animation: neonPulse 1.5s infinite; }
+        .lvl-btn.hard { background: linear-gradient(45deg, #f12711, #f5af19); box-shadow: 0 0 15px #f12711; animation: neonPulse 1s infinite;}
+        .lvl-btn.locked { background: #1a1a2e; color: #555; cursor: not-allowed; }
+        .lvl-btn:active:not(:disabled) { transform: scale(0.9); }
+
+        #shopList { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 12px; width: 95%; max-width: 500px; max-height: 65vh; overflow-y: auto; padding: 5px; 
+        }
+        .shop-card {
+            background: rgba(255,255,255,0.05); padding: 12px; border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1); text-align: center;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative;
+        }
+        .shop-card h3 { margin: 10px 0 5px 0; font-size: 18px; }
+        .shop-card p { font-size: 12px; color: #aaa; margin: 0 0 10px 0; line-height: 1.2; flex-grow: 1; }
+        .shop-btn { padding: 8px; width: 100%; border-radius: 8px; font-size: 13px; border: none; cursor: pointer; font-weight: bold; color: white; background: #4caf50; transition: 0.2s; }
+        .shop-btn:disabled { background: #444; color: #777; }
+        .shop-btn.equip { background: #00d2ff; }
+        .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
+
+        .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
+        .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
+        .lives-hud { color: #ff0055; text-shadow: 0 0 10px #ff0055; margin-top: 5px; font-size: 18px;}
+        
+        .pause-btn {
+            background: rgba(0, 0, 0, 0.6); border: 2px solid rgba(255,255,255,0.2);
+            color: white; font-size: 20px; width: 40px; height: 40px;
+            border-radius: 50%; cursor: pointer; display: flex;
+            justify-content: center; align-items: center; transition: 0.2s;
+            pointer-events: auto; backdrop-filter: blur(5px);
+        }
+        .pause-btn:active { transform: scale(0.85); }
     </style>
 </head>
-<body>
-<script>
-// --- МЕНЕДЖЕР СОХРАНЕНИЙ (Готов к Telegram Mini Apps) ---
-const DataManager = {
-    data: {
-        coins: 0, maxLevel: 1, highScore: 0, jetpackLevel: 1, 
-        magnetCoinLvl: 0, magnetJpLvl: 0, lives: 0, 
-        skin: '#00d2ff', ownedSkins:['#00d2ff'], 
-        trail: 'none', ownedTrails: ['none']
-    },
-    load() {
-        // Заглушка для TG CloudStorage. Сейчас используем localStorage.
-        const saved = localStorage.getItem('neonSave_v2');
-        if (saved) Object.assign(this.data, JSON.parse(saved));
-    },
-    save() {
-        localStorage.setItem('neonSave_v2', JSON.stringify(this.data));
-    }
-};
+<body onclick="sfx.init()">
 
-// --- ЗВУКОВОЙ ДВИЖОК (Адаптирован из оригинала) ---
-class SoundEngine {
-    constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
-    init() {
-        if (!this.ctx) {
-            try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } 
-            catch(e) { console.log('Audio disabled', e); }
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="top-hud" id="gameHud" style="display:none;">
+        <div>
+            <div class="hud-text" id="hudLeft">УРОВЕНЬ 1</div>
+            <div class="lives-hud" id="hudLives"></div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 15px;">
+            <div class="hud-text coin-hud" id="hudCoins" style="line-height: 40px;">💰 0</div>
+            <button class="pause-btn" onclick="togglePause()">⏸</button>
+        </div>
+    </div>
+
+    <div id="pauseMenu" class="overlay" style="z-index: 25;">
+        <h2 style="color: white; text-shadow: 0 0 15px #fff;">ПАУЗА</h2>
+        <button class="ui-btn" onclick="togglePause()">ПРОДОЛЖИТЬ</button>
+        <button class="ui-btn btn-back" onclick="quitGame()">В МЕНЮ</button>
+    </div>
+
+    <div id="reviveMenu" class="overlay" style="z-index: 30;">
+        <h2 style="color: #ff0055; text-shadow: 0 0 15px #ff0055;">КРИТИЧЕСКИЙ УРОН</h2>
+        <p style="font-size: 18px; color: #ccc; margin-bottom: 25px;">Использовать сердце? У вас: <span id="reviveLivesCount" style="color: #ff0055; font-weight: bold;">0</span> ❤️</p>
+        <button class="ui-btn" style="background: linear-gradient(45deg, #ff0055, #ff5e62);" onclick="confirmRevive()">ДА (❤️-1)</button>
+        <button class="ui-btn btn-back" onclick="declineRevive()">СДАТЬСЯ</button>
+    </div>
+
+    <div id="mainMenu" class="overlay active">
+        <h1>NEON RUN</h1>
+        <p style="color: #aaa; margin-bottom: 15px; font-size: 14px;">Нажми на экран для звука 🔊</p>
+        <button class="ui-btn" onclick="showState('LEVELS')">КАМПАНИЯ</button>
+        <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕСКОНЕЧНЫЙ</button>
+        <button class="ui-btn btn-shop" onclick="showState('SHOP')">МАГАЗИН</button>
+        <p class="coin-hud" style="font-size: 26px; margin-top: 15px;" id="menuCoins">💰 0</p>
+        <p class="hud-text" style="font-size: 14px; color: #888;" id="menuScore">Рекорд: 0 м</p>
+    </div>
+
+    <div id="levelMenu" class="overlay">
+        <h2>КАМПАНИЯ</h2>
+        <div id="levelGrid"></div>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
+    </div>
+
+    <div id="shopMenu" class="overlay">
+        <h2 style="margin-bottom: 5px;">АРСЕНАЛ</h2>
+        <p class="coin-hud" style="font-size: 22px; margin-top: 0; margin-bottom: 15px;" id="shopCoins">💰 0</p>
+        <div id="shopList"></div>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
+    </div>
+
+    <div id="endMenu" class="overlay">
+        <h2 id="endTitle">УРОВЕНЬ ПРОЙДЕН</h2>
+        <p id="endDesc" style="color: #ccc; font-size: 18px; margin-bottom: 30px;">Молодец!</p>
+        <button class="ui-btn" id="endBtn1" onclick="nextAction()">ДАЛЕЕ</button>
+        <button class="ui-btn btn-back" onclick="showState('MAIN')">В МЕНЮ</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        function resizeCanvas() {
+            canvas.width = window.innerWidth || document.documentElement.clientWidth || 400;
+            canvas.height = window.innerHeight || document.documentElement.clientHeight || 800;
         }
-        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-        if (!this.bgmStarted) this.startBGM();
-    }
-    playTone(freq, type, duration, vol=0.2) {
-        if(!this.ctx || this.ctx.state !== 'running') return;
-        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        gain.gain.setValueAtTime(vol, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-        osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
-    }
-    jump() { this.playTone(250, 'sine', 0.15, 0.2); }
-    coin() {
-        if(!this.ctx) return;
-        const now = this.ctx.currentTime;
-        this.playTone(2000, 'sine', 0.5, 0.15);
-        this.playTone(3000, 'square', 0.2, 0.03);
-    }
-    purchase() { this.playTone(1000, 'square', 0.3, 0.1); }
-    powerup() { this.playTone(300, 'sawtooth', 0.4, 0.15); }
-    thrust() { if(Math.random() > 0.7) this.playTone(50 + Math.random()*50, 'sawtooth', 0.1, 0.05); }
-    death() { this.playTone(300, 'sawtooth', 1.0, 0.2); }
-    startBGM() {
-        if (!this.ctx || this.bgmStarted) return;
-        this.bgmStarted = true;
-        let step = 0;
-        this.bgmInterval = setInterval(() => {
-            if(this.ctx.state !== 'running' || window.gamePaused) return; 
-            const now = this.ctx.currentTime;
-            const bass =[130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
-            const lead =[523, 0, 659, 0, 783, 0, 659, 0, 1046, 0, 783, 0, 659, 0, 523, 0];
-            if (bass[step]) this.playTone(bass[step], 'square', 0.15, 0.05);
-            if (lead[step]) this.playTone(lead[step], 'sine', 0.2, 0.03);
-            step = (step + 1) % 16;
-        }, 180); 
-    }
-}
-const sfx = new SoundEngine();
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
-// Глобальные переменные стейта
-let gameMode = 'campaign'; 
-let currentLevel = 1;
+        // --- СИСТЕМА СОХРАНЕНИЙ ---
+        const SAVE = {
+            coins: parseInt(localStorage.getItem('neonCoins')) || 0,
+            maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
+            highScore: parseInt(localStorage.getItem('neonScore')) || 0,
+            jetpackLevel: parseInt(localStorage.getItem('neonJetpackLvl')) || 1,
+            magnetCoinLvl: parseInt(localStorage.getItem('neonMagCoin')) || 0,
+            magnetJpLvl: parseInt(localStorage.getItem('neonMagJp')) || 0,
+            lives: parseInt(localStorage.getItem('neonLives')) || 0,
+            skin: localStorage.getItem('neonSkin') || '#00d2ff',
+            ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff'],
+            trail: localStorage.getItem('neonTrail') || 'none',
+            ownedTrails: JSON.parse(localStorage.getItem('neonTrails')) || ['none']
+        };
 
-// --- УТИЛИТА СОЗДАНИЯ UI КНОПОК ---
-function createButton(scene, x, y, text, color, onClick) {
-    const btn = scene.add.container(x, y);
-    const bg = scene.add.rectangle(0, 0, 240, 50, color).setStrokeStyle(2, 0xffffff, 0.5).setInteractive();
-    const txt = scene.add.text(0, 0, text, { font: 'bold 20px Arial', color: '#fff' }).setOrigin(0.5);
-    btn.add([bg, txt]);
-    
-    bg.on('pointerdown', () => { bg.setScale(0.95); sfx.init(); });
-    bg.on('pointerup', () => { bg.setScale(1); onClick(); });
-    bg.on('pointerout', () => bg.setScale(1));
-    return btn;
-}
+        function saveGame() {
+            localStorage.setItem('neonCoins', SAVE.coins);
+            localStorage.setItem('neonMaxLevel', SAVE.maxLevel);
+            localStorage.setItem('neonScore', SAVE.highScore);
+            localStorage.setItem('neonJetpackLvl', SAVE.jetpackLevel);
+            localStorage.setItem('neonMagCoin', SAVE.magnetCoinLvl);
+            localStorage.setItem('neonMagJp', SAVE.magnetJpLvl);
+            localStorage.setItem('neonLives', SAVE.lives);
+            localStorage.setItem('neonSkin', SAVE.skin);
+            localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
+            localStorage.setItem('neonTrail', SAVE.trail);
+            localStorage.setItem('neonTrails', JSON.stringify(SAVE.ownedTrails));
+            updateUI();
+        }
 
-// ==========================================
-// SCENE 1: BOOT & ГЕНЕРАЦИЯ АССЕТОВ
-// ==========================================
-class BootScene extends Phaser.Scene {
-    constructor() { super('Boot'); }
-    create() {
-        DataManager.load();
-        const g = this.add.graphics();
-        
-        // Платформа (Обычная)
-        g.fillStyle(0x222222); g.fillRect(0,0,100,20);
-        g.fillStyle(0x00d2ff); g.fillRect(0,0,100,4);
-        g.generateTexture('plat_normal', 100, 20); g.clear();
-        
-        // Платформа (Движущаяся)
-        g.fillStyle(0x222222); g.fillRect(0,0,100,20);
-        g.fillStyle(0xff00ff); g.fillRect(0,0,100,4);
-        g.generateTexture('plat_moving', 100, 20); g.clear();
+        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu'), REVIVE: document.getElementById('reviveMenu') };
+        const gameHud = document.getElementById('gameHud');
+        let gameState = 'START'; 
+        let pendingDeathReason = "";
 
-        // Платформа (Пружина)
-        g.fillStyle(0x222222); g.fillRect(0,0,100,20);
-        g.fillStyle(0x00ff00); g.fillRect(0,0,100,4);
-        g.generateTexture('plat_spring', 100, 20); g.clear();
+        function showState(state) {
+            sfx.init();
+            Object.values(overlays).forEach(el => el.classList.remove('active'));
+            gameHud.style.display = 'none';
+            if(overlays[state]) overlays[state].classList.add('active');
+            updateUI();
+        }
 
-        // Платформа (Финиш)
-        g.fillStyle(0xFFD700); g.fillRect(0,0,100,20);
-        g.generateTexture('plat_finish', 100, 20); g.clear();
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                document.getElementById('pauseMenu').classList.add('active');
+                if (sfx.ctx && sfx.ctx.state === 'running') sfx.ctx.suspend(); 
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                document.getElementById('pauseMenu').classList.remove('active');
+                if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
+            }
+        }
 
-        // Белая текстура для частиц и игрока
-        g.fillStyle(0xffffff); g.fillRect(0,0,16,16);
-        g.generateTexture('white_box', 16, 16); g.clear();
+        function quitGame() {
+            gameState = 'END'; 
+            document.getElementById('pauseMenu').classList.remove('active');
+            if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
+            sfx.stopBGM(); saveGame(); showState('MAIN');
+        }
 
-        // Монета
-        g.fillStyle(0xFFD700); g.fillCircle(12,12,10);
-        g.generateTexture('coin', 24, 24); g.clear();
+        function confirmRevive() {
+            document.getElementById('reviveMenu').classList.remove('active');
+            gameState = 'PLAYING';
+            game.useExtraLife();
+        }
 
-        // Джетпак
-        g.fillStyle(0xff0055); g.fillTriangle(12, 0, 24, 24, 0, 24);
-        g.generateTexture('jetpack', 24, 24); g.clear();
+        function declineRevive() {
+            document.getElementById('reviveMenu').classList.remove('active');
+            triggerGameOver(pendingDeathReason);
+        }
 
-        this.scene.start('Menu');
-    }
-}
+        function updateUI() {
+            document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
+            document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`;
+            document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
+            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
+            document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
+            renderShop(); renderLevels();
+        }
 
-// ==========================================
-// SCENE 2: MAIN MENU
-// ==========================================
-class MenuScene extends Phaser.Scene {
-    constructor() { super('Menu'); }
-    create() {
-        const cx = this.scale.width / 2;
-        const cy = this.scale.height / 2;
+        function renderLevels() {
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 100; i++) {
+                let btn = document.createElement('button');
+                btn.className = 'lvl-btn'; 
+                if (i < SAVE.maxLevel) {
+                    btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true;
+                } else if (i === SAVE.maxLevel) {
+                    btn.innerText = i;
+                    if (i % 5 === 0) btn.classList.add('hard'); else btn.classList.add('current');
+                    btn.onclick = () => startGame('campaign', i);
+                } else {
+                    btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true;
+                }
+                grid.appendChild(btn);
+            }
+        }
 
-        this.add.text(cx, cy - 150, 'NEON RUN', { font: '900 46px Arial', color: '#fff', stroke: '#00d2ff', strokeThickness: 6 }).setOrigin(0.5);
-        this.add.text(cx, cy - 100, 'Нажми на экран для звука', { font: '14px Arial', color: '#aaa' }).setOrigin(0.5);
+        function renderShop() {
+            const list = document.getElementById('shopList');
+            list.innerHTML = '';
+            const items = [
+                { id: 'upg_jp', name: 'РАКЕТА 🚀', desc: '+Время полета', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
+                { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус монет', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
+                { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус джетпаков', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
+                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Спасет от смерти.', price: 50, type: 'consumable', lvl: SAVE.lives },
+                { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
+                { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' },
+                { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Убрать шлейф.', price: 0, type: 'trail' },
+                { id: 'fire', name: 'ПЛАМЯ 🔥', desc: 'Огненный шлейф.', price: 800, type: 'trail' },
+                { id: 'rainbow', name: 'РАДУГА 🌈', desc: 'Неоновый перелив.', price: 1500, type: 'trail' },
+                { id: 'matrix', name: 'МАТРИЦА 🟩', desc: 'Цифровой след.', price: 2500, type: 'trail' }
+            ];
 
-        createButton(this, cx, cy - 20, 'КАМПАНИЯ', 0x3a7bd5, () => this.scene.start('LevelSelect'));
-        createButton(this, cx, cy + 40, 'БЕСКОНЕЧНЫЙ', 0xE94057, () => { gameMode = 'endless'; currentLevel = 1; this.scene.start('Game'); });
-        createButton(this, cx, cy + 100, 'МАГАЗИН', 0xf5af19, () => this.scene.start('Shop'));
+            items.forEach(item => {
+                let actionText = `КУПИТЬ (${item.price} 💰)`;
+                let btnClass = 'shop-btn';
+                let disabled = SAVE.coins < item.price;
+                let badge = '';
 
-        this.add.text(cx, cy + 180, `💰 ${DataManager.data.coins}`, { font: 'bold 26px Arial', color: '#FFD700' }).setOrigin(0.5);
-        this.add.text(cx, cy + 220, `Рекорд: ${DataManager.data.highScore} м`, { font: '16px Arial', color: '#888' }).setOrigin(0.5);
-    }
-}
+                if (item.type.startsWith('upg') || item.type.startsWith('mag')) {
+                    badge = `<div class="lvl-badge">LVL ${item.lvl}</div>`;
+                    if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
+                }
+                if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
+                
+                if (item.type === 'skin') {
+                    if (SAVE.ownedSkins.includes(item.id)) {
+                        disabled = false;
+                        if (SAVE.skin === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
+                        else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
+                    }
+                }
+                
+                if (item.type === 'trail') {
+                    if (SAVE.ownedTrails.includes(item.id)) {
+                        disabled = false;
+                        if (SAVE.trail === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
+                        else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
+                    }
+                }
 
-// ==========================================
-// SCENE 3: LEVEL SELECT
-// ==========================================
-class LevelSelectScene extends Phaser.Scene {
-    constructor() { super('LevelSelect'); }
-    create() {
-        const cx = this.scale.width / 2;
-        this.add.text(cx, 50, 'КАМПАНИЯ', { font: 'bold 30px Arial', color: '#FFD700' }).setOrigin(0.5);
-        
-        // Простая пагинация сетки (25 уровней на страницу)
-        let page = Math.floor((DataManager.data.maxLevel - 1) / 25);
-        this.renderGrid(page);
+                let titleColor = item.type === 'skin' ? item.id : (item.type === 'trail' && item.id !== 'none' ? '#00d2ff' : '#ff0055');
 
-        createButton(this, cx, this.scale.height - 50, 'НАЗАД', 0x555555, () => this.scene.start('Menu'));
-    }
+                list.innerHTML += `
+                    <div class="shop-card">
+                        ${badge}
+                        <h3 style="color:${titleColor}">${item.name}</h3>
+                        <p>${item.desc}</p>
+                        <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price})">${actionText}</button>
+                    </div>
+                `;
+            });
+        }
 
-    renderGrid(page) {
-        if(this.gridContainer) this.gridContainer.destroy();
-        this.gridContainer = this.add.container(0, 120);
-        const startX = this.scale.width / 2 - 120;
-        let startLvl = page * 25 + 1;
-
-        for (let i = 0; i < 25; i++) {
-            let lvl = startLvl + i;
-            if (lvl > 100) break;
+        function handleBuy(id, type, price) {
+            if (type === 'skin' && SAVE.ownedSkins.includes(id)) { SAVE.skin = id; sfx.jump(); saveGame(); return; }
+            if (type === 'trail' && SAVE.ownedTrails.includes(id)) { SAVE.trail = id; sfx.jump(); saveGame(); return; }
             
-            let x = startX + (i % 5) * 60;
-            let y = Math.floor(i / 5) * 60;
+            if (SAVE.coins >= price) {
+                SAVE.coins -= price;
+                if (type === 'upg_jp') SAVE.jetpackLevel++;
+                if (type === 'mag_coin') SAVE.magnetCoinLvl++;
+                if (type === 'mag_jp') SAVE.magnetJpLvl++;
+                if (type === 'consumable') SAVE.lives++;
+                if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
+                if (type === 'trail') { SAVE.ownedTrails.push(id); SAVE.trail = id; }
+                sfx.purchase(); saveGame();
+            }
+        }
 
-            let color = 0x1a1a2e; let textColor = '#555'; let text = '🔒';
-            let interactive = false;
+        // --- БЕЗОПАСНОЕ АУДИО ---
+        class SoundEngine {
+            constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
+            init() {
+                if (!this.ctx) {
+                    try {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (AudioCtx) this.ctx = new AudioCtx();
+                    } catch(e) { console.log('Audio disabled', e); }
+                }
+                if (this.ctx && this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume();
+                if (!this.bgmStarted) this.startBGM();
+            }
+            playTone(freq, type, duration, vol=0.2) {
+                if(!this.ctx || this.ctx.state !== 'running') return;
+                try {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
+            }
+            jump() {
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(250, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); 
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.15);
+                } catch(e) {}
+            }
+            coin() {
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
+                    osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    const osc2 = this.ctx.createOscillator(); const gain2 = this.ctx.createGain();
+                    osc2.type = 'square'; osc2.frequency.setValueAtTime(3000, now); gain2.gain.setValueAtTime(0.03, now); gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc1.connect(gain1); gain1.connect(this.ctx.destination); osc2.connect(gain2); gain2.connect(this.ctx.destination);
+                    osc1.start(now); osc1.stop(now + 0.5); osc2.start(now); osc2.stop(now + 0.2);
+                } catch(e) {}
+            }
+            purchase() {
+                if(!this.ctx) return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'square'; osc.frequency.setValueAtTime(1000, now); osc.frequency.setValueAtTime(1500, now + 0.1); 
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.3);
+                } catch(e) {}
+            }
+            powerup() {
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
+                    gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.4);
+                } catch(e) {}
+            }
+            thrust() {
+                if(!this.ctx || this.ctx.state !== 'running') return;
+                try {
+                    if(Math.random() > 0.7) {
+                        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
+                        gain.gain.setValueAtTime(0.05, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
+                        osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+                    }
+                } catch(e) {}
+            }
+            death() {
+                if(!this.ctx) return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
+                    osc.frequency.setValueAtTime(250, now + 0.2); osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+                    osc.frequency.setValueAtTime(200, now + 0.4); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0);
+                } catch(e) {}
+            }
+            startBGM() {
+                if (!this.ctx || this.bgmStarted) return;
+                this.bgmStarted = true;
+                const playNote = (time, freq, vol, type, duration) => {
+                    try {
+                        const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                        osc.type = type; osc.frequency.value = freq; g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration);
+                        osc.connect(g); g.connect(this.ctx.destination); osc.start(time); osc.stop(time + duration);
+                    } catch(e) {}
+                };
+                let step = 0;
+                this.bgmInterval = setInterval(() => {
+                    if(this.ctx.state !== 'running' || gameState === 'PAUSED' || gameState === 'REVIVE_PROMPT') return; 
+                    const now = this.ctx.currentTime;
+                    const bassNotes = [130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
+                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.15);
+                    const leadNotes = [523, 0, 659, 0, 783, 0, 659, 0, 1046, 0, 783, 0, 659, 0, 523, 0];
+                    if (leadNotes[step]) playNote(now, leadNotes[step], 0.03, 'sine', 0.2);
+                    step = (step + 1) % 16;
+                }, 180); 
+            }
+            stopBGM() {
+                clearInterval(this.bgmInterval);
+                this.bgmStarted = false;
+            }
+        }
+        const sfx = new SoundEngine();
 
-            if (lvl < DataManager.data.maxLevel) { color = 0x111111; text = '✔️'; textColor = '#4caf50'; } 
-            else if (lvl === DataManager.data.maxLevel) {
-                color = (lvl % 5 === 0) ? 0xf12711 : 0x00d2ff;
-                text = lvl.toString(); textColor = '#fff'; interactive = true;
+        class InputHandler {
+            constructor() {
+                this.keys = [];
+                window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
+                window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
+                const handleTouch = (e) => {
+                    if (gameState !== 'PLAYING') return; e.preventDefault(); this.keys = []; 
+                    for (let i = 0; i < e.touches.length; i++) {
+                        if (e.touches[i].clientX < canvas.width / 2) this.keys.push('ArrowLeft'); else this.keys.push('ArrowRight');
+                    }
+                };
+                const handleTouchEnd = (e) => { if (e.touches.length === 0) this.keys = []; else handleTouch(e); };
+                canvas.addEventListener('touchstart', handleTouch, {passive: false});
+                canvas.addEventListener('touchmove', handleTouch, {passive: false});
+                canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, isFire = false, speedMult = 1, text = null) {
+                this.x = x; this.y = y; this.color = color; this.text = text;
+                this.size = Math.random() * (isFire ? 10 : 6) + 2;
+                this.vx = (Math.random() - 0.5) * (isFire ? 5 : 12) * speedMult;
+                this.vy = isFire ? (Math.random() * 6 + 2) : (Math.random() - 0.8) * 12 * speedMult;
+                this.life = 1.0; this.decay = isFire ? 0.05 : 0.03;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
+            draw(ctx) { 
+                ctx.globalAlpha = Math.max(0, this.life); 
+                ctx.fillStyle = this.color; 
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
+                if (this.text) {
+                    ctx.font = 'bold 16px monospace';
+                    ctx.fillText(this.text, this.x, this.y);
+                } else {
+                    ctx.fillRect(this.x, this.y, this.size, this.size); 
+                }
+                ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text) {
+                this.x = x; this.y = y; this.text = text;
+                this.life = 1.0; this.vy = -1.5;
+            }
+            update() { this.y += this.vy; this.life -= 0.02; }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = '#ff0055'; ctx.font = 'bold 24px Arial';
+                ctx.shadowBlur = 10; ctx.shadowColor = '#fff';
+                ctx.fillText(this.text, this.x - 30, this.y);
+                ctx.shadowBlur = 0; ctx.globalAlpha = 1.0;
+            }
+        }
+
+        // --- ИЗМЕНЕН КОНСТРУКТОР ПЛАТФОРМЫ (ПРИНИМАЕТ TIER) ---
+        class Platform {
+            constructor(x, y, width, type = 'normal', tier = 0) {
+                this.x = x; this.y = y; this.width = width; this.height = 20;
+                this.type = type; 
+                // Чем выше Tier, тем быстрее движутся платформы
+                this.moveSpeed = (0.8 + tier * 0.4) + Math.random() * 1.2; 
+                this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.flashTimer = 0; this.broken = false;
+            }
+            update() {
+                if (this.flashTimer > 0) this.flashTimer--;
+                if (this.type === 'moving') {
+                    this.x += this.moveSpeed * this.direction;
+                    if (this.x <= 0 || this.x + this.width >= canvas.width) this.direction *= -1;
+                }
+            }
+            draw(ctx) {
+                if(this.broken) return;
+                if (this.type === 'finish') { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700'; }
+                else if (this.flashTimer > 0) { ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; } 
+                else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
+                else if (this.type === 'spring') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ff00'; }
+                else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00d2ff'; }
+                
+                if(this.type !== 'finish' && this.flashTimer === 0) ctx.fillRect(this.x, this.y, this.width, 4); 
+                else ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Item {
+            constructor(x, y, type) { this.x = x; this.y = y; this.type = type; this.width = 24; this.height = 24; this.baseY = y; this.angle = Math.random() * Math.PI * 2; this.markedForDeletion = false; }
+            update() { this.angle += 0.05; this.y = this.baseY + Math.sin(this.angle) * 5; }
+            draw(ctx) {
+                if(this.markedForDeletion) return;
+                ctx.beginPath();
+                if (this.type === 'coin') { ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 20; ctx.arc(this.x + 12, this.y + 12, 10, 0, Math.PI * 2); }
+                else if (this.type === 'jetpack') { ctx.fillStyle = '#ff0055'; ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 25; ctx.moveTo(this.x+12, this.y-4); ctx.lineTo(this.x+26, this.y+24); ctx.lineTo(this.x-2, this.y+24); }
+                ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+
+        class Hunter {
+            constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
+            reset() { this.x = canvas.width/2 - 19; this.y = canvas.height-88; this.active = false; this.waitTimer = 0; }
+            startTimer() { this.waitTimer = 120; } 
+            update() {
+                if (gameState !== 'PLAYING') return;
+                if (!this.active) { 
+                    if (this.waitTimer > 0) this.waitTimer--;
+                    else { 
+                        this.active = true; 
+                        for(let i=0; i<15; i++) this.game.particles.push(new Particle(this.x+19, this.y+19, '#ff0033', true));
+                    }
+                    return; 
+                }
+                let dx = (this.game.player.x + 15) - (this.x + 19);
+                let dy = (this.game.player.y + 15) - (this.y + 19);
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                let baseSpeed = this.game.isHard ? 1.75 : 1.25; 
+                let speed = baseSpeed + (this.game.level * 0.08); 
+                if (dist > 300) speed += (dist - 300) * 0.003; 
+                let maxSpeed = this.game.isHard ? 8.5 : 6.5;
+                if (speed > maxSpeed) speed = maxSpeed;
+                
+                if (dist > 0) { this.x += (dx/dist)*speed; this.y += (dy/dist)*speed; }
+                
+                let bottom = this.game.cameraY + canvas.height - 48;
+                if (this.y > bottom) this.y -= (this.y - bottom) * 0.08;
+                if (Math.random() > 0.4) this.game.particles.push(new Particle(this.x + Math.random()*38, this.y + 19, this.color));
+            }
+            draw(ctx) {
+                ctx.fillStyle = this.color; ctx.shadowBlur = 25; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, 38, 38);
+                let lx = (this.game.player.x - this.x) > 0 ? 3 : -3; let ly = (this.game.player.y - this.y) > 0 ? 3 : -3;
+                ctx.fillStyle = '#fff'; ctx.fillRect(this.x+6+lx, this.y+10+ly, 8, 8); ctx.fillRect(this.x+24+lx, this.y+10+ly, 8, 8);
+                ctx.fillStyle = '#000'; ctx.fillRect(this.x+8+lx, this.y+12+ly, 4, 4); ctx.fillRect(this.x+26+lx, this.y+12+ly, 4, 4);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Player {
+            constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; this.reset(); }
+            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin; this.angle = 0; this.frameCount = 0;}
+            update(input) {
+                if (gameState !== 'PLAYING') return;
+                this.frameCount++;
+
+                if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
+                
+                let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
+                this.angle += (this.jetpackTimer > 0 ? 0.3 : 0.12) * dir;
+
+                if (SAVE.trail !== 'none') {
+                    if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) {
+                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15 + Math.random()*10, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.3));
+                    } else if (SAVE.trail === 'matrix' && this.frameCount % 3 === 0) {
+                        let char = Math.random() > 0.5 ? '0' : '1';
+                        this.game.particles.push(new Particle(this.x + Math.random()*20, this.y + 30, '#00ff00', false, 0.2, char));
+                    } else if (SAVE.trail === 'fire' && this.frameCount % 2 === 0) {
+                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 20, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.4));
+                    }
+                }
+
+                if (this.jetpackTimer > 0) { 
+                    this.vy = -18; this.jetpackTimer--; sfx.thrust(); 
+                    this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); 
+                    this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff0055', true)); 
+                } else { this.vy += 0.8; }
+                
+                this.y += this.vy;
+                if (this.vy > 0) {
+                    this.game.platforms.forEach(p => {
+                        if (p.type === 'finish' || p.broken) return;
+                        
+                        if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
+                            if (this.y + 30 - this.vy <= p.y + 15) { 
+                                this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
+                                if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
+                                else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
+                                
+                                if (this.game.isHard && p.type !== 'finish') {
+                                    p.broken = true;
+                                    for(let i=0; i<15; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y + 10, '#555'));
+                                }
+                            }
+                        }
+                    });
+                }
+                this.x += this.vx; if (this.x > canvas.width) this.x = -30; if (this.x < -30) this.x = canvas.width;
+            }
+            createJumpDust(color, speedMult) { for(let i=0; i<12; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color, false, speedMult)); }
+            draw(ctx) { 
+                ctx.save();
+                ctx.translate(this.x + 15, this.y + 15);
+                ctx.rotate(this.angle);
+
+                ctx.fillStyle = this.jetpackTimer > 0 ? '#fff' : this.color; 
+                ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : this.color; 
+                
+                ctx.fillRect(-15, -15, 30, 30); 
+                
+                ctx.shadowBlur = 0; 
+                ctx.restore();
+            }
+        }
+
+        class Game {
+            constructor(mode, level) {
+                this.mode = mode; 
+                this.level = level || 1;
+                this.isHard = (this.mode === 'campaign' && this.level % 5 === 0);
+                
+                this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = []; this.floatingTexts = [];
+                this.cameraY = 0; this.highestY = canvas.height - 50;
+                this.maxReachedY = this.highestY; 
+                
+                this.tier = 0; // Фаза сложности для бесконечного режима
+                this.currentScore = 0;
+
+                this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
+                this.finishSpawned = false;
+
+                this.platforms.push(new Platform(0, this.highestY, canvas.width, 'normal', this.tier));
+                this.player = new Player(this); this.hunter = new Hunter(this);
             }
 
-            let btn = this.add.rectangle(x, y, 50, 50, color).setStrokeStyle(1, 0xffffff, 0.2);
-            let txt = this.add.text(x, y, text, { font: 'bold 18px Arial', color: textColor }).setOrigin(0.5);
-            
-            if (interactive) {
-                btn.setInteractive();
-                btn.on('pointerdown', () => {
-                    gameMode = 'campaign'; currentLevel = lvl;
-                    this.scene.start('Game');
+            // --- ЛОГИКА ГЕНЕРАЦИИ С УЧЕТОМ ФАЗ (TIERS) ---
+            generateChunk() {
+                while (this.highestY > this.cameraY - canvas.height * 2) {
+                    if (this.mode === 'campaign' && this.highestY <= this.targetY) {
+                        if (!this.finishSpawned) { this.platforms.push(new Platform(0, this.targetY - 100, canvas.width, 'finish', 0)); this.finishSpawned = true; }
+                        break;
+                    }
+                    
+                    // Расстояние между платформами растет с каждой фазой
+                    let gap = 90 + (this.tier * 10) + Math.random() * (this.isHard ? 60 : 40 + (this.tier * 5));
+                    this.highestY -= gap;
+                    
+                    // Ширина платформ уменьшается с каждой фазой (минимум 40px)
+                    let w = Math.max(40, 85 - (this.tier * 10)) + Math.random() * (this.isHard ? 50 : 80 - (this.tier * 5)); 
+                    let x = Math.random() * (canvas.width - w);
+                    
+                    let type = 'normal'; let r = Math.random();
+                    if (this.isHard) { 
+                        if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; 
+                    } else { 
+                        if (r > 0.85) type = 'spring'; 
+                        // Шанс на появление движущейся платформы растет с каждой фазой
+                        else if (r > Math.max(0.2, 0.65 - (this.tier * 0.15))) type = 'moving'; 
+                    }
+                    
+                    this.platforms.push(new Platform(x, this.highestY, w, type, this.tier));
+                    
+                    let ri = Math.random();
+                    if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
+                    else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
+                }
+            }
+
+            handleDeath(reason) {
+                if (SAVE.lives > 0 && gameState === 'PLAYING') {
+                    gameState = 'REVIVE_PROMPT';
+                    pendingDeathReason = reason;
+                    document.getElementById('reviveLivesCount').innerText = SAVE.lives;
+                    document.getElementById('reviveMenu').classList.add('active');
+                } else if (gameState === 'PLAYING') {
+                    triggerGameOver(reason);
+                }
+            }
+
+            useExtraLife() {
+                SAVE.lives--; saveGame(); sfx.powerup();
+                for(let i=0; i<50; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ffffff', false, 2));
+                this.player.vy = -30; 
+                this.player.y -= 100;
+                this.hunter.y = this.cameraY + canvas.height + 300; 
+                this.hunter.active = false; this.hunter.startTimer(); 
+                this.floatingTexts.push(new FloatingText(this.player.x, this.player.y, "❤️ СПАСЕН!"));
+            }
+
+            update() {
+                if (gameState !== 'PLAYING') return;
+
+                if (this.player.y < this.maxReachedY) this.maxReachedY = this.player.y;
+
+                if (this.mode === 'endless') {
+                    this.currentScore = Math.floor(Math.max(0, ((canvas.height - 50) - this.maxReachedY) / 10));
+                    // СМЕНА ФАЗЫ КАЖДЫЕ 3000 МЕТРОВ
+                    this.tier = Math.floor(this.currentScore / 3000); 
+                    
+                    document.getElementById('hudLeft').innerText = `${this.currentScore} м`;
+                    if (this.currentScore > SAVE.highScore) SAVE.highScore = this.currentScore; 
+                }
+
+                this.generateChunk(); 
+                let cleanupY = this.cameraY + canvas.height + 300;
+                this.platforms = this.platforms.filter(p => p.y < cleanupY && !p.broken); 
+                this.items = this.items.filter(i => i.y < cleanupY && !i.markedForDeletion); 
+
+                this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
+                this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
+                this.floatingTexts.forEach(ft => ft.update()); this.floatingTexts = this.floatingTexts.filter(ft => ft.life > 0);
+                
+                let targetCamera = this.player.y - canvas.height / 2;
+                if (targetCamera < this.cameraY) {
+                    this.cameraY += (targetCamera - this.cameraY) * 0.15; 
+                }
+                
+                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
+                    this.handleDeath("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
+                }
+
+                if (this.player.y > this.cameraY + canvas.height + 100) {
+                    this.handleDeath("УПАЛ В БЕЗДНУ");
+                }
+
+                if (this.mode === 'campaign') {
+                    this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) triggerWin(); });
+                }
+
+                let magCoinRadius = SAVE.magnetCoinLvl * 45; 
+                let magJpRadius = SAVE.magnetJpLvl * 45;
+
+                this.items.forEach(item => {
+                    if (item.markedForDeletion) return;
+                    
+                    let dx = (this.player.x + 15) - (item.x + 12);
+                    let dy = (this.player.y + 15) - (item.y + 12);
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    let radius = item.type === 'coin' ? magCoinRadius : (item.type === 'jetpack' ? magJpRadius : 0);
+                    if (radius > 0 && dist < radius) {
+                        item.x += (dx / dist) * 12;
+                        item.y += (dy / dist) * 12;
+                    }
+
+                    if (this.player.x < item.x + 24 && this.player.x + 30 > item.x && this.player.y < item.y + 24 && this.player.y + 30 > item.y) {
+                        item.markedForDeletion = true;
+                        
+                        if (item.type === 'coin') { 
+                            let reward = this.isHard ? 3 : 1; 
+                            SAVE.coins += reward; sfx.coin(); saveGame(); 
+                            for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
+                            document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
+                        } else if (item.type === 'jetpack') { 
+                            this.player.jetpackTimer = 90 + (SAVE.jetpackLevel * 30); 
+                            sfx.powerup(); 
+                            for(let i=0; i<25; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#ff0055', false, 1.5)); 
+                        }
+                    }
                 });
             }
-            this.gridContainer.add([btn, txt]);
-        }
-
-        if (page > 0) {
-            let prev = this.add.text(20, this.scale.height - 120, '< Пред.', { font: '20px Arial', color: '#fff'}).setInteractive();
-            prev.on('pointerdown', () => this.renderGrid(page - 1));
-            this.gridContainer.add(prev);
-        }
-        if (page < 3) {
-            let next = this.add.text(this.scale.width - 20, this.scale.height - 120, 'След. >', { font: '20px Arial', color: '#fff'}).setOrigin(1, 0).setInteractive();
-            next.on('pointerdown', () => this.renderGrid(page + 1));
-            this.gridContainer.add(next);
-        }
-    }
-}
-
-// ==========================================
-// SCENE 4: SHOP (Магазин)
-// ==========================================
-class ShopScene extends Phaser.Scene {
-    constructor() { super('Shop'); }
-    create() {
-        const cx = this.scale.width / 2;
-        this.add.text(cx, 40, 'АРСЕНАЛ', { font: 'bold 30px Arial', color: '#FFD700' }).setOrigin(0.5);
-        this.coinsText = this.add.text(cx, 80, `💰 ${DataManager.data.coins}`, { font: 'bold 22px Arial', color: '#FFD700' }).setOrigin(0.5);
-        
-        createButton(this, cx, this.scale.height - 50, 'НАЗАД', 0x555555, () => this.scene.start('Menu'));
-
-        this.items =[
-            { id: 'upg_jp', name: 'РАКЕТА 🚀', price: () => DataManager.data.jetpackLevel * 100, max: () => DataManager.data.jetpackLevel >= 10, buy: () => DataManager.data.jetpackLevel++ },
-            { id: 'mag_coin', name: 'МАГНИТ ЗОЛ.🧲', price: () => DataManager.data.magnetCoinLvl * 100 + 100, max: () => DataManager.data.magnetCoinLvl >= 5, buy: () => DataManager.data.magnetCoinLvl++ },
-            { id: 'mag_jp', name: 'МАГНИТ РАК.🧲', price: () => DataManager.data.magnetJpLvl * 150 + 150, max: () => DataManager.data.magnetJpLvl >= 5, buy: () => DataManager.data.magnetJpLvl++ },
-            { id: 'life', name: 'СЕРДЦЕ ❤️', price: () => 50, max: () => false, buy: () => DataManager.data.lives++ },
-            { id: '#39ff14', name: 'Скин: ТОКСИК', price: () => 300, max: () => DataManager.data.ownedSkins.includes('#39ff14'), buy: () => { DataManager.data.ownedSkins.push('#39ff14'); DataManager.data.skin = '#39ff14'; }, isEquip: true },
-            { id: '#FFD700', name: 'Скин: ЗОЛОТО', price: () => 1000, max: () => DataManager.data.ownedSkins.includes('#FFD700'), buy: () => { DataManager.data.ownedSkins.push('#FFD700'); DataManager.data.skin = '#FFD700'; }, isEquip: true }
-        ];
-
-        this.renderList();
-    }
-
-    renderList() {
-        if(this.listContainer) this.listContainer.destroy();
-        this.listContainer = this.add.container(0, 130);
-        const cx = this.scale.width / 2;
-
-        this.items.forEach((item, i) => {
-            let y = i * 85;
-            let bg = this.add.rectangle(cx, y, 320, 75, 0x222233).setStrokeStyle(1, 0x444455);
-            let name = this.add.text(cx - 150, y - 20, item.name, { font: 'bold 18px Arial', color: item.id.startsWith('#') ? item.id : '#fff' });
-            
-            let btnBg = this.add.rectangle(cx + 90, y, 120, 40, 0x4caf50).setInteractive();
-            
-            let btnTextStr = `КУПИТЬ\n(${item.price()})`;
-            if (item.max()) {
-                btnBg.fillColor = 0x444444; 
-                btnTextStr = item.isEquip ? (DataManager.data.skin === item.id ? "НАДЕТО" : "НАДЕТЬ") : "МАКС.";
-            } else if (DataManager.data.coins < item.price()) {
-                btnBg.fillColor = 0x552222;
-            }
-
-            let btnTxt = this.add.text(cx + 90, y, btnTextStr, { font: 'bold 14px Arial', color: '#fff', align: 'center' }).setOrigin(0.5);
-
-            btnBg.on('pointerdown', () => {
-                if (item.max() && item.isEquip) { DataManager.data.skin = item.id; sfx.jump(); DataManager.save(); this.renderList(); return; }
-                if (!item.max() && DataManager.data.coins >= item.price()) {
-                    DataManager.data.coins -= item.price();
-                    item.buy(); sfx.purchase(); DataManager.save();
-                    this.coinsText.setText(`💰 ${DataManager.data.coins}`);
-                    this.renderList();
-                }
-            });
-
-            this.listContainer.add([bg, name, btnBg, btnTxt]);
-        });
-    }
-}
-
-// ==========================================
-// SCENE 5: ИГРОВОЙ ПРОЦЕСС
-// ==========================================
-class GameScene extends Phaser.Scene {
-    constructor() { super('Game'); }
-
-    create() {
-        // Константы из оригинальной математики (умноженные на 60 для Arcade Physics)
-        this.GRAVITY = 2880; 
-        this.JUMP_VEL = -1020;
-        this.SPRING_VEL = -1560;
-        this.JETPACK_VEL = -1080;
-        this.MOVE_SPEED = 480;
-
-        this.isHard = (gameMode === 'campaign' && currentLevel % 5 === 0);
-        this.highestY = this.scale.height - 50;
-        this.maxReachedY = this.highestY;
-        this.tier = 0;
-        this.currentScore = 0;
-        this.targetY = gameMode === 'campaign' ? -(1500 + (currentLevel * 500)) : -Infinity;
-        this.finishSpawned = false;
-
-        this.physics.world.gravity.y = this.GRAVITY;
-        this.physics.world.setBounds(0, -Infinity, this.scale.width, Infinity);
-
-        // Фоны
-        this.bg = this.add.rectangle(0, 0, this.scale.width*2, this.scale.height*2, 0x0b0b1a).setScrollFactor(0);
-
-        // Группы объектов
-        this.platforms = this.physics.add.staticGroup();
-        this.movingPlatforms = this.physics.add.group({ allowGravity: false, immovable: true });
-        this.items = this.physics.add.group({ allowGravity: false });
-
-        // Игрок
-        this.player = this.physics.add.sprite(this.scale.width/2, this.scale.height - 100, 'white_box').setScale(30/16);
-        this.player.setTint(parseInt(DataManager.data.skin.replace('#', '0x')));
-        this.player.body.setSize(16, 16);
-        this.player.body.checkCollision.up = false; 
-        this.player.body.checkCollision.left = false; 
-        this.player.body.checkCollision.right = false;
-        this.player.jetpackTimer = 0;
-        this.player.vx = 0;
-
-        // Охотник
-        this.hunter = this.add.rectangle(this.scale.width/2, this.scale.height + 300, 38, 38, 0xff0033);
-        this.physics.add.existing(this.hunter);
-        this.hunter.body.allowGravity = false;
-        this.hunter.activeHunt = false;
-        this.hunter.waitTimer = 120; // Кадры ожидания
-
-        // Коллизии
-        this.physics.add.collider(this.player, this.platforms, this.hitPlatform, null, this);
-        this.physics.add.collider(this.player, this.movingPlatforms, this.hitPlatform, null, this);
-        this.physics.add.overlap(this.player, this.items, this.collectItem, null, this);
-        this.physics.add.overlap(this.player, this.hunter, () => this.handleDeath("ОХОТНИК ПОГЛОТИЛ ТЕБЯ"), null, this);
-
-        // Управление
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.input.addPointer();
-
-        // Частицы
-        this.particles = this.add.particles(0, 0, 'white_box', {
-            lifespan: 500, speed: { min: 50, max: 200 }, scale: { start: 0.5, end: 0 },
-            alpha: { start: 1, end: 0 }, blendMode: 'ADD', emitting: false
-        });
-
-        // Первая платформа
-        let basePlat = this.platforms.create(this.scale.width/2, this.highestY, 'plat_normal').setScale(this.scale.width/100, 1).refreshBody();
-        basePlat.type = 'normal';
-
-        // HUD и Меню выносим в отдельную сцену поверх текущей
-        this.scene.launch('UI', { gameScene: this });
-
-        // Старт
-        this.player.setVelocityY(this.JUMP_VEL);
-        window.gamePaused = false;
-    }
-
-    generateChunk() {
-        const camY = this.cameras.main.scrollY;
-        while (this.highestY > camY - this.scale.height * 2) {
-            if (gameMode === 'campaign' && this.highestY <= this.targetY) {
-                if (!this.finishSpawned) {
-                    let finish = this.platforms.create(this.scale.width/2, this.targetY - 100, 'plat_finish').setScale(this.scale.width/100, 1).refreshBody();
-                    finish.type = 'finish';
-                    this.finishSpawned = true;
-                }
-                break;
-            }
-            
-            let gap = 90 + (this.tier * 10) + Math.random() * (this.isHard ? 60 : 40 + (this.tier * 5));
-            this.highestY -= gap;
-            
-            let w = Math.max(40, 85 - (this.tier * 10)) + Math.random() * (this.isHard ? 50 : 80 - (this.tier * 5)); 
-            let x = Math.random() * (this.scale.width - w) + w/2;
-            
-            let type = 'normal'; let r = Math.random();
-            if (this.isHard) { if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; } 
-            else { if (r > 0.85) type = 'spring'; else if (r > Math.max(0.2, 0.65 - (this.tier * 0.15))) type = 'moving'; }
-            
-            let plat;
-            if (type === 'moving') {
-                plat = this.movingPlatforms.create(x, this.highestY, 'plat_moving').setScale(w/100, 1);
-                plat.body.setSize(w, 20);
-                plat.setVelocityX((100 + this.tier*20 + Math.random()*50) * (Math.random()>0.5?1:-1));
-                plat.body.collideWorldBounds = true;
-                plat.body.bounce.set(1, 0);
-            } else {
-                plat = this.platforms.create(x, this.highestY, type === 'spring' ? 'plat_spring' : 'plat_normal').setScale(w/100, 1).refreshBody();
-            }
-            plat.type = type;
-
-            let ri = Math.random();
-            if (ri > 0.993 && !this.isHard) {
-                let item = this.items.create(x, this.highestY - 40, 'jetpack'); item.itemType = 'jetpack'; item.baseY = item.y;
-            } else if (ri > 0.6) {
-                let item = this.items.create(x, this.highestY - 35, 'coin'); item.itemType = 'coin'; item.baseY = item.y;
-            }
-        }
-    }
-
-    hitPlatform(player, platform) {
-        if (player.body.velocity.y > 0) {
-            if (platform.type === 'finish') {
-                this.handleWin();
-                return;
-            }
-            
-            sfx.jump();
-            if (platform.type === 'spring') {
-                player.setVelocityY(this.SPRING_VEL);
-                this.particles.emitParticleAt(player.x, player.y + 15, 15, { tint: 0x00ff00 });
-            } else {
-                player.setVelocityY(this.JUMP_VEL);
-                this.particles.emitParticleAt(player.x, player.y + 15, 10, { tint: 0xffffff });
+            draw(ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                if (this.isHard) platform.destroy();
+                // --- СМЕНА АТМОСФЕРЫ (ЦВЕТ ФОНА) ---
+                if (this.isHard) { 
+                    ctx.fillStyle = 'rgba(50, 0, 10, 0.3)'; ctx.fillRect(0,0,canvas.width, canvas.height); 
+                } else if (this.mode === 'endless' && this.tier > 0) {
+                    let bgAlpha = Math.min(0.8, this.tier * 0.15); // Чем выше фаза, тем темнее красный фон
+                    ctx.fillStyle = `rgba(60, 0, 15, ${bgAlpha})`; 
+                    ctx.fillRect(0,0,canvas.width, canvas.height);
+                }
+
+                ctx.save(); ctx.translate(0, -this.cameraY);
+                this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
+                this.hunter.draw(ctx); if (gameState === 'PLAYING' || gameState === 'END' || gameState === 'REVIVE_PROMPT') this.player.draw(ctx);
+                this.particles.forEach(p => p.draw(ctx)); this.floatingTexts.forEach(ft => ft.draw(ctx));
+                ctx.restore();
+                
+                if ((gameState === 'PLAYING' || gameState === 'REVIVE_PROMPT') && this.player.jetpackTimer > 0) {
+                    let maxTimer = 90 + (SAVE.jetpackLevel * 30);
+                    let prog = this.player.jetpackTimer / maxTimer;
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 50, 100, 6);
+                    ctx.fillStyle = '#ff0055'; ctx.fillRect(canvas.width/2 - 50, 50, 100 * prog, 6);
+                }
             }
         }
-    }
 
-    collectItem(player, item) {
-        if (item.itemType === 'coin') {
-            let reward = this.isHard ? 3 : 1;
-            DataManager.data.coins += reward; sfx.coin(); DataManager.save();
-            this.particles.emitParticleAt(item.x, item.y, 10, { tint: 0xFFD700 });
-            this.scene.get('UI').updateHUD();
-        } else if (item.itemType === 'jetpack') {
-            player.jetpackTimer = 90 + (DataManager.data.jetpackLevel * 30);
-            player.setVelocityY(this.JETPACK_VEL);
-            sfx.powerup();
-            this.particles.emitParticleAt(item.x, item.y, 25, { tint: 0xff0055 });
+        let game = null;
+        let lastPlayedMode = 'campaign';
+        let lastPlayedLevel = 1;
+
+        function animate() { 
+            if (game) { game.update(); game.draw(ctx); }
+            requestAnimationFrame(animate); 
         }
-        item.destroy();
-    }
-
-    handleDeath(reason) {
-        if (window.gamePaused) return;
-        window.gamePaused = true;
-        this.physics.pause();
-        sfx.death(); DataManager.save();
         
-        if (DataManager.data.lives > 0) {
-            this.scene.get('UI').showRevive(reason);
-        } else {
-            this.scene.get('UI').showEnd("ВЫ ПОГИБЛИ", reason, "#ff0055", "ПОВТОРИТЬ");
-        }
-    }
-
-    useExtraLife() {
-        DataManager.data.lives--; DataManager.save(); sfx.powerup();
-        this.scene.get('UI').updateHUD();
-        this.player.y -= 150;
-        this.player.setVelocityY(this.SPRING_VEL);
-        this.hunter.y = this.cameras.main.scrollY + this.scale.height + 400;
-        this.hunter.activeHunt = false;
-        this.hunter.waitTimer = 120;
-        window.gamePaused = false;
-        this.physics.resume();
-    }
-
-    handleWin() {
-        if (window.gamePaused) return;
-        window.gamePaused = true;
-        this.physics.pause();
-        sfx.coin();
-        if (currentLevel === DataManager.data.maxLevel && DataManager.data.maxLevel < 100) DataManager.data.maxLevel++;
-        DataManager.save();
-        
-        let desc = this.isHard ? "ХАРДКОР ЗАВЕРШЕН!" : "Отличная работа!";
-        this.scene.get('UI').showEnd("УРОВЕНЬ ПРОЙДЕН", desc, "#00ff00", "СЛЕДУЮЩИЙ");
-    }
-
-    update(time, delta) {
-        if (window.gamePaused) return;
-
-        // Смена цвета фона (Atmosphere)
-        if (this.isHard) { this.bg.fillColor = 0x32000a; } 
-        else if (gameMode === 'endless' && this.tier > 0) {
-            let color = Phaser.Display.Color.Interpolate.ColorWithColor(
-                Phaser.Display.Color.ValueToColor(0x0b0b1a), Phaser.Display.Color.ValueToColor(0x3c000f),
-                100, Math.min(100, this.tier * 15)
-            );
-            this.bg.fillColor = Phaser.Display.Color.GetColor(color.r, color.g, color.b);
-        }
-
-        // Обновление рекорда и генерация
-        if (this.player.y < this.maxReachedY) this.maxReachedY = this.player.y;
-        if (gameMode === 'endless') {
-            this.currentScore = Math.floor(Math.max(0, ((this.scale.height - 50) - this.maxReachedY) / 10));
-            this.tier = Math.floor(this.currentScore / 3000);
-            this.scene.get('UI').setCenterText(`${this.currentScore} м`);
-            if (this.currentScore > DataManager.data.highScore) DataManager.data.highScore = this.currentScore;
-        }
-
-        this.generateChunk();
-
-        // Управление Игроком
-        if (this.cursors.left.isDown || (this.input.activePointer.isDown && this.input.activePointer.x < this.scale.width/2)) {
-            this.player.vx = -this.MOVE_SPEED;
-        } else if (this.cursors.right.isDown || (this.input.activePointer.isDown && this.input.activePointer.x > this.scale.width/2)) {
-            this.player.vx = this.MOVE_SPEED;
-        } else {
-            this.player.vx *= 0.8; 
-        }
-        this.player.setVelocityX(this.player.vx);
-        
-        // Вращение
-        let dir = this.player.vx > 0 ? 1 : (this.player.vx < 0 ? -1 : 1);
-        this.player.angle += (this.player.jetpackTimer > 0 ? 15 : 6) * dir;
-
-        // Обертывание экрана
-        this.physics.world.wrap(this.player, 15);
-
-        // Джетпак
-        if (this.player.jetpackTimer > 0) {
-            this.player.setVelocityY(this.JETPACK_VEL);
-            this.player.jetpackTimer--;
-            sfx.thrust();
-            if(Math.random()>0.5) this.particles.emitParticleAt(this.player.x, this.player.y + 15, 1, { tint: 0xff9900 });
-            this.player.setTint(0xffffff);
-        } else {
-            this.player.setTint(parseInt(DataManager.data.skin.replace('#', '0x')));
-        }
-
-        // Анимация предметов (Floating) и Магнит
-        let magCoinR = DataManager.data.magnetCoinLvl * 45;
-        let magJpR = DataManager.data.magnetJpLvl * 45;
-        this.items.getChildren().forEach(item => {
-            item.y = item.baseY + Math.sin(time / 200) * 5;
+        function startGame(mode, level = 1) {
+            lastPlayedMode = mode; lastPlayedLevel = level;
+            game = new Game(mode, level);
+            gameState = 'PLAYING'; 
             
-            let dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, item.x, item.y);
-            let radius = item.itemType === 'coin' ? magCoinR : (item.itemType === 'jetpack' ? magJpR : 0);
-            if (radius > 0 && dist < radius) {
-                this.physics.moveToObject(item, this.player, 300);
-            }
-        });
-
-        // Камера (Следование только вверх)
-        let targetCamY = this.player.y - this.scale.height / 2;
-        if (targetCamY < this.cameras.main.scrollY) {
-            this.cameras.main.scrollY += (targetCamY - this.cameras.main.scrollY) * 0.15;
-        }
-        
-        // Смерть от падения
-        if (this.player.y > this.cameras.main.scrollY + this.scale.height + 100) {
-            this.handleDeath("УПАЛ В БЕЗДНУ");
-        }
-
-        // Охотник
-        if (!this.hunter.activeHunt) {
-            if (this.hunter.waitTimer > 0) this.hunter.waitTimer--;
-            else this.hunter.activeHunt = true;
-        } else {
-            let dist = Phaser.Math.Distance.Between(this.hunter.x, this.hunter.y, this.player.x, this.player.y);
-            let baseSpeed = this.isHard ? 105 : 75;
-            let speed = baseSpeed + (currentLevel * 4.8);
-            if (dist > 300) speed += (dist - 300) * 0.18;
-            let maxSpeed = this.isHard ? 510 : 390;
-            if (speed > maxSpeed) speed = maxSpeed;
-
-            if (dist > 0) this.physics.moveToObject(this.hunter, this.player, speed);
+            document.getElementById('hudLeft').innerText = mode === 'campaign' ? `УРОВЕНЬ ${level}` : `0 м`;
+            document.getElementById('hudLeft').style.color = game.isHard ? '#ff0055' : 'white';
+            updateUI();
             
-            let bottom = this.cameras.main.scrollY + this.scale.height - 48;
-            if (this.hunter.y > bottom) this.hunter.y -= (this.hunter.y - bottom) * 0.08;
-            
-            if (Math.random() > 0.4) this.particles.emitParticleAt(this.hunter.x + (Math.random()-0.5)*38, this.hunter.y, 1, { tint: 0xff0033 });
+            showState('NONE'); 
+            gameHud.style.display = 'flex';
+
+            if (game.player.vy === 0) game.player.vy = -17; 
+            game.hunter.startTimer();
         }
-    }
-}
 
-// ==========================================
-// SCENE 6: UI (Оверлеи поверх игры)
-// ==========================================
-class UIScene extends Phaser.Scene {
-    constructor() { super('UI'); }
-
-    create(data) {
-        this.gameScene = data.gameScene;
-        const cx = this.scale.width / 2;
-
-        this.topText = this.add.text(cx, 20, gameMode === 'campaign' ? `УРОВЕНЬ ${currentLevel}` : '0 м', { font: 'bold 22px Arial', color: this.gameScene.isHard ? '#ff0055' : '#fff' }).setOrigin(0.5, 0);
-        this.coinText = this.add.text(this.scale.width - 20, 20, `💰 ${DataManager.data.coins}`, { font: 'bold 22px Arial', color: '#FFD700' }).setOrigin(1, 0);
-        this.livesText = this.add.text(20, 20, `❤️ ${DataManager.data.lives}`, { font: 'bold 22px Arial', color: '#ff0055' }).setOrigin(0, 0);
-
-        let pauseBtn = this.add.text(this.scale.width - 20, 60, '⏸', { font: '30px Arial' }).setOrigin(1, 0).setInteractive();
-        pauseBtn.on('pointerdown', () => this.togglePause());
-
-        // Меню Паузы
-        this.pauseMenu = this.createOverlay('ПАУЗА', '#fff',[
-            { text: 'ПРОДОЛЖИТЬ', color: 0x3a7bd5, action: () => this.togglePause() },
-            { text: 'В МЕНЮ', color: 0x555555, action: () => this.quitToMenu() }
-        ]);
-
-        // Меню Окончания
-        this.endMenu = this.createOverlay('TITLE', '#fff',[
-            { text: 'BTN1', color: 0x3a7bd5, action: () => {} },
-            { text: 'В МЕНЮ', color: 0x555555, action: () => this.quitToMenu() }
-        ]);
-        this.endDesc = this.add.text(cx, this.scale.height/2 - 60, '', { font: '18px Arial', color: '#ccc' }).setOrigin(0.5);
-        this.endMenu.add(this.endDesc);
-
-        // Возрождение
-        this.reviveMenu = this.createOverlay('КРИТИЧЕСКИЙ УРОН', '#ff0055',[
-            { text: 'ДА (❤️-1)', color: 0xff0055, action: () => { this.reviveMenu.setVisible(false); this.gameScene.useExtraLife(); } },
-            { text: 'СДАТЬСЯ', color: 0x555555, action: () => { this.reviveMenu.setVisible(false); this.gameScene.handleDeath(this.pendingDeathReason); } }
-        ]);
-    }
-
-    createOverlay(titleText, titleColor, buttons) {
-        const cx = this.scale.width / 2;
-        const cy = this.scale.height / 2;
-        let container = this.add.container(0, 0).setVisible(false);
-        
-        let bg = this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0x000000, 0.85);
-        bg.setInteractive(); // Блокировка кликов
-        let title = this.add.text(cx, cy - 120, titleText, { font: 'bold 36px Arial', color: titleColor }).setOrigin(0.5);
-        
-        container.add([bg, title]);
-        
-        buttons.forEach((btn, i) => {
-            let b = createButton(this, cx, cy + i * 70, btn.text, btn.color, btn.action);
-            container.add(b);
-            if (i===0) container.btn1 = b; // Ссылка для замены текста
-        });
-        return container;
-    }
-
-    updateHUD() {
-        this.coinText.setText(`💰 ${DataManager.data.coins}`);
-        this.livesText.setText(DataManager.data.lives > 0 ? `❤️ ${DataManager.data.lives}` : '');
-    }
-
-    setCenterText(text) { this.topText.setText(text); }
-
-    togglePause() {
-        if (!window.gamePaused && !this.endMenu.visible && !this.reviveMenu.visible) {
-            window.gamePaused = true; this.gameScene.physics.pause(); this.pauseMenu.setVisible(true);
-        } else if (this.pauseMenu.visible) {
-            window.gamePaused = false; this.gameScene.physics.resume(); this.pauseMenu.setVisible(false);
+        function triggerGameOver(reason) { 
+            gameState = 'END'; sfx.death(); saveGame(); 
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; 
+                document.getElementById('endTitle').style.color = "#ff0055";
+                document.getElementById('endDesc').innerText = reason; 
+                document.getElementById('endBtn1').innerText = "ПОВТОРИТЬ";
+                document.getElementById('endBtn1').onclick = () => startGame(lastPlayedMode, lastPlayedLevel);
+                showState('END');
+            }, 800); 
         }
-    }
 
-    showRevive(reason) {
-        this.pendingDeathReason = reason;
-        this.reviveMenu.setVisible(true);
-    }
-
-    showEnd(title, desc, color, btnText) {
-        this.endMenu.list[1].setText(title);
-        this.endMenu.list[1].setColor(color);
-        this.endDesc.setText(desc);
+        function triggerWin() { 
+            gameState = 'END'; sfx.coin(); 
+            if (lastPlayedLevel === SAVE.maxLevel && SAVE.maxLevel < 100) SAVE.maxLevel++;
+            saveGame();
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "УРОВЕНЬ ПРОЙДЕН"; 
+                document.getElementById('endTitle').style.color = "#00ff00";
+                document.getElementById('endDesc').innerText = game.isHard ? "ХАРДКОР ЗАВЕРШЕН!" : "Отличная работа!"; 
+                document.getElementById('endBtn1').innerText = "СЛЕДУЮЩИЙ";
+                document.getElementById('endBtn1').onclick = () => startGame('campaign', lastPlayedLevel + 1);
+                showState('END');
+            }, 500); 
+        }
         
-        // Меняем текст и действие первой кнопки
-        this.endMenu.btn1.list[1].setText(btnText);
-        this.endMenu.btn1.list[0].removeAllListeners('pointerup');
-        this.endMenu.btn1.list[0].on('pointerup', () => {
-            this.endMenu.btn1.list[0].setScale(1);
-            if(btnText === 'СЛЕДУЮЩИЙ') currentLevel++;
-            this.scene.start('Game');
-        });
-        
-        this.endMenu.setVisible(true);
-    }
-
-    quitToMenu() {
-        DataManager.save();
-        this.gameScene.scene.stop();
-        this.scene.start('Menu');
-    }
-}
-
-// ==========================================
-// ИНИЦИАЛИЗАЦИЯ ИГРЫ
-// ==========================================
-const config = {
-    type: Phaser.AUTO,
-    scale: {
-        mode: Phaser.Scale.RESIZE,
-        parent: document.body,
-        width: '100%',
-        height: '100%'
-    },
-    physics: {
-        default: 'arcade',
-        arcade: { debug: false }
-    },
-    scene: [BootScene, MenuScene, LevelSelectScene, ShopScene, GameScene, UIScene],
-    backgroundColor: '#0b0b1a'
-};
-
-const game = new Phaser.Game(config);
-
-// Костыль для активации AudioContext по первому клику на всем документе
-document.body.addEventListener('pointerdown', () => sfx.init(), { once: true });
-</script>
+        showState('MAIN'); 
+        animate();
+    </script>
 </body>
 </html>
