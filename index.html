@@ -107,6 +107,9 @@
             <div style="display: flex; gap: 10px; align-items: center;">
                 <div class="hud-text crystal-hud" id="hudCrystals">💎 0</div>
                 <div class="hud-text coin-hud" id="hudCoins">💰 0</div>
+                <button class="pause-btn" id="hudSlowmo" onclick="activateSlowmo()" style="display:none; font-size: 16px; width: auto; padding: 0 10px; border-radius: 20px; background: rgba(0, 210, 255, 0.3); border-color: #00d2ff;">
+                    ⏳ <span id="slowmoCount" style="margin-left:5px; font-weight:bold;">0</span>
+                </button>
                 <button class="pause-btn" onclick="togglePause()">⏸</button>
             </div>
         </div>
@@ -199,6 +202,7 @@
             magnetJpLvl: parseInt(localStorage.getItem('neonMagJp')) || 0,
             jumpLvl: parseInt(localStorage.getItem('neonJumpLvl')) || 0,
             lives: parseInt(localStorage.getItem('neonLives')) || 0,
+            slowmo: parseInt(localStorage.getItem('neonSlowmo')) || 0, // Новая переменная для замедления
             skin: localStorage.getItem('neonSkin') || '#00d2ff',
             ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff'],
             trail: localStorage.getItem('neonTrail') || 'none',
@@ -215,6 +219,7 @@
             localStorage.setItem('neonMagJp', SAVE.magnetJpLvl);
             localStorage.setItem('neonJumpLvl', SAVE.jumpLvl);
             localStorage.setItem('neonLives', SAVE.lives);
+            localStorage.setItem('neonSlowmo', SAVE.slowmo);
             localStorage.setItem('neonSkin', SAVE.skin);
             localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
             localStorage.setItem('neonTrail', SAVE.trail);
@@ -266,12 +271,30 @@
         function confirmRevive() { document.getElementById('reviveMenu').classList.remove('active'); gameState = 'PLAYING'; game.useExtraLife(); }
         function declineRevive() { document.getElementById('reviveMenu').classList.remove('active'); triggerGameOver(pendingDeathReason); }
 
+        function activateSlowmo() {
+            if (gameState === 'PLAYING' && SAVE.slowmo > 0 && game && game.slowmoTimer <= 0) {
+                SAVE.slowmo--;
+                saveGame();
+                game.slowmoTimer = 600; // 10 секунд (60 кадров в секунду)
+                sfx.powerup(); 
+                game.floatingTexts.push(new FloatingText(game.player.x, game.player.y, "ЗАМЕДЛЕНИЕ!"));
+            }
+        }
+
         function updateUI() {
             document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('menuCrystals').innerText = `💎 ${SAVE.crystals}`;
             document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('shopCrystals').innerText = `💎 ${SAVE.crystals}`;
             document.getElementById('upgCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`; document.getElementById('hudCrystals').innerText = `💎 ${SAVE.crystals}`;
             document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
+            
+            if (SAVE.slowmo > 0) {
+                document.getElementById('hudSlowmo').style.display = 'flex';
+                document.getElementById('slowmoCount').innerText = SAVE.slowmo;
+            } else {
+                document.getElementById('hudSlowmo').style.display = 'none';
+            }
+
             renderShop(); renderUpgrades(); renderLevels();
         }
 
@@ -305,6 +328,7 @@
             const list = document.getElementById('shopList'); list.innerHTML = '';
             const items = [
                 { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Возрождение', price: 1, currency: 'coins', type: 'consumable', lvl: SAVE.lives },
+                { id: 'slowmo', name: 'ВРЕМЯ ⏳', desc: 'Замедление (Пробел)', price: 1, currency: 'coins', type: 'consumable_slowmo', lvl: SAVE.slowmo },
                 { id: 'ghost', name: 'ПРИЗРАК 👻', desc: 'Спектральный', price: 1, currency: 'coins', type: 'skin' },
                 { id: 'demon', name: 'ДЕМОН 👹', desc: 'Рогатый', price: 1, currency: 'coins', type: 'skin' },
                 { id: 'cat', name: 'НЕОН КИЦЯ 🐱', desc: 'Ультра скин', price: 10, currency: 'crystals', type: 'skin' },
@@ -317,7 +341,8 @@
                 let currencySymbol = item.currency === 'crystals' ? '💎' : '💰'; let actionText = `КУПИТЬ (${currencySymbol} ${item.price})`;
                 let btnClass = 'shop-btn'; if (item.currency === 'crystals') btnClass += ' crystal-btn';
                 let disabled = item.currency === 'crystals' ? SAVE.crystals < item.price : SAVE.coins < item.price;
-                let badge = ''; if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
+                let badge = ''; 
+                if (item.type === 'consumable' || item.type === 'consumable_slowmo') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
                 if (item.type === 'skin' && SAVE.ownedSkins.includes(item.id)) { disabled = false; if (SAVE.skin === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass = 'shop-btn equip'; } else { actionText = 'НАДЕТЬ'; btnClass = 'shop-btn equip'; } }
                 if (item.type === 'trail' && SAVE.ownedTrails.includes(item.id)) { disabled = false; if (SAVE.trail === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass = 'shop-btn equip'; } else { actionText = 'НАДЕТЬ'; btnClass = 'shop-btn equip'; } }
                 let titleColor = item.currency === 'crystals' ? '#e024ff' : (item.type === 'skin' && item.id.startsWith('#') ? item.id : '#fff');
@@ -333,7 +358,9 @@
                 if (currency === 'crystals') SAVE.crystals -= price; else SAVE.coins -= price;
                 if (type === 'upg_jump') SAVE.jumpLvl++; if (type === 'upg_jp') SAVE.jetpackLevel++;
                 if (type === 'mag_coin') SAVE.magnetCoinLvl++; if (type === 'mag_jp') SAVE.magnetJpLvl++;
-                if (type === 'consumable') SAVE.lives++; if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
+                if (type === 'consumable') SAVE.lives++; 
+                if (type === 'consumable_slowmo') SAVE.slowmo++; 
+                if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
                 if (type === 'trail') { SAVE.ownedTrails.push(id); SAVE.trail = id; }
                 sfx.purchase(); saveGame();
             }
@@ -428,7 +455,10 @@
         class InputHandler {
             constructor() {
                 this.keys = [];
-                window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
+                window.addEventListener('keydown', e => { 
+                    if (!this.keys.includes(e.key)) this.keys.push(e.key); 
+                    if (e.code === 'Space') activateSlowmo(); // Активация на Пробел
+                });
                 window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
                 const handleTouch = (e) => {
                     if (gameState !== 'PLAYING') return; e.preventDefault(); this.keys = []; 
@@ -511,7 +541,6 @@
             }
         }
 
-        // --- ОБНОВЛЕННАЯ ФИЗИКА ОХОТНИКА ---
         class Hunter {
             constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
             reset() { 
@@ -519,7 +548,7 @@
                 this.y = canvas.height + 200; 
                 this.active = false; 
                 this.waitTimer = 120; 
-                this.baseOffsetY = canvas.height - 40; // Базовая позиция (низ экрана)
+                this.baseOffsetY = canvas.height - 40; 
             }
             startTimer() { this.waitTimer = 120; } 
             update() {
@@ -531,21 +560,14 @@
                 }
                 
                 let dx = (this.game.player.x + 15) - (this.x + 19);
-                
-                // Плавный возврат к базовой позиции внизу экрана
                 let normalOffsetY = canvas.height - 40;
                 this.baseOffsetY += (normalOffsetY - this.baseOffsetY) * 0.01;
 
                 let targetY = this.game.cameraY + this.baseOffsetY;
-                
-                // Упругое движение по Y (догоняет камеру/свою цель)
                 if (this.y < targetY) this.y += (targetY - this.y) * 0.08;
-                else if (this.y > targetY) this.y -= (this.y - targetY) * 0.15; // Возвращается вниз быстрее
+                else if (this.y > targetY) this.y -= (this.y - targetY) * 0.15; 
                 
-                // Движение по X к игроку
                 this.x += dx * 0.05; 
-                
-                // Эффекты если злой (разогнался)
                 if (this.baseOffsetY < normalOffsetY - 20 && Math.random() > 0.5) {
                     this.game.particles.push(new Particle(this.x + Math.random()*38, this.y + 19, this.color));
                 }
@@ -556,11 +578,9 @@
                 
                 let normalOffsetY = canvas.height - 40;
                 if (this.baseOffsetY < normalOffsetY - 50) {
-                    // Злой взгляд
                     ctx.fillStyle = '#fff'; ctx.fillRect(this.x+6+lx, this.y+10+ly, 8, 8); ctx.fillRect(this.x+24+lx, this.y+10+ly, 8, 8);
                     ctx.fillStyle = '#ffeb3b'; ctx.shadowBlur = 10; ctx.fillRect(this.x+8+lx, this.y+12+ly, 4, 4); ctx.fillRect(this.x+26+lx, this.y+12+ly, 4, 4);
                 } else {
-                    // Обычный взгляд
                     ctx.fillStyle = '#550000'; ctx.fillRect(this.x+6+lx, this.y+10+ly, 8, 8); ctx.fillRect(this.x+24+lx, this.y+10+ly, 8, 8);
                 }
                 ctx.shadowBlur = 0;
@@ -612,14 +632,12 @@
                             if (this.y + 30 - this.vy <= p.y + 15) { 
                                 this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
                                 
-                                // --- ЛОГИКА РЕАКЦИИ ОХОТНИКА НА ПРЫЖКИ ---
                                 if (this.lastPlatformId === p.id) {
                                     this.samePlatformJumps++;
-                                    this.comboCount = 0; // Сброс комбо
+                                    this.comboCount = 0; 
                                     if (this.samePlatformJumps >= 2 && this.game.hunter.active) {
-                                        // Охотник разгоняется (целится выше)
                                         this.game.hunter.baseOffsetY -= 100; 
-                                        if (this.game.hunter.baseOffsetY < 150) this.game.hunter.baseOffsetY = 150; // Ограничение
+                                        if (this.game.hunter.baseOffsetY < 150) this.game.hunter.baseOffsetY = 150; 
                                     }
                                 } else {
                                     this.lastPlatformId = p.id;
@@ -627,15 +645,16 @@
                                     this.comboCount++;
                                     
                                     if (this.comboCount >= 3 && this.game.hunter.active) {
-                                        // Охотник отстает (проваливается вниз)
                                         this.game.hunter.baseOffsetY += 80;
-                                        if (this.game.hunter.baseOffsetY > canvas.height + 300) this.game.hunter.baseOffsetY = canvas.height + 300; // Ограничение
+                                        if (this.game.hunter.baseOffsetY > canvas.height + 300) this.game.hunter.baseOffsetY = canvas.height + 300; 
                                     }
                                 }
 
-                                let jumpBoost = SAVE.jumpLvl * 1.5;
-                                if (p.type === 'spring') { this.vy = -(28 + jumpBoost * 1.5); this.createJumpDust('#00ff00', 1.5); } 
-                                else { this.vy = -(19 + jumpBoost); this.createJumpDust('#ffffff', 1); } 
+                                // НОВАЯ ФОРМУЛА ПРЫЖКА
+                                // jumpBoost от 0 до 8. База 17.5 хватает ровно на 1 платформу. Максимум 25.5 хватает на 2.
+                                let jumpBoost = SAVE.jumpLvl * 0.8; 
+                                if (p.type === 'spring') { this.vy = -(26 + jumpBoost * 1.2); this.createJumpDust('#00ff00', 1.5); } 
+                                else { this.vy = -(17.5 + jumpBoost); this.createJumpDust('#ffffff', 1); } 
                                 
                                 if (this.game.isHard && p.type !== 'finish') {
                                     p.broken = true;
@@ -696,6 +715,9 @@
                 this.tier = 0; this.currentScore = 0;
                 this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
                 this.finishSpawned = false;
+                
+                this.slowmoTimer = 0; // Таймер замедления
+
                 this.platforms.push(new Platform(0, this.highestY, canvas.width, 'normal', this.tier));
                 this.player = new Player(this); this.hunter = new Hunter(this);
             }
@@ -804,6 +826,12 @@
                     ctx.fillStyle = `rgba(60, 0, 15, ${bgAlpha})`; ctx.fillRect(0,0,canvas.width, canvas.height);
                 }
 
+                // Визуальный эффект замедления (Кибер-оттенок)
+                if ((gameState === 'PLAYING' || gameState === 'REVIVE_PROMPT') && this.slowmoTimer > 0) {
+                    ctx.fillStyle = 'rgba(0, 255, 255, 0.08)'; 
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+
                 ctx.save();
                 ctx.strokeStyle = 'rgba(0, 210, 255, 0.05)';
                 ctx.lineWidth = 1;
@@ -823,11 +851,31 @@
                     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 50, 100, 6);
                     ctx.fillStyle = '#ff0055'; ctx.fillRect(canvas.width/2 - 50, 50, 100 * prog, 6);
                 }
+                
+                // Отрисовка полоски времени (Slowmo)
+                if ((gameState === 'PLAYING' || gameState === 'REVIVE_PROMPT') && this.slowmoTimer > 0) {
+                    let prog = this.slowmoTimer / 600;
+                    ctx.fillStyle = 'rgba(0,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 65, 100, 6);
+                    ctx.fillStyle = '#00ffff'; ctx.fillRect(canvas.width/2 - 50, 65, 100 * prog, 6);
+                }
             }
         }
 
         let game = null; let lastPlayedMode = 'campaign'; let lastPlayedLevel = 1;
-        function animate() { if (game) { game.update(); game.draw(ctx); } requestAnimationFrame(animate); }
+        
+        function animate() { 
+            if (game && gameState === 'PLAYING') {
+                // ЛОГИКА ЗАМЕДЛЕНИЯ: Пропускаем каждый второй кадр обновления
+                if (game.slowmoTimer > 0) {
+                    game.slowmoTimer--;
+                    if (game.slowmoTimer % 2 === 0) game.update();
+                } else {
+                    game.update();
+                }
+            }
+            if (game) game.draw(ctx);
+            requestAnimationFrame(animate); 
+        }
         
         function startGame(mode, level = 1) {
             lastPlayedMode = mode; lastPlayedLevel = level; game = new Game(mode, level); gameState = 'PLAYING'; 
@@ -835,7 +883,7 @@
             document.getElementById('hudLeft').style.color = game.isHard ? '#ff0055' : 'white';
             updateUI(); showState('NONE'); gameHud.style.display = 'flex';
             
-            if (game.player.vy === 0) game.player.vy = -(19 + SAVE.jumpLvl * 1.5); 
+            if (game.player.vy === 0) game.player.vy = -(17.5 + SAVE.jumpLvl * 0.8); 
             game.hunter.startTimer();
         }
 
