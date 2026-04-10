@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Jumper: Double Dash</title>
+    <title>Neon Grapple: Puzzle Platformer (Fixed)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -82,21 +82,6 @@
             pointer-events: auto; backdrop-filter: blur(5px);
         }
         .pause-btn:active { transform: scale(0.85); }
-
-        /* МОБИЛЬНОЕ УПРАВЛЕНИЕ */
-        .mobile-controls {
-            position: fixed; bottom: 30px; left: 20px; right: 20px;
-            display: flex; justify-content: flex-start; z-index: 15; pointer-events: none;
-        }
-        .ctrl-wrap { display: flex; gap: 20px; pointer-events: auto; }
-        .ctrl-btn {
-            width: 70px; height: 70px; border-radius: 50%;
-            background: rgba(0, 210, 255, 0.15); border: 2px solid rgba(0, 210, 255, 0.4);
-            color: rgba(255,255,255,0.8); font-size: 30px; font-weight: bold;
-            display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(5px); transition: 0.1s; cursor: pointer;
-        }
-        .ctrl-btn:active { background: rgba(0, 210, 255, 0.5); transform: scale(0.9); }
     </style>
 </head>
 <body onclick="sfx.init()">
@@ -114,37 +99,23 @@
         </div>
     </div>
 
-    <div class="mobile-controls" id="mobControls" style="display:none;">
-        <div class="ctrl-wrap">
-            <button class="ctrl-btn" id="btnLeft">◀</button>
-            <button class="ctrl-btn" id="btnRight">▶</button>
-        </div>
-    </div>
-
     <div id="pauseMenu" class="overlay" style="z-index: 25;">
         <h2 style="color: white; text-shadow: 0 0 15px #fff;">ПАУЗА</h2>
         <button class="ui-btn" onclick="togglePause()">ПРОДОЛЖИТЬ</button>
         <button class="ui-btn btn-back" onclick="quitGame()">В МЕНЮ</button>
     </div>
 
-    <div id="reviveMenu" class="overlay" style="z-index: 30;">
-        <h2 style="color: #ff0055; text-shadow: 0 0 15px #ff0055;">КРИТИЧЕСКИЙ УРОН</h2>
-        <p style="font-size: 18px; color: #ccc; margin-bottom: 25px;">Использовать сердце? У вас: <span id="reviveLivesCount" style="color: #ff0055; font-weight: bold;">0</span> ❤️</p>
-        <button class="ui-btn" style="background: linear-gradient(45deg, #ff0055, #ff5e62);" onclick="confirmRevive()">ДА (❤️-1)</button>
-        <button class="ui-btn btn-back" onclick="declineRevive()">СДАТЬСЯ</button>
-    </div>
-
     <div id="mainMenu" class="overlay active">
         <h1 style="font-size: 48px; color: #00d2ff; text-shadow: 0 0 20px #00d2ff; animation: none;">NEON</h1>
-        <h1 style="margin-top: -15px;">JUMPER</h1>
-        <p style="color: #ccc; margin-bottom: 5px; font-size: 14px; text-align: center;">СТРЕЛКИ - Бег | ТАП ПО ЭКРАНУ - Прыжок</p>
+        <h1 style="margin-top: -15px;">GRAPPLE</h1>
+        <p style="color: #ccc; margin-bottom: 5px; font-size: 14px; text-align: center;">ВЕРХ ЭКРАНА - Крюк<br>НИЗ ЦЕНТР - Прыжок</p>
         <button class="ui-btn" onclick="showState('LEVELS')">ИГРАТЬ</button>
         <button class="ui-btn btn-shop" onclick="showState('SHOP')">АРСЕНАЛ</button>
         <p class="coin-hud" style="font-size: 26px; margin-top: 15px;" id="menuCoins">💰 0</p>
     </div>
 
     <div id="levelMenu" class="overlay">
-        <h2>КАМПАНИЯ</h2>
+        <h2>ГОЛОВОЛОМКИ</h2>
         <div id="levelGrid"></div>
         <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
     </div>
@@ -173,20 +144,33 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // --- СОХРАНЕНИЯ ---
+        // --- БЕЗОПАСНАЯ СИСТЕМА СОХРАНЕНИЙ ---
+        function getSafeArray(key, defaultArray) {
+            try {
+                let val = localStorage.getItem(key);
+                if (val && val !== 'undefined' && val !== 'null') {
+                    let parsed = JSON.parse(val);
+                    if (Array.isArray(parsed)) return parsed;
+                }
+            } catch (e) { console.error("Save Error:", e); }
+            return defaultArray;
+        }
+
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
-            maxLevel: parseInt(localStorage.getItem('neonJumpMaxLvl')) || 1,
+            maxLevel: parseInt(localStorage.getItem('neonGrappleMaxLevel')) || 1,
+            hookLevel: parseInt(localStorage.getItem('neonHookLvl')) || 1,
             lives: parseInt(localStorage.getItem('neonShields')) || 0,
             skin: localStorage.getItem('neonSkin') || '#00d2ff',
-            ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff'],
+            ownedSkins: getSafeArray('neonSkins', ['#00d2ff']),
             trail: localStorage.getItem('neonTrail') || 'none',
-            ownedTrails: JSON.parse(localStorage.getItem('neonTrails')) || ['none']
+            ownedTrails: getSafeArray('neonTrails', ['none'])
         };
 
         function saveGame() {
             localStorage.setItem('neonCoins', SAVE.coins);
-            localStorage.setItem('neonJumpMaxLvl', SAVE.maxLevel);
+            localStorage.setItem('neonGrappleMaxLevel', SAVE.maxLevel);
+            localStorage.setItem('neonHookLvl', SAVE.hookLevel);
             localStorage.setItem('neonShields', SAVE.lives);
             localStorage.setItem('neonSkin', SAVE.skin);
             localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
@@ -195,18 +179,15 @@
             updateUI();
         }
 
-        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu'), REVIVE: document.getElementById('reviveMenu') };
+        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu') };
         const gameHud = document.getElementById('gameHud');
-        const mobControls = document.getElementById('mobControls');
         let gameState = 'START'; 
         let currentLevelIdx = 1;
-        let pendingDeathReason = "";
 
         function showState(state) {
             sfx.init();
             Object.values(overlays).forEach(el => el.classList.remove('active'));
             gameHud.style.display = 'none';
-            mobControls.style.display = 'none';
             if(overlays[state]) overlays[state].classList.add('active');
             updateUI();
         }
@@ -227,23 +208,11 @@
             sfx.stopBGM(); saveGame(); showState('MAIN');
         }
 
-        // ЛОГИКА ВОСКРЕШЕНИЯ (ИСПРАВЛЕНО)
-        function confirmRevive() {
-            document.getElementById('reviveMenu').classList.remove('active');
-            gameState = 'PLAYING';
-            if (game) game.useExtraLife();
-        }
-
-        function declineRevive() {
-            document.getElementById('reviveMenu').classList.remove('active');
-            triggerGameOver(pendingDeathReason);
-        }
-
         function updateUI() {
             document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
             document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`;
             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
+            document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `🛡️ ${SAVE.lives}` : '';
             renderShop(); renderLevels();
         }
 
@@ -264,10 +233,10 @@
             const list = document.getElementById('shopList');
             list.innerHTML = '';
             const items = [
-                { id: 'shield', name: 'СЕРДЦЕ ❤️', desc: 'Спасает от смерти.', price: 100, type: 'consumable', lvl: SAVE.lives },
+                { id: 'upg_hook', name: 'ДЛИНА КРЮКА 🪝', desc: 'Увеличивает дальность захвата.', price: SAVE.hookLevel * 150, type: 'upg_hook', lvl: SAVE.hookLevel, maxed: SAVE.hookLevel >= 5 },
+                { id: 'shield', name: 'ЭНЕРГО-ЩИТ 🛡️', desc: 'Поглощает 1 урон.', price: 100, type: 'consumable', lvl: SAVE.lives },
                 { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
                 { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' },
-                { id: '#ff00ff', name: 'НЕОН 🟣', desc: 'Скин', price: 2000, type: 'skin' },
                 { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Убрать шлейф.', price: 0, type: 'trail' },
                 { id: 'fire', name: 'ПЛАМЯ 🔥', desc: 'Огненный шлейф.', price: 800, type: 'trail' },
                 { id: 'rainbow', name: 'РАДУГА 🌈', desc: 'Неоновый перелив.', price: 1500, type: 'trail' }
@@ -277,6 +246,10 @@
                 let actionText = `КУПИТЬ (${item.price} 💰)`;
                 let btnClass = 'shop-btn'; let disabled = SAVE.coins < item.price; let badge = '';
 
+                if (item.type === 'upg_hook') {
+                    badge = `<div class="lvl-badge">LVL ${item.lvl}</div>`;
+                    if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
+                }
                 if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
                 
                 if (item.type === 'skin') {
@@ -314,6 +287,7 @@
             
             if (SAVE.coins >= price) {
                 SAVE.coins -= price;
+                if (type === 'upg_hook') SAVE.hookLevel++;
                 if (type === 'consumable') SAVE.lives++;
                 if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
                 if (type === 'trail') { SAVE.ownedTrails.push(id); SAVE.trail = id; }
@@ -339,16 +313,17 @@
                 } catch(e) {}
             }
             jump() { this.playTone(350, 'sine', 0.15, 0.2); } 
-            doubleJump() { this.playTone(500, 'sine', 0.15, 0.15); } 
+            grapple() { this.playTone(800, 'sine', 0.1, 0.1); setTimeout(() => this.playTone(1200, 'sine', 0.1, 0.1), 50); }
             button() { this.playTone(500, 'square', 0.2, 0.2); }
             coin() { this.playTone(2000, 'sine', 0.1, 0.1); setTimeout(() => this.playTone(3000, 'square', 0.1, 0.05), 50); }
             purchase() { this.playTone(1000, 'square', 0.3, 0.1); }
-            powerup() { this.playTone(600, 'sawtooth', 0.5, 0.2); }
+            powerup() { this.playTone(600, 'sawtooth', 0.4, 0.15); }
             death() {
                 if(!this.ctx) return; 
                 try {
                     const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
                     gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
                     osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0);
                 } catch(e) {}
@@ -365,7 +340,7 @@
                 };
                 let step = 0;
                 this.bgmInterval = setInterval(() => {
-                    if(this.ctx.state !== 'running' || gameState === 'PAUSED' || gameState === 'REVIVE_PROMPT') return; 
+                    if(this.ctx.state !== 'running' || gameState === 'PAUSED') return; 
                     const now = this.ctx.currentTime;
                     const bassNotes = [130, 0, 146, 0, 164, 0, 146, 0];
                     if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'triangle', 0.2);
@@ -376,37 +351,39 @@
         }
         const sfx = new SoundEngine();
 
-        // --- УПРАВЛЕНИЕ: СТРЕЛКИ И ТАП ПО ЭКРАНУ ---
+        // --- ГЛОБАЛЬНЫЙ КОНТРОЛЛЕР ВВОДА (Устранена утечка памяти) ---
         class InputHandler {
             constructor() {
                 this.keys = [];
-                this.jumpTriggered = false;
-                
-                // Клавиатура
-                window.addEventListener('keydown', e => { 
-                    if (!this.keys.includes(e.key)) this.keys.push(e.key); 
-                    if (e.key === 'ArrowUp' || e.key === ' ' || e.key === 'w' || e.key === 'W') this.jumpTriggered = true;
-                });
+                window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
                 window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
                 
-                // Экранные кнопки для ходьбы
-                const btnL = document.getElementById('btnLeft');
-                const btnR = document.getElementById('btnRight');
-                const addKey = (k) => { if (!this.keys.includes(k)) this.keys.push(k); };
-                const rmKey = (k) => { this.keys = this.keys.filter(x => x !== k); };
+                const handleTouch = (e) => {
+                    if (gameState !== 'PLAYING') return; 
+                    this.keys = []; 
+                    for (let i = 0; i < e.touches.length; i++) {
+                        let x = e.touches[i].clientX;
+                        let y = e.touches[i].clientY;
+                        let w = canvas.width; let h = canvas.height;
+                        
+                        if (y < h * 0.5) {
+                            this.keys.push('Hook');
+                        } else {
+                            if (x < w * 0.33) this.keys.push('ArrowLeft'); 
+                            else if (x > w * 0.66) this.keys.push('ArrowRight'); 
+                            else this.keys.push('ArrowUp'); 
+                        }
+                    }
+                };
+                const handleTouchEnd = (e) => { if (e.touches.length === 0) this.keys = []; else handleTouch(e); };
                 
-                btnL.addEventListener('touchstart', (e) => { e.preventDefault(); addKey('ArrowLeft'); }, {passive: false});
-                btnL.addEventListener('touchend', (e) => { e.preventDefault(); rmKey('ArrowLeft'); }, {passive: false});
-                btnR.addEventListener('touchstart', (e) => { e.preventDefault(); addKey('ArrowRight'); }, {passive: false});
-                btnR.addEventListener('touchend', (e) => { e.preventDefault(); rmKey('ArrowRight'); }, {passive: false});
-
-                // Тап по любому месту для прыжка
-                canvas.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); // Запрещаем скролл
-                    if (gameState === 'PLAYING') this.jumpTriggered = true;
-                }, {passive: false});
+                // Слушатели добавляются один раз
+                canvas.addEventListener('touchstart', handleTouch, {passive: false});
+                canvas.addEventListener('touchmove', handleTouch, {passive: false});
+                canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
             }
         }
+        const globalInput = new InputHandler();
 
         class Particle {
             constructor(x, y, color, isFire = false, speedMult = 1, text = null) {
@@ -426,78 +403,71 @@
             }
         }
 
-        // --- ДИЗАЙН УРОВНЕЙ (ДЛИННЫЕ) ---
-        // . пусто, # стена, ^ шипы, B кнопка, L лазер, D дверь, C монета, @ спавн
         const LEVEL_MAPS = [
-            // 1: ОБУЧЕНИЕ (45 блоков в ширину)
             [
-                ".............................................",
-                ".............................................",
-                "..........................................D..",
-                "........................................#####",
-                ".........................C..............#",
-                ".............C.........#####............#",
-                "...........#####........................#",
-                "....................................C...#",
-                "@.................................#####.#",
-                "######..............#######.............#",
-                "#########################################"
+                "..........................",
+                "..........................",
+                "..........................",
+                "..........................",
+                ".......................D..",
+                ".................C...#####",
+                ".............C..###..#",
+                "........C...###......#",
+                "@......###...........#",
+                "######...............#",
+                "######################"
             ],
-            // 2: ПРЫЖКИ И ШИПЫ (60 блоков)
             [
-                "............................................................",
-                "............................................................",
-                "............................................................",
-                ".........................................................D..",
-                ".......................................................#####",
-                "..........C..................C..................C......#",
-                "........#####..............#####..............#####....#",
-                ".......................................................#",
-                "@......................................................#",
-                "#####...#^^^^^^#...#####...#^^^^^^#...#####...#^^^^^^#.#",
-                "########################################################"
+                "..........................",
+                "..........................",
+                "..........................",
+                "...................L...D..",
+                "...................L.#####",
+                "......C.........C..L.#",
+                ".....###.......###.L.#",
+                ".........C...C.....L.#",
+                "@..B....###.###....L.#",
+                "####..#^^^^^^^^^#..L.#",
+                "#######^^^^^^^^^######"
             ],
-            // 3: ВЕРТИКАЛЬНОСТЬ И КНОПКА (70 блоков)
             [
-                "......................................................................",
-                "...................................................................D..",
-                ".................................................................#####",
-                ".............................................C.......C...........L.#",
-                "...........................................#####...#####.........L.#",
-                ".................................................................L.#",
-                "...............C.................................................L.#",
-                ".............#####...............................................L.#",
-                "@...B............................................................L.#",
-                "#####..##^^^^^^^^^^^^##################^^^^^^^^^^^^^^^^^^^^^^^^^^L.#",
-                "####################################################################"
+                "..........................",
+                "..........................",
+                "..........O...............",
+                ".......................D..",
+                ".....................#####",
+                ".....................#",
+                ".....................#",
+                ".....................#",
+                "@................C...#",
+                "###...#^^^^^^^#..##..#",
+                "#######^^^^^^^########"
             ],
-            // 4: ДЛИННЫЙ ПАРКУР (85 блоков)
             [
-                ".....................................................................................",
-                "..................................................................................D..",
-                "................................................................................#####",
-                "................................................................................#",
-                ".......................................C...............C........................#",
-                "..............C......................#####...........#####............C.........#",
-                "............#####...................................................#####.......#",
-                "..........................C.....................................................#",
-                "@.......................#####...................................................#",
-                "######..##^^^^^^^###..##^^^^^^^###..##^^^^^^^###..##^^^^^^^###..##^^^^^^^^^^^^^##",
-                "#################################################################################"
+                "..........................",
+                ".......O..................",
+                "...................L...D..",
+                "...............O...L.#####",
+                "...................L.#",
+                "...................L.#",
+                ".........C.........L.#",
+                "........###........L.#",
+                "@..B...........C...L.#",
+                "####.........#####.L.#",
+                "####^^^^^^^^^#########"
             ],
-            // 5: ФИНАЛЬНЫЙ ЛАБИРИНТ (100 блоков)
             [
-                "....................................................................................................",
-                ".................................................................................................D..",
-                "...............................................................................................#####",
-                ".............................................................................C.......C.........L.#",
-                "...........................................................................#####...#####.......L.#",
-                ".................................C...................C.........................................L.#",
-                "...............................#####...............#####.......................................L.#",
-                "...............................................................................................L.#",
-                "@...B..........C...............................................................................L.#",
-                "#####..###^^^^#####^^^^###..###^^^^#####^^^^###..###^^^^#####^^^^###..###^^^^^^^^^^^^^^^^^^^^^^L.#",
-                "##################################################################################################"
+                "...................................",
+                "............O......................",
+                "........................L.......D..",
+                "....................O...L.....#####",
+                ".....O..................L.....#",
+                "..............C.........L.....#",
+                ".............###........L.....#",
+                ".......C................L.....#",
+                "@.B...###..........C....L.....#",
+                "###..............#####..L.....#",
+                "###^^^^^^^^^^^^^^^^^^^^^^^^^^^#"
             ]
         ];
 
@@ -506,10 +476,11 @@
         class Game {
             constructor(levelIdx) {
                 this.levelIdx = levelIdx;
-                this.input = new InputHandler(); 
+                this.input = globalInput; // Используем глобальный ввод
+                this.input.keys = [];     // Очищаем случайные нажатия
                 this.particles = [];
                 
-                this.walls = []; this.spikes = []; this.coins = [];
+                this.walls = []; this.spikes = []; this.nodes = []; this.coins = [];
                 this.buttons = []; this.lasers = []; this.door = null;
                 
                 this.cameraX = 0; this.cameraY = 0;
@@ -525,7 +496,8 @@
                         let x = c * TILE; let y = r * TILE;
                         
                         if (char === '#') this.walls.push({x, y, w: TILE, h: TILE});
-                        if (char === '^') this.spikes.push({x, y: y+20, w: TILE, h: 20}); 
+                        if (char === '^') this.spikes.push({x, y: y+20, w: TILE, h: 20});
+                        if (char === 'O') this.nodes.push({x: x + TILE/2, y: y + TILE/2}); 
                         if (char === 'B') this.buttons.push({x: x+5, y: y+30, w: 30, h: 10, pressed: false});
                         if (char === 'L') this.lasers.push({x: x+15, y, w: 10, h: TILE, active: true});
                         if (char === 'C') this.coins.push({x: x + TILE/2, y: y + TILE/2, collected: false});
@@ -542,11 +514,239 @@
                 this.particles.forEach(p => p.update()); 
                 this.particles = this.particles.filter(p => p.life > 0);
                 
-                // Камера следит за игроком
                 let targetCX = this.player.x - canvas.width / 3;
                 let targetCY = this.player.y - canvas.height / 2;
                 this.cameraX += (targetCX - this.cameraX) * 0.1;
                 this.cameraY += (targetCY - this.cameraY) * 0.1;
 
-                // КНОПКИ И ЛАЗЕРЫ
-                let any
+                let anyButtonPressed = false;
+                this.buttons.forEach(b => {
+                    if (this.player.x < b.x + b.w && this.player.x + 30 > b.x && this.player.y + 30 >= b.y && this.player.y < b.y + b.h) {
+                        if (!b.pressed) sfx.button();
+                        b.pressed = true; anyButtonPressed = true;
+                    } else {
+                        b.pressed = false;
+                    }
+                });
+
+                this.lasers.forEach(l => l.active = !anyButtonPressed);
+
+                let dead = false;
+                this.spikes.forEach(s => {
+                    if (this.player.x < s.x + s.w - 5 && this.player.x + 30 > s.x + 5 && this.player.y + 30 > s.y + 5) dead = true;
+                });
+                this.lasers.forEach(l => {
+                    if (l.active && this.player.x < l.x + l.w && this.player.x + 30 > l.x && this.player.y + 30 > l.y && this.player.y < l.y + l.h) dead = true;
+                });
+                if (this.player.y > 3000) dead = true;
+
+                if (dead && this.player.invincibleTimer === 0) {
+                    if (SAVE.lives > 0) {
+                        SAVE.lives--; saveGame(); sfx.powerup();
+                        this.player.invincibleTimer = 60; // 1 секунда бессмертия!
+                        for(let i=0; i<30; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#00d2ff', false, 2));
+                        this.player.vy = -18; 
+                    } else {
+                        for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
+                        triggerGameOver("ВЫ ПОГИБЛИ");
+                    }
+                }
+
+                this.coins.forEach(c => {
+                    if (!c.collected && Math.abs((this.player.x+15) - c.x) < 25 && Math.abs((this.player.y+15) - c.y) < 25) {
+                        c.collected = true; SAVE.coins++; sfx.coin(); saveGame();
+                        for(let i=0; i<10; i++) this.particles.push(new Particle(c.x, c.y, '#FFD700'));
+                        document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
+                    }
+                });
+
+                if (this.door && this.player.x < this.door.x + this.door.w && this.player.x + 30 > this.door.x && this.player.y < this.door.y + this.door.h && this.player.y + 30 > this.door.y) {
+                    triggerWin();
+                }
+            }
+
+            draw(ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save(); ctx.translate(-this.cameraX, -this.cameraY);
+
+                ctx.fillStyle = '#222'; ctx.shadowBlur = 10; ctx.shadowColor = '#00d2ff';
+                this.walls.forEach(w => { ctx.fillRect(w.x, w.y, w.w, w.h); ctx.fillStyle = '#00d2ff'; ctx.fillRect(w.x, w.y, w.w, 2); ctx.fillStyle = '#222';});
+                ctx.shadowBlur = 0;
+
+                ctx.fillStyle = '#ff0033';
+                this.spikes.forEach(s => {
+                    ctx.beginPath(); ctx.moveTo(s.x, s.y+s.h); ctx.lineTo(s.x+s.w/2, s.y); ctx.lineTo(s.x+s.w, s.y+s.h); ctx.fill();
+                });
+
+                this.buttons.forEach(b => {
+                    ctx.fillStyle = b.pressed ? '#4caf50' : '#ff0033';
+                    ctx.fillRect(b.x, b.pressed ? b.y+5 : b.y, b.w, b.pressed ? b.h-5 : b.h);
+                });
+
+                this.lasers.forEach(l => {
+                    if (l.active) {
+                        ctx.fillStyle = '#ff0033'; ctx.shadowBlur = 15; ctx.shadowColor = '#ff0033';
+                        ctx.fillRect(l.x, l.y, l.w, l.h); ctx.shadowBlur = 0;
+                    }
+                });
+
+                this.nodes.forEach(n => {
+                    ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(n.x, n.y, 8, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(n.x, n.y, 3, 0, Math.PI*2); ctx.fill();
+                });
+
+                this.coins.forEach(c => {
+                    if(!c.collected) {
+                        ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700';
+                        ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+                    }
+                });
+
+                if (this.door) {
+                    ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 20; ctx.shadowColor = '#00ff00';
+                    ctx.fillRect(this.door.x, this.door.y, this.door.w, this.door.h);
+                    ctx.fillStyle = '#000'; ctx.fillRect(this.door.x+10, this.door.y+10, this.door.w-20, this.door.h-10);
+                    ctx.shadowBlur = 0;
+                }
+
+                if (gameState === 'PLAYING' || gameState === 'END') this.player.draw(ctx);
+                this.particles.forEach(p => p.draw(ctx)); 
+                ctx.restore();
+            }
+        }
+
+        class Player {
+            constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; 
+                this.x = 0; this.y = 0; this.vx = 0; this.vy = 0; 
+                this.onGround = false; this.grappleNode = null; this.frameCount = 0;
+                this.invincibleTimer = 0;
+            }
+            
+            update(input) {
+                this.frameCount++;
+                if (this.invincibleTimer > 0) this.invincibleTimer--;
+                
+                if (input.keys.includes('ArrowRight') || input.keys.includes('Right')) { this.vx += 1.5; }
+                else if (input.keys.includes('ArrowLeft') || input.keys.includes('Left')) { this.vx -= 1.5; }
+                else { this.vx *= 0.8; }
+                
+                if (this.vx > 7) this.vx = 7; if (this.vx < -7) this.vx = -7;
+
+                if ((input.keys.includes('ArrowUp') || input.keys.includes('Jump')) && this.onGround) {
+                    this.vy = -16; this.onGround = false; sfx.jump();
+                    for(let i=0; i<5; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, '#fff', false, 0.5));
+                }
+
+                let maxDist = 200 + (SAVE.hookLevel * 50); 
+                let wantGrapple = input.keys.includes('Hook') || input.keys.includes(' ');
+
+                if (wantGrapple && !this.grappleNode) {
+                    let bestNode = null; let bestDist = maxDist;
+                    this.game.nodes.forEach(n => {
+                        let d = Math.sqrt(Math.pow(n.x - (this.x+15), 2) + Math.pow(n.y - (this.y+15), 2));
+                        if (d < bestDist) { bestDist = d; bestNode = n; }
+                    });
+                    if (bestNode) { this.grappleNode = bestNode; sfx.grapple(); }
+                } else if (!wantGrapple) {
+                    this.grappleNode = null;
+                }
+
+                if (this.grappleNode) {
+                    let dx = this.grappleNode.x - (this.x + 15);
+                    let dy = this.grappleNode.y - (this.y + 15);
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let force = (dist - 50) * 0.02; 
+                    if (force > 0) {
+                        this.vx += (dx/dist) * force;
+                        this.vy += (dy/dist) * force;
+                    }
+                    this.game.particles.push(new Particle(this.x+15, this.y+15, '#FFD700', false, 0.2)); 
+                } else {
+                    this.vy += 0.8; 
+                }
+
+                if (this.vy > 20) this.vy = 20;
+
+                if (SAVE.trail !== 'none' && (Math.abs(this.vx)>2 || Math.abs(this.vy)>2)) {
+                    if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.2));
+                    else if (SAVE.trail === 'matrix' && this.frameCount % 3 === 0) this.game.particles.push(new Particle(this.x + Math.random()*20, this.y + 15, '#00ff00', false, 0.2, Math.random()>0.5?'0':'1'));
+                    else if (SAVE.trail === 'fire' && this.frameCount % 2 === 0) this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.2));
+                }
+
+                this.x += this.vx;
+                this.game.walls.forEach(w => {
+                    if (this.x < w.x + w.w && this.x + this.width > w.x && this.y < w.y + w.h && this.y + this.height > w.y) {
+                        if (this.vx > 0) this.x = w.x - this.width;
+                        else if (this.vx < 0) this.x = w.x + w.w;
+                        this.vx = 0;
+                    }
+                });
+
+                this.y += this.vy;
+                this.onGround = false;
+                this.game.walls.forEach(w => {
+                    if (this.x < w.x + w.w && this.x + this.width > w.x && this.y < w.y + w.h && this.y + this.height > w.y) {
+                        if (this.vy > 0) { this.y = w.y - this.height; this.onGround = true; }
+                        else if (this.vy < 0) { this.y = w.y + w.h; }
+                        this.vy = 0;
+                    }
+                });
+            }
+
+            draw(ctx) { 
+                if (this.invincibleTimer > 0 && this.frameCount % 10 < 5) return; // Мерцание бессмертия
+
+                if (this.grappleNode) {
+                    ctx.beginPath(); ctx.moveTo(this.x+15, this.y+15); ctx.lineTo(this.grappleNode.x, this.grappleNode.y);
+                    ctx.strokeStyle = '#00d2ff'; ctx.lineWidth = 3; ctx.shadowBlur = 10; ctx.shadowColor = '#00d2ff';
+                    ctx.stroke(); ctx.shadowBlur = 0;
+                }
+                
+                ctx.fillStyle = this.invincibleTimer > 0 ? '#ffffff' : this.color; 
+                ctx.shadowBlur = 15; ctx.shadowColor = this.invincibleTimer > 0 ? '#00d2ff' : this.color; 
+                ctx.fillRect(this.x, this.y, this.width, this.height); 
+                ctx.shadowBlur = 0; 
+            }
+        }
+
+        let game = null;
+
+        function animate() { if (game) { game.update(); game.draw(ctx); } requestAnimationFrame(animate); }
+        
+        function startGame(levelIdx) {
+            currentLevelIdx = levelIdx;
+            game = new Game(levelIdx); gameState = 'PLAYING'; 
+            document.getElementById('hudLeft').innerText = `СЕКТОР ${levelIdx}`;
+            updateUI(); showState('NONE'); gameHud.style.display = 'flex';
+        }
+
+        function triggerGameOver(reason) { 
+            gameState = 'END'; sfx.death(); saveGame(); 
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; document.getElementById('endTitle').style.color = "#ff0055";
+                document.getElementById('endDesc').innerText = reason; document.getElementById('endBtn1').innerText = "ПОВТОРИТЬ";
+                document.getElementById('endBtn1').onclick = () => startGame(currentLevelIdx);
+                showState('END');
+            }, 800); 
+        }
+
+        function triggerWin() { 
+            gameState = 'END'; sfx.coin(); 
+            if (currentLevelIdx === SAVE.maxLevel && SAVE.maxLevel < 5) SAVE.maxLevel++;
+            saveGame();
+            setTimeout(() => { 
+                document.getElementById('endTitle').innerText = "СЕКТОР ЗАЧИЩЕН"; document.getElementById('endTitle').style.color = "#00ff00";
+                document.getElementById('endDesc').innerText = "Дверь открыта!"; 
+                
+                let btn = document.getElementById('endBtn1');
+                if (currentLevelIdx < 5) { btn.innerText = "СЛЕДУЮЩИЙ"; btn.onclick = () => startGame(currentLevelIdx + 1); } 
+                else { btn.innerText = "ФИНАЛ ПРОЙДЕН!"; btn.onclick = () => showState('MAIN'); }
+                
+                showState('END');
+            }, 500); 
+        }
+        
+        showState('MAIN'); animate();
+    </script>
+</body>
+</html>
