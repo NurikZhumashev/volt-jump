@@ -140,7 +140,6 @@
     </div>
 
     <script>
-        // Безопасная инициализация холста для мобилок
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         function resizeCanvas() {
@@ -160,7 +159,9 @@
             magnetJpLvl: parseInt(localStorage.getItem('neonMagJp')) || 0,
             lives: parseInt(localStorage.getItem('neonLives')) || 0,
             skin: localStorage.getItem('neonSkin') || '#00d2ff',
-            ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff']
+            ownedSkins: JSON.parse(localStorage.getItem('neonSkins')) || ['#00d2ff'],
+            trail: localStorage.getItem('neonTrail') || 'none',
+            ownedTrails: JSON.parse(localStorage.getItem('neonTrails')) || ['none']
         };
 
         function saveGame() {
@@ -173,6 +174,8 @@
             localStorage.setItem('neonLives', SAVE.lives);
             localStorage.setItem('neonSkin', SAVE.skin);
             localStorage.setItem('neonSkins', JSON.stringify(SAVE.ownedSkins));
+            localStorage.setItem('neonTrail', SAVE.trail);
+            localStorage.setItem('neonTrails', JSON.stringify(SAVE.ownedTrails));
             updateUI();
         }
 
@@ -204,9 +207,7 @@
             gameState = 'END'; 
             document.getElementById('pauseMenu').classList.remove('active');
             if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
-            sfx.stopBGM();
-            saveGame();
-            showState('MAIN');
+            sfx.stopBGM(); saveGame(); showState('MAIN');
         }
 
         function updateUI() {
@@ -228,8 +229,7 @@
                     btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true;
                 } else if (i === SAVE.maxLevel) {
                     btn.innerText = i;
-                    if (i % 5 === 0) btn.classList.add('hard');
-                    else btn.classList.add('current');
+                    if (i % 5 === 0) btn.classList.add('hard'); else btn.classList.add('current');
                     btn.onclick = () => startGame('campaign', i);
                 } else {
                     btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true;
@@ -247,7 +247,11 @@
                 { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус джетпаков', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
                 { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Авто-спасение.', price: 50, type: 'consumable', lvl: SAVE.lives },
                 { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
-                { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' }
+                { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' },
+                { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Убрать шлейф.', price: 0, type: 'trail' },
+                { id: 'fire', name: 'ПЛАМЯ 🔥', desc: 'Огненный шлейф.', price: 800, type: 'trail' },
+                { id: 'rainbow', name: 'РАДУГА 🌈', desc: 'Неоновый перелив.', price: 1500, type: 'trail' },
+                { id: 'matrix', name: 'МАТРИЦА 🟩', desc: 'Цифровой след.', price: 2500, type: 'trail' }
             ];
 
             items.forEach(item => {
@@ -261,6 +265,7 @@
                     if (item.maxed) { actionText = 'МАКСИМУМ'; disabled = true; }
                 }
                 if (item.type === 'consumable') badge = `<div class="lvl-badge">У ВАС: ${item.lvl}</div>`;
+                
                 if (item.type === 'skin') {
                     if (SAVE.ownedSkins.includes(item.id)) {
                         disabled = false;
@@ -268,11 +273,21 @@
                         else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
                     }
                 }
+                
+                if (item.type === 'trail') {
+                    if (SAVE.ownedTrails.includes(item.id)) {
+                        disabled = false;
+                        if (SAVE.trail === item.id) { actionText = 'НАДЕТО'; disabled = true; btnClass += ' equip'; }
+                        else { actionText = 'НАДЕТЬ'; btnClass += ' equip'; }
+                    }
+                }
+
+                let titleColor = item.type === 'skin' ? item.id : (item.type === 'trail' && item.id !== 'none' ? '#00d2ff' : '#ff0055');
 
                 list.innerHTML += `
                     <div class="shop-card">
                         ${badge}
-                        <h3 style="color:${item.type==='skin'?item.id:'#ff0055'}">${item.name}</h3>
+                        <h3 style="color:${titleColor}">${item.name}</h3>
                         <p>${item.desc}</p>
                         <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="handleBuy('${item.id}', '${item.type}', ${item.price})">${actionText}</button>
                     </div>
@@ -282,6 +297,8 @@
 
         function handleBuy(id, type, price) {
             if (type === 'skin' && SAVE.ownedSkins.includes(id)) { SAVE.skin = id; sfx.jump(); saveGame(); return; }
+            if (type === 'trail' && SAVE.ownedTrails.includes(id)) { SAVE.trail = id; sfx.jump(); saveGame(); return; }
+            
             if (SAVE.coins >= price) {
                 SAVE.coins -= price;
                 if (type === 'upg_jp') SAVE.jetpackLevel++;
@@ -289,11 +306,11 @@
                 if (type === 'mag_jp') SAVE.magnetJpLvl++;
                 if (type === 'consumable') SAVE.lives++;
                 if (type === 'skin') { SAVE.ownedSkins.push(id); SAVE.skin = id; }
+                if (type === 'trail') { SAVE.ownedTrails.push(id); SAVE.trail = id; }
                 sfx.purchase(); saveGame();
             }
         }
 
-        // --- БЕЗОПАСНОЕ АУДИО ---
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
@@ -424,8 +441,8 @@
         }
 
         class Particle {
-            constructor(x, y, color, isFire = false, speedMult = 1) {
-                this.x = x; this.y = y; this.color = color;
+            constructor(x, y, color, isFire = false, speedMult = 1, text = null) {
+                this.x = x; this.y = y; this.color = color; this.text = text;
                 this.size = Math.random() * (isFire ? 10 : 6) + 2;
                 this.vx = (Math.random() - 0.5) * (isFire ? 5 : 12) * speedMult;
                 this.vy = isFire ? (Math.random() * 6 + 2) : (Math.random() - 0.8) * 12 * speedMult;
@@ -433,8 +450,15 @@
             }
             update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
             draw(ctx) { 
-                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; 
-                ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, this.size, this.size); 
+                ctx.globalAlpha = Math.max(0, this.life); 
+                ctx.fillStyle = this.color; 
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
+                if (this.text) {
+                    ctx.font = 'bold 16px monospace';
+                    ctx.fillText(this.text, this.x, this.y);
+                } else {
+                    ctx.fillRect(this.x, this.y, this.size, this.size); 
+                }
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
             }
         }
@@ -458,7 +482,6 @@
             constructor(x, y, width, type = 'normal') {
                 this.x = x; this.y = y; this.width = width; this.height = 20;
                 this.type = type; 
-                // УМЕНЬШЕНА СКОРОСТЬ ПЛАТФОРМ
                 this.moveSpeed = 0.8 + Math.random() * 1.2; 
                 this.direction = Math.random() > 0.5 ? 1 : -1;
                 this.flashTimer = 0; this.broken = false;
@@ -537,13 +560,26 @@
 
         class Player {
             constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; this.reset(); }
-            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin; this.angle = 0;}
+            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin; this.angle = 0; this.frameCount = 0;}
             update(input) {
                 if (gameState !== 'PLAYING') return;
+                this.frameCount++;
+
                 if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 
                 let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
                 this.angle += (this.jetpackTimer > 0 ? 0.3 : 0.12) * dir;
+
+                if (SAVE.trail !== 'none') {
+                    if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) {
+                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15 + Math.random()*10, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.3));
+                    } else if (SAVE.trail === 'matrix' && this.frameCount % 3 === 0) {
+                        let char = Math.random() > 0.5 ? '0' : '1';
+                        this.game.particles.push(new Particle(this.x + Math.random()*20, this.y + 30, '#00ff00', false, 0.2, char));
+                    } else if (SAVE.trail === 'fire' && this.frameCount % 2 === 0) {
+                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 20, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.4));
+                    }
+                }
 
                 if (this.jetpackTimer > 0) { 
                     this.vy = -18; this.jetpackTimer--; sfx.thrust(); 
@@ -613,7 +649,10 @@
                     }
                     let gap = 90 + Math.random() * (this.isHard ? 60 : 40);
                     this.highestY -= gap;
-                    let w = 70 + Math.random() * (this.isHard ? 60 : 100); 
+                    
+                    // ЗДЕСЬ УВЕЛИЧЕНА ШИРИНА ПЛАТФОРМ
+                    let w = 110 + Math.random() * (this.isHard ? 60 : 130); 
+                    
                     let x = Math.random() * (canvas.width - w);
                     
                     let type = 'normal'; let r = Math.random();
