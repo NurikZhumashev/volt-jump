@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AAA Isometric Platformer - Core</title>
+    <title>AAA Isometric Platformer - Module 2</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Three.js (r128) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <style>
-        /* Базовые стили. UI будет добавлен в следующих модулях */
         :root {
             --tg-theme-bg-color: #0f0f13;
             --tg-theme-text-color: #ffffff;
@@ -37,99 +36,61 @@
             animation: spin 1s linear infinite; margin-bottom: 20px;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        /* Временный UI для отладки */
+        #debug-ui {
+            position: absolute; top: 10px; left: 10px;
+            color: #00ffcc; font-family: monospace; font-size: 14px;
+            pointer-events: none; text-shadow: 1px 1px 2px #000;
+        }
     </style>
 </head>
 <body>
 
 <div id="loading-screen">
     <div class="spinner"></div>
-    <h2 id="loading-text">Инициализация Ядра...</h2>
+    <h2 id="loading-text">Генерация уровня...</h2>
 </div>
+
+<div id="debug-ui">Управление: WASD / Стрелки<br>Прыжок: Пробел</div>
 
 <canvas id="game-canvas"></canvas>
 
 <script>
 /**
  * ============================================================================
- * МОДУЛЬ 1: CORE ARCHITECTURE (ЯДРО ИГРЫ)
+ * МОДУЛЬ 1 & 2: CORE ARCHITECTURE + LEVEL SYSTEM & COLLISIONS
  * ============================================================================
  */
 
 // ==========================================
-// 1. TELEGRAM CLOUD STORAGE & SDK MANAGER
+// 1. TELEGRAM SDK
 // ==========================================
 class TelegramManager {
     static init() {
         this.tg = window.Telegram?.WebApp || null;
-        this.isReady = false;
-        
         if (this.tg) {
             this.tg.expand();
             this.tg.ready();
-            this.applyTheme();
         }
     }
-
-    static applyTheme() {
-        if (!this.tg?.themeParams) return;
-        const root = document.documentElement;
-        if (this.tg.themeParams.bg_color) {
-            root.style.setProperty('--tg-theme-bg-color', this.tg.themeParams.bg_color);
-        }
-    }
-
     static vibrate(type = 'light') {
-        if (this.tg?.HapticFeedback) {
-            this.tg.HapticFeedback.impactOccurred(type);
-        }
-    }
-
-    // Асинхронная обертка для CloudStorage
-    static async saveData(key, value) {
-        return new Promise((resolve) => {
-            if (this.tg?.CloudStorage) {
-                this.tg.CloudStorage.setItem(key, JSON.stringify(value), (err, success) => {
-                    resolve(!err && success);
-                });
-            } else {
-                localStorage.setItem(key, JSON.stringify(value));
-                resolve(true);
-            }
-        });
-    }
-
-    static async loadData(key, defaultValue = null) {
-        return new Promise((resolve) => {
-            if (this.tg?.CloudStorage) {
-                this.tg.CloudStorage.getItem(key, (err, value) => {
-                    if (err || !value) resolve(defaultValue);
-                    else resolve(JSON.parse(value));
-                });
-            } else {
-                const val = localStorage.getItem(key);
-                resolve(val ? JSON.parse(val) : defaultValue);
-            }
-        });
+        if (this.tg?.HapticFeedback) this.tg.HapticFeedback.impactOccurred(type);
     }
 }
 
 // ==========================================
-// 2. ФИЗИЧЕСКИЙ ДВИЖОК (CUSTOM PHYSICS ENGINE)
+// 2. ADVANCED PHYSICS ENGINE (AABB + Triggers)
 // ==========================================
-/**
- * Axis-Aligned Bounding Box (AABB)
- */
 class AABB {
     constructor(x, y, z, width, height, depth) {
         this.update(x, y, z, width, height, depth);
     }
-
     update(x, y, z, width, height, depth) {
         this.minX = x - width / 2; this.maxX = x + width / 2;
         this.minY = y - height / 2; this.maxY = y + height / 2;
         this.minZ = z - depth / 2; this.maxZ = z + depth / 2;
     }
-
     intersects(other) {
         return (this.minX <= other.maxX && this.maxX >= other.minX) &&
                (this.minY <= other.maxY && this.maxY >= other.minY) &&
@@ -137,13 +98,11 @@ class AABB {
     }
 }
 
-/**
- * Физическое тело
- */
 class PhysicsBody {
-    constructor(entity, isStatic = false) {
-        this.entity = entity; // Ссылка на игровой объект
+    constructor(entity, isStatic = false, isTrigger = false) {
+        this.entity = entity;
         this.isStatic = isStatic;
+        this.isTrigger = isTrigger; // Триггеры не имеют коллизии, но вызывают события
         
         this.position = new THREE.Vector3();
         this.velocity = new THREE.Vector3();
@@ -152,13 +111,12 @@ class PhysicsBody {
         this.size = new THREE.Vector3(1, 1, 1);
         this.aabb = new AABB(0,0,0, 1,1,1);
         
-        // Физические свойства
         this.mass = isStatic ? 0 : 1;
-        this.friction = 0.85; // Трение (инерция)
-        this.restitution = 0.0; // Отскок
+        this.friction = 0.85;
         this.gravityScale = 1.0;
-        
         this.isGrounded = false;
+        
+        this.onTriggerEnter = null; // Коллбэк для ловушек/порталов
     }
 
     setSize(w, h, d) {
@@ -176,75 +134,58 @@ class PhysicsBody {
     }
 
     applyForce(force) {
-        if (this.isStatic) return;
-        // F = m * a  => a = F / m
-        this.acceleration.add(force.clone().divideScalar(this.mass));
+        if (!this.isStatic) this.acceleration.add(force.clone().divideScalar(this.mass));
     }
 }
 
-/**
- * Мир Физики (Обработка коллизий по осям для стабильности)
- */
 class PhysicsWorld {
     constructor() {
         this.bodies =[];
-        this.gravity = new THREE.Vector3(0, -45, 0); // Сильная гравитация для платформера
+        this.gravity = new THREE.Vector3(0, -50, 0); // Реалистичная гравитация
         
-        // Границы мира (Boundaries), чтобы не выпасть
-        this.bounds = {
-            minX: -50, maxX: 50,
-            minY: -10, maxY: 100,
-            minZ: -50, maxZ: 50
-        };
+        // Границы мира (Y = -5 по ТЗ для смерти)
+        this.bounds = { minX: -100, maxX: 100, minY: -5, maxY: 100, minZ: -100, maxZ: 100 };
     }
 
-    addBody(body) {
-        this.bodies.push(body);
+    addBody(body) { this.bodies.push(body); }
+    
+    removeBody(body) {
+        const index = this.bodies.indexOf(body);
+        if (index > -1) this.bodies.splice(index, 1);
     }
 
     step(dt) {
-        // Ограничиваем dt во избежание пролета сквозь стены при лагах
         const safeDt = Math.min(dt, 0.03); 
 
         for (let i = 0; i < this.bodies.length; i++) {
             const body = this.bodies[i];
             if (body.isStatic) continue;
 
-            // 1. Применяем гравитацию
+            // Гравитация и инерция
             body.applyForce(this.gravity.clone().multiplyScalar(body.gravityScale));
-
-            // 2. Интегрируем ускорение в скорость
             body.velocity.add(body.acceleration.clone().multiplyScalar(safeDt));
-            
-            // 3. Применяем трение (инерция по X и Z)
             body.velocity.x *= body.friction;
             body.velocity.z *= body.friction;
-
-            // Сброс ускорения
             body.acceleration.set(0, 0, 0);
 
-            // 4. Разрешение коллизий (Axis-by-Axis)
             body.isGrounded = false;
 
-            // Ось Y
+            // Разрешение коллизий по осям (X, Y, Z раздельно для избежания застреваний)
             body.position.y += body.velocity.y * safeDt;
             body.updateAABB();
             this.resolveCollisions(body, 'y');
 
-            // Ось X
             body.position.x += body.velocity.x * safeDt;
             body.updateAABB();
             this.resolveCollisions(body, 'x');
 
-            // Ось Z
             body.position.z += body.velocity.z * safeDt;
             body.updateAABB();
             this.resolveCollisions(body, 'z');
 
-            // 5. Проверка границ мира (Boundaries)
             this.checkBoundaries(body);
+            this.checkTriggers(body);
 
-            // 6. Синхронизация с 3D объектом
             if (body.entity && body.entity.mesh) {
                 body.entity.mesh.position.copy(body.position);
             }
@@ -254,15 +195,14 @@ class PhysicsWorld {
     resolveCollisions(body, axis) {
         for (let j = 0; j < this.bodies.length; j++) {
             const other = this.bodies[j];
-            if (body === other) continue;
+            if (body === other || other.isTrigger) continue;
 
             if (body.aabb.intersects(other.aabb)) {
-                // Если столкнулись, выталкиваем
                 if (axis === 'y') {
-                    if (body.velocity.y < 0) { // Падение
+                    if (body.velocity.y < 0) { // Игрок падает на блок
                         body.position.y = other.aabb.maxY + body.size.y / 2;
                         body.isGrounded = true;
-                    } else if (body.velocity.y > 0) { // Удар головой
+                    } else if (body.velocity.y > 0) { // Игрок ударяется головой
                         body.position.y = other.aabb.minY - body.size.y / 2;
                     }
                     body.velocity.y = 0;
@@ -282,91 +222,75 @@ class PhysicsWorld {
         }
     }
 
-    checkBoundaries(body) {
-        if (body.position.y < this.bounds.minY) {
-            body.position.y = this.bounds.minY;
-            body.velocity.y = 0;
-            body.isGrounded = true;
-            if (body.entity && typeof body.entity.onOutBounds === 'function') {
-                body.entity.onOutBounds();
+    checkTriggers(body) {
+        for (let j = 0; j < this.bodies.length; j++) {
+            const other = this.bodies[j];
+            if (!other.isTrigger || body === other) continue;
+
+            if (body.aabb.intersects(other.aabb)) {
+                if (other.onTriggerEnter) other.onTriggerEnter(body.entity);
             }
         }
-        if (body.position.x < this.bounds.minX) { body.position.x = this.bounds.minX; body.velocity.x = 0; }
-        if (body.position.x > this.bounds.maxX) { body.position.x = this.bounds.maxX; body.velocity.x = 0; }
-        if (body.position.z < this.bounds.minZ) { body.position.z = this.bounds.minZ; body.velocity.z = 0; }
-        if (body.position.z > this.bounds.maxZ) { body.position.z = this.bounds.maxZ; body.velocity.z = 0; }
-        body.updateAABB();
+    }
+
+    checkBoundaries(body) {
+        if (body.position.y < this.bounds.minY) {
+            if (body.entity && typeof body.entity.die === 'function') {
+                body.entity.die(); // Убиваем игрока при падении в бездну
+            } else {
+                body.position.y = this.bounds.minY;
+                body.velocity.y = 0;
+            }
+        }
     }
 }
 
 // ==========================================
-// 3. СИСТЕМА РЕНДЕРИНГА (GRAPHICS ENGINE)
+// 3. GRAPHICS ENGINE
 // ==========================================
 class RenderEngine {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
-        
-        // AAA Настройки рендерера
-        this.renderer = new THREE.WebGLRenderer({ 
-            canvas: this.canvas, 
-            antialias: true,
-            powerPreference: "high-performance"
-        });
+        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         
-        // Физически корректный свет и тени
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.0;
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         this.scene = new THREE.Scene();
-        
-        // Градиентный фон и туман
-        const bgColor = new THREE.Color(0x1a1a2e);
+        const bgColor = new THREE.Color(0x111118);
         this.scene.background = bgColor;
-        this.scene.fog = new THREE.FogExp2(bgColor, 0.025);
+        this.scene.fog = new THREE.FogExp2(bgColor, 0.02); // Эффект глубины и тумана
 
-        // Изометрическая/2.5D Камера
         const aspect = window.innerWidth / window.innerHeight;
-        // Используем Perspective, но с узким FOV и большим отдалением для эффекта изометрии
-        this.camera = new THREE.PerspectiveCamera(40, aspect, 1, 1000);
-        this.cameraOffset = new THREE.Vector3(15, 20, 25);
+        this.camera = new THREE.PerspectiveCamera(35, aspect, 1, 1000);
+        this.cameraOffset = new THREE.Vector3(18, 22, 25);
         this.camera.position.copy(this.cameraOffset);
-        this.camera.lookAt(0, 0, 0);
 
         this.setupLighting();
-
         window.addEventListener('resize', this.onResize.bind(this), false);
     }
 
     setupLighting() {
-        // Мягкий глобальный свет
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        this.scene.add(ambientLight);
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 
-        // Главный источник света (Солнце)
-        this.dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
-        this.dirLight.position.set(20, 40, 20);
+        this.dirLight = new THREE.DirectionalLight(0xfff5e6, 1.2); // Теплый солнечный свет
+        this.dirLight.position.set(20, 40, 10);
         this.dirLight.castShadow = true;
         
-        // Настройка качества теней
         this.dirLight.shadow.mapSize.width = 2048;
         this.dirLight.shadow.mapSize.height = 2048;
         this.dirLight.shadow.camera.near = 0.5;
         this.dirLight.shadow.camera.far = 100;
-        const d = 25;
-        this.dirLight.shadow.camera.left = -d;
-        this.dirLight.shadow.camera.right = d;
-        this.dirLight.shadow.camera.top = d;
-        this.dirLight.shadow.camera.bottom = -d;
+        const d = 20;
+        this.dirLight.shadow.camera.left = -d; this.dirLight.shadow.camera.right = d;
+        this.dirLight.shadow.camera.top = d; this.dirLight.shadow.camera.bottom = -d;
         this.dirLight.shadow.bias = -0.0005;
 
         this.scene.add(this.dirLight);
-
-        // Свет от игрока (PointLight) будет добавлен в классе Player
     }
 
     onResize() {
@@ -375,97 +299,58 @@ class RenderEngine {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    render() {
-        this.renderer.render(this.scene, this.camera);
-    }
+    render() { this.renderer.render(this.scene, this.camera); }
 
-    // Плавное следование камеры за целью
     followTarget(targetPosition, dt) {
         const desiredPosition = targetPosition.clone().add(this.cameraOffset);
-        // Lerp для плавности
-        this.camera.position.lerp(desiredPosition, 5 * dt);
-        
-        // Камера смотрит чуть впереди игрока
-        const lookTarget = targetPosition.clone().add(new THREE.Vector3(0, 2, 0));
-        
-        // Временный кватернион для плавного поворота камеры (опционально)
+        this.camera.position.lerp(desiredPosition, 4 * dt);
+        const lookTarget = targetPosition.clone().add(new THREE.Vector3(0, 1, 0));
         this.camera.lookAt(lookTarget);
         
-        // Свет также следует за игроком, чтобы тени всегда были четкими
-        this.dirLight.position.copy(targetPosition).add(new THREE.Vector3(20, 40, 20));
+        // Свет следит за игроком для четких теней
+        this.dirLight.position.copy(targetPosition).add(new THREE.Vector3(20, 40, 10));
         this.dirLight.target.position.copy(targetPosition);
         this.dirLight.target.updateMatrixWorld();
     }
 }
 
 // ==========================================
-// 4. ИГРОВЫЕ СУЩНОСТИ (ENTITIES)
+// 4. ENTITIES (PLAYER)
 // ==========================================
-
-/**
- * Базовый класс для всех объектов в игре
- */
-class Entity {
+class Player {
     constructor(scene, physicsWorld) {
         this.scene = scene;
         this.physicsWorld = physicsWorld;
-        this.mesh = null;
-        this.body = null;
-    }
-
-    update(dt) {}
-}
-
-/**
- * Класс Игрока (Player)
- */
-class Player extends Entity {
-    constructor(scene, physicsWorld) {
-        super(scene, physicsWorld);
+        this.spawnPoint = new THREE.Vector3(0, 5, 0);
         
         this.buildMesh();
         this.setupPhysics();
         
-        // Параметры геймплея
-        this.speed = 400; // Сила ускорения
-        this.jumpForce = 22;
-        this.maxJumps = 2; // Двойной прыжок
+        this.speed = 450; 
+        this.jumpForce = 24;
+        this.maxJumps = 2;
         this.currentJumps = 0;
     }
 
     buildMesh() {
-        // AAA-стиль: составной меш (Core + оболочка)
         this.mesh = new THREE.Group();
 
-        // Внутреннее светящееся ядро
-        const coreGeo = new THREE.IcosahedronGeometry(0.4, 2);
-        const coreMat = new THREE.MeshStandardMaterial({ 
-            color: 0x00ffcc, 
-            emissive: 0x00ffcc, 
-            emissiveIntensity: 0.8,
-            roughness: 0.2,
-            metalness: 1.0
-        });
+        // Ядро
+        const coreGeo = new THREE.IcosahedronGeometry(0.35, 2);
+        const coreMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8, roughness: 0.2, metalness: 1.0 });
         this.coreMesh = new THREE.Mesh(coreGeo, coreMat);
         this.coreMesh.castShadow = true;
         this.mesh.add(this.coreMesh);
 
-        // Внешняя стеклянная/металлическая оболочка
-        const shellGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
-        const shellMat = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            roughness: 0.1,
-            metalness: 0.8,
-            transparent: true,
-            opacity: 0.6,
-            wireframe: true // Стильный киберпанк-лук
-        });
+        // Оболочка
+        const shellGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+        const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.5, wireframe: true });
         this.shellMesh = new THREE.Mesh(shellGeo, shellMat);
         this.shellMesh.castShadow = true;
         this.mesh.add(this.shellMesh);
 
-        // Динамический свет от игрока
-        this.pointLight = new THREE.PointLight(0x00ffcc, 1.5, 10);
+        // Свет
+        this.pointLight = new THREE.PointLight(0x00ffcc, 1.5, 8);
         this.pointLight.position.set(0, 0.5, 0);
         this.mesh.add(this.pointLight);
 
@@ -474,11 +359,35 @@ class Player extends Entity {
 
     setupPhysics() {
         this.body = new PhysicsBody(this, false);
-        this.body.setSize(0.9, 0.9, 0.9);
-        this.body.setPosition(0, 5, 0);
-        this.body.mass = 1.5;
-        this.body.friction = 0.82; // Скольжение
+        this.body.setSize(0.8, 0.8, 0.8);
+        this.body.mass = 1.0;
+        this.body.friction = 0.82;
         this.physicsWorld.addBody(this.body);
+    }
+
+    setSpawn(x, y, z) {
+        this.spawnPoint.set(x, y, z);
+        this.respawn();
+    }
+
+    respawn() {
+        this.body.setPosition(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.z);
+        this.body.velocity.set(0,0,0);
+        this.body.acceleration.set(0,0,0);
+    }
+
+    die() {
+        TelegramManager.vibrate('heavy');
+        console.log("Игрок погиб! Возрождение...");
+        // В Модуле 3 здесь будет эффект взрыва частиц
+        this.respawn();
+    }
+
+    win() {
+        TelegramManager.vibrate('success');
+        console.log("УРОВЕНЬ ПРОЙДЕН!");
+        alert("Уровень пройден!"); // Временная заглушка для Модуля 2
+        this.respawn();
     }
 
     jump() {
@@ -488,56 +397,185 @@ class Player extends Entity {
             TelegramManager.vibrate('light');
         } else if (this.currentJumps < this.maxJumps) {
             this.currentJumps++;
-            this.body.velocity.y = this.jumpForce * 0.8; // Второй прыжок чуть слабее
+            this.body.velocity.y = this.jumpForce * 0.8;
             TelegramManager.vibrate('medium');
-            
-            // В Модуле 2 здесь будет вызов системы частиц
         }
     }
 
     move(dirX, dirZ) {
-        // Применяем силу для движения (инерция обрабатывается физикой)
         this.body.applyForce(new THREE.Vector3(dirX * this.speed, 0, dirZ * this.speed));
     }
 
     update(dt) {
-        // Анимация меша (вращение ядра)
         this.coreMesh.rotation.x += 2 * dt;
         this.coreMesh.rotation.y += 3 * dt;
         
-        // Сброс прыжков при касании земли
-        if (this.body.isGrounded) {
-            this.currentJumps = 0;
-        }
+        if (this.body.isGrounded) this.currentJumps = 0;
 
-        // В Модуле 2 добавим наклон (Tilt) оболочки в сторону движения
-        const targetTiltZ = -this.body.velocity.x * 0.05;
-        const targetTiltX = this.body.velocity.z * 0.05;
+        // Наклон оболочки в сторону движения
+        const targetTiltZ = -this.body.velocity.x * 0.04;
+        const targetTiltX = this.body.velocity.z * 0.04;
         this.shellMesh.rotation.z += (targetTiltZ - this.shellMesh.rotation.z) * 10 * dt;
         this.shellMesh.rotation.x += (targetTiltX - this.shellMesh.rotation.x) * 10 * dt;
-    }
-
-    onOutBounds() {
-        // Респавн при падении
-        TelegramManager.vibrate('heavy');
-        this.body.setPosition(0, 10, 0);
-        this.body.velocity.set(0,0,0);
     }
 }
 
 // ==========================================
-// 5. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (GAME CORE)
+// 5. LEVEL SYSTEM & GENERATOR
+// ==========================================
+class LevelGenerator {
+    constructor(scene, physicsWorld) {
+        this.scene = scene;
+        this.physicsWorld = physicsWorld;
+        this.gridSize = 2; // Размер одного блока (2x2x2)
+    }
+
+    // Генерация случайного цвета камня для реализма (от серого до мшисто-зеленого)
+    getRandomStoneMaterial() {
+        const isMossy = Math.random() > 0.7; // 30% шанс на мох
+        const color = new THREE.Color();
+        if (isMossy) {
+            color.setHSL(0.3, 0.2, 0.25 + Math.random() * 0.1); // Темно-зеленый
+        } else {
+            color.setHSL(0, 0, 0.3 + Math.random() * 0.15); // Серый камень
+        }
+        return new THREE.MeshStandardMaterial({ 
+            color: color, roughness: 0.9, metalness: 0.0 
+        });
+    }
+
+    createLevel(map, player) {
+        // Базовые геометрии
+        const boxGeo = new THREE.BoxGeometry(this.gridSize, this.gridSize, this.gridSize);
+        const pillarGeo = new THREE.CylinderGeometry(this.gridSize*0.4, this.gridSize*0.4, this.gridSize*2, 8);
+        const spikeGeo = new THREE.ConeGeometry(this.gridSize*0.4, this.gridSize, 4);
+        const altarGeo = new THREE.TorusGeometry(this.gridSize*0.6, 0.2, 16, 32);
+
+        const spikeMat = new THREE.MeshStandardMaterial({ color: 0xff2222, roughness: 0.4, metalness: 0.8 });
+        const portalMat = new THREE.MeshStandardMaterial({ color: 0xaa00ff, emissive: 0xaa00ff, emissiveIntensity: 2.0 });
+
+        for (let z = 0; z < map.length; z++) {
+            for (let x = 0; x < map[z].length; x++) {
+                const tile = map[z][x];
+                if (tile === 0) continue;
+
+                const worldX = x * this.gridSize;
+                const worldZ = z * this.gridSize;
+                const worldY = 0; // Базовый уровень пола
+
+                // 1 - Каменный блок (Стена/Пол)
+                if (tile === 1) {
+                    const mesh = new THREE.Mesh(boxGeo, this.getRandomStoneMaterial());
+                    mesh.position.set(worldX, worldY, worldZ);
+                    mesh.receiveShadow = true; mesh.castShadow = true;
+                    this.scene.add(mesh);
+
+                    const body = new PhysicsBody({ mesh }, true);
+                    body.setSize(this.gridSize, this.gridSize, this.gridSize);
+                    body.setPosition(worldX, worldY, worldZ);
+                    this.physicsWorld.addBody(body);
+                }
+                
+                // 2 - Древняя колонна (Декорация/Препятствие)
+                else if (tile === 2) {
+                    const mesh = new THREE.Mesh(pillarGeo, this.getRandomStoneMaterial());
+                    mesh.position.set(worldX, worldY + this.gridSize/2, worldZ);
+                    mesh.receiveShadow = true; mesh.castShadow = true;
+                    this.scene.add(mesh);
+
+                    const body = new PhysicsBody({ mesh }, true);
+                    body.setSize(this.gridSize*0.8, this.gridSize*2, this.gridSize*0.8);
+                    body.setPosition(worldX, worldY + this.gridSize/2, worldZ);
+                    this.physicsWorld.addBody(body);
+                }
+
+                // S - Скрытые шипы (Ловушка)
+                else if (tile === 'S') {
+                    // Сначала ставим пол
+                    const base = new THREE.Mesh(boxGeo, this.getRandomStoneMaterial());
+                    base.position.set(worldX, worldY, worldZ);
+                    base.receiveShadow = true;
+                    this.scene.add(base);
+                    const baseBody = new PhysicsBody({ mesh: base }, true);
+                    baseBody.setSize(this.gridSize, this.gridSize, this.gridSize);
+                    baseBody.setPosition(worldX, worldY, worldZ);
+                    this.physicsWorld.addBody(baseBody);
+
+                    // Сверху ставим шипы
+                    const spike = new THREE.Mesh(spikeGeo, spikeMat);
+                    spike.position.set(worldX, worldY + this.gridSize, worldZ);
+                    spike.castShadow = true;
+                    this.scene.add(spike);
+
+                    // Триггер для шипов
+                    const triggerBody = new PhysicsBody({ mesh: spike }, true, true); // isTrigger = true
+                    triggerBody.setSize(this.gridSize*0.8, this.gridSize, this.gridSize*0.8);
+                    triggerBody.setPosition(worldX, worldY + this.gridSize, worldZ);
+                    triggerBody.onTriggerEnter = (entity) => {
+                        if (entity instanceof Player) entity.die();
+                    };
+                    this.physicsWorld.addBody(triggerBody);
+                }
+
+                // F - Финиш (Портал)
+                else if (tile === 'F') {
+                    // Пьедестал
+                    const base = new THREE.Mesh(new THREE.BoxGeometry(this.gridSize, this.gridSize*0.2, this.gridSize), this.getRandomStoneMaterial());
+                    base.position.set(worldX, worldY - this.gridSize*0.4, worldZ);
+                    this.scene.add(base);
+
+                    // Светящееся кольцо портала
+                    const portal = new THREE.Mesh(altarGeo, portalMat);
+                    portal.position.set(worldX, worldY + this.gridSize, worldZ);
+                    portal.rotation.x = Math.PI / 2;
+                    this.scene.add(portal);
+
+                    // Анимация портала (просто сохраняем ссылку в mesh)
+                    portal.userData.isPortal = true;
+
+                    // Триггер финиша
+                    const finishTrigger = new PhysicsBody({ mesh: portal }, true, true);
+                    finishTrigger.setSize(this.gridSize, this.gridSize*2, this.gridSize);
+                    finishTrigger.setPosition(worldX, worldY + this.gridSize, worldZ);
+                    finishTrigger.onTriggerEnter = (entity) => {
+                        if (entity instanceof Player) entity.win();
+                    };
+                    this.physicsWorld.addBody(finishTrigger);
+                }
+            }
+        }
+
+        // Установка стартовой позиции игрока (над первым найденным блоком [0][0] или заданным)
+        player.setSpawn(0, 5, 0); 
+    }
+
+    // Вспомогательный метод для анимации динамических объектов уровня
+    update(dt) {
+        this.scene.children.forEach(child => {
+            if (child.userData.isPortal) {
+                child.rotation.x += 1 * dt;
+                child.rotation.y += 2 * dt;
+            }
+        });
+    }
+}
+
+// ==========================================
+// 6. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (GAME CORE)
 // ==========================================
 class GameCore {
     constructor() {
         this.physics = new PhysicsWorld();
         this.renderEngine = new RenderEngine();
+        this.levelGen = new LevelGenerator(this.renderEngine.scene, this.physics);
         
         this.clock = new THREE.Clock();
         this.isRunning = false;
-
-        // Временный ввод для ПК (в Модуле 2 будет заменен на экранный UI)
         this.input = { up: false, down: false, left: false, right: false };
+
+        // КАРТА УРОВНЯ (1 - Блок, 2 - Колонна, S - Ловушка, F - Финиш, 0 - Пустота)
+        this.LEVEL_MAP = [[1, 1, 1, 1, 1, 0, 0, 0, 0, 0],[1, 0, 0, 0, 1, 1, 'S', 1, 1, 0],[1, 2, 0, 2, 1, 0, 0, 0, 1, 0],[1, 0, 0, 0, 1, 0, 1, 1, 1, 0],[1, 1, 1, 1, 1, 0, 1, 2, 1, 'F']
+        ];
         
         this.init();
     }
@@ -545,37 +583,19 @@ class GameCore {
     async init() {
         TelegramManager.init();
         
-        // Имитация загрузки ассетов и данных из CloudStorage
-        await new Promise(res => setTimeout(res, 1000));
-        
         this.player = new Player(this.renderEngine.scene, this.physics);
         
-        // Временная платформа для тестов
-        this.createTestPlatform();
+        // Генерация уровня
+        this.levelGen.createLevel(this.LEVEL_MAP, this.player);
 
         this.setupInput();
 
+        // Скрываем экран загрузки
         document.getElementById('loading-screen').style.opacity = '0';
         setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 500);
 
         this.isRunning = true;
         this.loop();
-    }
-
-    createTestPlatform() {
-        const geo = new THREE.BoxGeometry(20, 2, 20);
-        const mat = new THREE.MeshStandardMaterial({ 
-            color: 0x334455, roughness: 0.7, metalness: 0.1 
-        });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(0, -1, 0);
-        mesh.receiveShadow = true;
-        this.renderEngine.scene.add(mesh);
-
-        const body = new PhysicsBody({ mesh }, true);
-        body.setSize(20, 2, 20);
-        body.setPosition(0, -1, 0);
-        this.physics.addBody(body);
     }
 
     setupInput() {
@@ -595,50 +615,36 @@ class GameCore {
     }
 
     processInput() {
-        let dirX = 0;
-        let dirZ = 0;
+        let dirX = 0; let dirZ = 0;
         
-        // Изометрическое управление (движение относительно камеры)
+        // Изометрическое управление (камера повернута под углом)
         if (this.input.up) { dirX -= 1; dirZ -= 1; }
         if (this.input.down) { dirX += 1; dirZ += 1; }
         if (this.input.left) { dirX -= 1; dirZ += 1; }
         if (this.input.right) { dirX += 1; dirZ -= 1; }
 
-        // Нормализация вектора по диагонали
         if (dirX !== 0 || dirZ !== 0) {
             const len = Math.sqrt(dirX*dirX + dirZ*dirZ);
-            dirX /= len; dirZ /= len;
-            this.player.move(dirX, dirZ);
+            this.player.move(dirX/len, dirZ/len);
         }
     }
 
     loop() {
         requestAnimationFrame(() => this.loop());
-        
         if (!this.isRunning) return;
 
         const dt = this.clock.getDelta();
 
         this.processInput();
-        
-        // Шаг физики
         this.physics.step(dt);
-        
-        // Обновление сущностей
         this.player.update(dt);
-
-        // Обновление камеры
+        this.levelGen.update(dt); // Анимация портала
         this.renderEngine.followTarget(this.player.body.position, dt);
-
-        // Рендер кадра
         this.renderEngine.render();
     }
 }
 
-// Запуск приложения
-window.onload = () => {
-    const game = new GameCore();
-};
+window.onload = () => { const game = new GameCore(); };
 
 </script>
 </body>
