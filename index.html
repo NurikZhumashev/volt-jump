@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Neon Tower: Telegram Edition</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -176,6 +177,21 @@
     </div>
 
     <script>
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
+
+        // --- ГЛОБАЛЬНЫЙ ПЕРЕХВАТЧИК КЛИКОВ (ВИБРАЦИЯ КНОПОК) ---
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                if (navigator.vibrate) navigator.vibrate(10);
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+            }
+        });
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         function resizeCanvas() {
@@ -357,6 +373,7 @@
             }
         }
 
+        // --- ИНТЕГРАЦИЯ ВИБРАЦИИ В ЗВУКОВОЙ ДВИЖОК ---
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
@@ -364,6 +381,8 @@
                 if (this.ctx && this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume(); if (!this.bgmStarted) this.startBGM();
             }
             jump() {
+                if (navigator.vibrate) navigator.vibrate(10);
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
                 if(!this.ctx || this.ctx.state !== 'running') return; 
                 try {
                     const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
@@ -373,6 +392,8 @@
                 } catch(e) {}
             }
             coin() {
+                if (navigator.vibrate) navigator.vibrate(15);
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
                 if(!this.ctx || this.ctx.state !== 'running') return; 
                 try {
                     const now = this.ctx.currentTime; const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
@@ -381,6 +402,8 @@
                 } catch(e) {}
             }
             purchase() {
+                if (navigator.vibrate) navigator.vibrate(20);
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
                 if(!this.ctx) return; 
                 try {
                     const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
@@ -390,6 +413,8 @@
                 } catch(e) {}
             }
             powerup() {
+                if (navigator.vibrate) navigator.vibrate([30, 30, 30]);
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
                 if(!this.ctx || this.ctx.state !== 'running') return; 
                 try {
                     const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
@@ -399,6 +424,7 @@
                 } catch(e) {}
             }
             thrust() {
+                if(Math.random() > 0.8 && navigator.vibrate) navigator.vibrate(5); // Микро-вибрация мотора
                 if(!this.ctx || this.ctx.state !== 'running') return;
                 try {
                     if(Math.random() > 0.7) {
@@ -410,6 +436,8 @@
                 } catch(e) {}
             }
             death() {
+                if (navigator.vibrate) navigator.vibrate([50, 50, 100]);
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
                 if(!this.ctx) return; 
                 try {
                     const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
@@ -810,7 +838,6 @@
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // --- ДИНАМИЧЕСКИЙ ФОН СИМУЛЯЦИИ АДА ---
                 let bgTint = 'transparent';
                 let gridColor = 'rgba(0, 210, 255, 0.05)';
                 let shakeIntensity = 0;
@@ -821,31 +848,30 @@
                 } else if (this.mode === 'endless') {
                     let depth = this.currentScore / 3000;
                     
-                    if (depth < 1) { // 0 - 3000: Киберпанк -> Преддверие
+                    if (depth < 1) { 
                         let p = depth; 
                         bgTint = `rgba(${Math.floor(50*p)}, 0, ${Math.floor(30*p)}, ${0.5*p})`;
                         gridColor = `rgba(${Math.floor(p*150)}, ${Math.floor(210 - p*160)}, 255, ${0.05 + p*0.05})`;
-                    } else if (depth < 2) { // 3000 - 6000: Преддверие -> Ад
+                    } else if (depth < 2) { 
                         let p = depth - 1;
                         bgTint = `rgba(${Math.floor(50 + p*80)}, 0, ${Math.floor(30 - p*30)}, ${0.5 + p*0.2})`;
                         gridColor = `rgba(${Math.floor(150 + p*105)}, ${Math.floor(50 - p*50)}, ${Math.floor(255 - p*255)}, ${0.1 + p*0.1})`;
-                    } else if (depth < 3) { // 6000 - 9000: Ад -> Пекло
+                    } else if (depth < 3) { 
                         let p = depth - 2;
                         bgTint = `rgba(${Math.floor(130 + p*70)}, ${Math.floor(p*40)}, 0, ${0.7 + p*0.15})`;
                         let pulse = Math.sin(Date.now() / 150) * 0.08 * p;
                         gridColor = `rgba(255, ${Math.floor(p*100)}, 0, ${0.2 + p*0.1 + pulse})`;
-                    } else { // 9000+: Бездна (Раскалено, тряска)
+                    } else { 
                         let p = Math.min(1, depth - 3);
                         bgTint = `rgba(${Math.floor(200 + p*55)}, ${Math.floor(40 + p*30)}, 0, 0.85)`;
                         let pulse = Math.sin(Date.now() / 80) * (0.1 + p*0.1);
                         gridColor = `rgba(255, ${Math.floor(100 + p*155)}, ${Math.floor(p*200)}, ${0.3 + p*0.2 + pulse})`;
-                        shakeIntensity = p * 4; // Включаем тряску камеры
+                        shakeIntensity = p * 4; 
                     }
                 }
 
                 if (bgTint !== 'transparent') {
                     ctx.fillStyle = bgTint; 
-                    // Рисуем чуть больше канваса, чтобы при тряске не вылезали черные края
                     ctx.fillRect(-20, -20, canvas.width + 40, canvas.height + 40);
                 }
 
@@ -856,7 +882,6 @@
 
                 ctx.save();
                 
-                // Применяем глобальную тряску для сетки
                 if (shakeIntensity > 0 && gameState === 'PLAYING') {
                     ctx.translate((Math.random()-0.5)*shakeIntensity, (Math.random()-0.5)*shakeIntensity);
                 }
@@ -870,7 +895,6 @@
 
                 ctx.save(); 
                 
-                // Применяем глобальную тряску для объектов (чтобы всё тряслось синхронно)
                 if (shakeIntensity > 0 && gameState === 'PLAYING') {
                     ctx.translate((Math.random()-0.5)*shakeIntensity, (Math.random()-0.5)*shakeIntensity);
                 }
