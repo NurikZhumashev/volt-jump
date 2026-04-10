@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AAA Isometric Platformer - Module 2</title>
+    <title>AAA Isometric Platformer - Module 3</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Three.js (r128) -->
@@ -19,7 +19,7 @@
             background-color: var(--tg-theme-bg-color);
             overflow: hidden; touch-action: none;
             user-select: none; -webkit-user-select: none;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
         #game-canvas {
             display: block; width: 100%; height: 100%;
@@ -37,34 +37,103 @@
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         
-        /* Временный UI для отладки */
-        #debug-ui {
-            position: absolute; top: 10px; left: 10px;
-            color: #00ffcc; font-family: monospace; font-size: 14px;
-            pointer-events: none; text-shadow: 1px 1px 2px #000;
+        /* ==========================================
+           МОБИЛЬНЫЙ ИНТЕРФЕЙС (UI)
+           ========================================== */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: space-between; padding: 20px; box-sizing: border-box;
         }
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .stats-box {
+            background: rgba(15, 15, 20, 0.6); backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 255, 204, 0.3); border-radius: 12px;
+            padding: 10px 20px; color: #fff; font-weight: bold; text-shadow: 0 2px 4px #000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #btn-menu {
+            pointer-events: auto; background: rgba(15, 15, 20, 0.6);
+            backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 10px 20px; border-radius: 12px; font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer;
+        }
+        #btn-menu:active { background: rgba(255, 255, 255, 0.2); }
+
+        .controls {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            pointer-events: none; padding-bottom: 20px;
+        }
+        .d-pad {
+            display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px);
+            gap: 5px; pointer-events: auto;
+        }
+        .ctrl-btn {
+            background: rgba(20, 30, 40, 0.5); backdrop-filter: blur(5px);
+            border: 1px solid rgba(0, 255, 204, 0.4); border-radius: 15px;
+            color: #00ffcc; font-size: 24px; display: flex; justify-content: center; align-items: center;
+            box-shadow: inset 0 0 10px rgba(0,255,204,0.1), 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .ctrl-btn:active { background: rgba(0, 255, 204, 0.3); transform: scale(0.95); }
+        
+        .btn-up { grid-column: 2; grid-row: 1; }
+        .btn-left { grid-column: 1; grid-row: 2; }
+        .btn-right { grid-column: 3; grid-row: 2; }
+        .btn-down { grid-column: 2; grid-row: 3; }
+
+        .action-pad { pointer-events: auto; }
+        .btn-jump {
+            width: 80px; height: 80px; border-radius: 40px;
+            background: rgba(20, 30, 40, 0.5); backdrop-filter: blur(5px);
+            border: 2px solid rgba(0, 255, 204, 0.6); color: #00ffcc; font-size: 32px;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 20px rgba(0,255,204,0.2), inset 0 0 15px rgba(0,255,204,0.2);
+        }
+        .btn-jump:active { background: rgba(0, 255, 204, 0.4); transform: scale(0.95); }
     </style>
 </head>
 <body>
 
 <div id="loading-screen">
     <div class="spinner"></div>
-    <h2 id="loading-text">Генерация уровня...</h2>
+    <h2 id="loading-text">Загрузка визуальных эффектов...</h2>
 </div>
 
-<div id="debug-ui">Управление: WASD / Стрелки<br>Прыжок: Пробел</div>
+<div id="hud" style="display: none;">
+    <div class="top-bar">
+        <div class="stats-box">
+            <div id="score-text">Монеты: 0</div>
+            <div id="time-text" style="font-size: 12px; color: #aaa; margin-top: 4px;">Время: 0.0с</div>
+        </div>
+        <button id="btn-menu">МЕНЮ</button>
+    </div>
+    
+    <div class="controls">
+        <div class="d-pad">
+            <div class="ctrl-btn btn-up" id="btn-up">▲</div>
+            <div class="ctrl-btn btn-left" id="btn-left">◄</div>
+            <div class="ctrl-btn btn-right" id="btn-right">►</div>
+            <div class="ctrl-btn btn-down" id="btn-down">▼</div>
+        </div>
+        <div class="action-pad">
+            <div class="btn-jump" id="btn-jump">⇡</div>
+        </div>
+    </div>
+</div>
 
 <canvas id="game-canvas"></canvas>
 
 <script>
 /**
  * ============================================================================
- * МОДУЛЬ 1 & 2: CORE ARCHITECTURE + LEVEL SYSTEM & COLLISIONS
+ * МОДУЛИ 1, 2, 3: CORE + LEVELS + VFX & ENEMIES & MOBILE UI
  * ============================================================================
  */
 
 // ==========================================
-// 1. TELEGRAM SDK
+// 1. TELEGRAM SDK & CLOUD STORAGE
 // ==========================================
 class TelegramManager {
     static init() {
@@ -77,19 +146,41 @@ class TelegramManager {
     static vibrate(type = 'light') {
         if (this.tg?.HapticFeedback) this.tg.HapticFeedback.impactOccurred(type);
     }
+    static async saveRecord(levelIndex, time) {
+        const key = `level_${levelIndex}_record`;
+        const currentRecord = await this.loadRecord(levelIndex);
+        if (!currentRecord || time < currentRecord) {
+            if (this.tg?.CloudStorage) {
+                this.tg.CloudStorage.setItem(key, time.toString());
+            } else {
+                localStorage.setItem(key, time.toString());
+            }
+            return true; // Новый рекорд
+        }
+        return false;
+    }
+    static async loadRecord(levelIndex) {
+        const key = `level_${levelIndex}_record`;
+        return new Promise((resolve) => {
+            if (this.tg?.CloudStorage) {
+                this.tg.CloudStorage.getItem(key, (err, val) => resolve(val ? parseFloat(val) : null));
+            } else {
+                const val = localStorage.getItem(key);
+                resolve(val ? parseFloat(val) : null);
+            }
+        });
+    }
 }
 
 // ==========================================
-// 2. ADVANCED PHYSICS ENGINE (AABB + Triggers)
+// 2. ФИЗИКА (AABB)
 // ==========================================
 class AABB {
-    constructor(x, y, z, width, height, depth) {
-        this.update(x, y, z, width, height, depth);
-    }
+    constructor(x, y, z, width, height, depth) { this.update(x, y, z, width, height, depth); }
     update(x, y, z, width, height, depth) {
-        this.minX = x - width / 2; this.maxX = x + width / 2;
-        this.minY = y - height / 2; this.maxY = y + height / 2;
-        this.minZ = z - depth / 2; this.maxZ = z + depth / 2;
+        this.minX = x - width/2; this.maxX = x + width/2;
+        this.minY = y - height/2; this.maxY = y + height/2;
+        this.minZ = z - depth/2; this.maxZ = z + depth/2;
     }
     intersects(other) {
         return (this.minX <= other.maxX && this.maxX >= other.minX) &&
@@ -100,196 +191,193 @@ class AABB {
 
 class PhysicsBody {
     constructor(entity, isStatic = false, isTrigger = false) {
-        this.entity = entity;
-        this.isStatic = isStatic;
-        this.isTrigger = isTrigger; // Триггеры не имеют коллизии, но вызывают события
-        
-        this.position = new THREE.Vector3();
-        this.velocity = new THREE.Vector3();
-        this.acceleration = new THREE.Vector3();
-        
-        this.size = new THREE.Vector3(1, 1, 1);
-        this.aabb = new AABB(0,0,0, 1,1,1);
-        
-        this.mass = isStatic ? 0 : 1;
-        this.friction = 0.85;
-        this.gravityScale = 1.0;
-        this.isGrounded = false;
-        
-        this.onTriggerEnter = null; // Коллбэк для ловушек/порталов
+        this.entity = entity; this.isStatic = isStatic; this.isTrigger = isTrigger;
+        this.position = new THREE.Vector3(); this.velocity = new THREE.Vector3(); this.acceleration = new THREE.Vector3();
+        this.size = new THREE.Vector3(1, 1, 1); this.aabb = new AABB(0,0,0, 1,1,1);
+        this.mass = isStatic ? 0 : 1; this.friction = 0.85; this.gravityScale = 1.0;
+        this.isGrounded = false; this.onTriggerEnter = null;
     }
-
-    setSize(w, h, d) {
-        this.size.set(w, h, d);
-        this.updateAABB();
-    }
-
-    setPosition(x, y, z) {
-        this.position.set(x, y, z);
-        this.updateAABB();
-    }
-
-    updateAABB() {
-        this.aabb.update(this.position.x, this.position.y, this.position.z, this.size.x, this.size.y, this.size.z);
-    }
-
-    applyForce(force) {
-        if (!this.isStatic) this.acceleration.add(force.clone().divideScalar(this.mass));
-    }
+    setSize(w, h, d) { this.size.set(w, h, d); this.updateAABB(); }
+    setPosition(x, y, z) { this.position.set(x, y, z); this.updateAABB(); }
+    updateAABB() { this.aabb.update(this.position.x, this.position.y, this.position.z, this.size.x, this.size.y, this.size.z); }
+    applyForce(force) { if (!this.isStatic) this.acceleration.add(force.clone().divideScalar(this.mass)); }
 }
 
 class PhysicsWorld {
     constructor() {
-        this.bodies =[];
-        this.gravity = new THREE.Vector3(0, -50, 0); // Реалистичная гравитация
-        
-        // Границы мира (Y = -5 по ТЗ для смерти)
+        this.bodies =[]; this.gravity = new THREE.Vector3(0, -50, 0);
         this.bounds = { minX: -100, maxX: 100, minY: -5, maxY: 100, minZ: -100, maxZ: 100 };
     }
-
     addBody(body) { this.bodies.push(body); }
-    
     removeBody(body) {
         const index = this.bodies.indexOf(body);
         if (index > -1) this.bodies.splice(index, 1);
     }
-
     step(dt) {
         const safeDt = Math.min(dt, 0.03); 
-
         for (let i = 0; i < this.bodies.length; i++) {
             const body = this.bodies[i];
-            if (body.isStatic) continue;
+            if (body.isStatic && !body.entity.isKinematic) continue; // Кинематические тела (Враги) обновляются сами
 
-            // Гравитация и инерция
-            body.applyForce(this.gravity.clone().multiplyScalar(body.gravityScale));
-            body.velocity.add(body.acceleration.clone().multiplyScalar(safeDt));
-            body.velocity.x *= body.friction;
-            body.velocity.z *= body.friction;
-            body.acceleration.set(0, 0, 0);
+            if (!body.entity.isKinematic) {
+                body.applyForce(this.gravity.clone().multiplyScalar(body.gravityScale));
+                body.velocity.add(body.acceleration.clone().multiplyScalar(safeDt));
+                body.velocity.x *= body.friction; body.velocity.z *= body.friction;
+                body.acceleration.set(0, 0, 0);
+            }
 
+            const wasGrounded = body.isGrounded;
             body.isGrounded = false;
 
-            // Разрешение коллизий по осям (X, Y, Z раздельно для избежания застреваний)
-            body.position.y += body.velocity.y * safeDt;
-            body.updateAABB();
-            this.resolveCollisions(body, 'y');
+            body.position.y += body.velocity.y * safeDt; body.updateAABB(); this.resolveCollisions(body, 'y');
+            body.position.x += body.velocity.x * safeDt; body.updateAABB(); this.resolveCollisions(body, 'x');
+            body.position.z += body.velocity.z * safeDt; body.updateAABB(); this.resolveCollisions(body, 'z');
 
-            body.position.x += body.velocity.x * safeDt;
-            body.updateAABB();
-            this.resolveCollisions(body, 'x');
-
-            body.position.z += body.velocity.z * safeDt;
-            body.updateAABB();
-            this.resolveCollisions(body, 'z');
+            // Эффект приземления (VFX)
+            if (!wasGrounded && body.isGrounded && body.entity instanceof Player) {
+                body.entity.onLand();
+            }
 
             this.checkBoundaries(body);
             this.checkTriggers(body);
 
-            if (body.entity && body.entity.mesh) {
-                body.entity.mesh.position.copy(body.position);
-            }
+            if (body.entity && body.entity.mesh) body.entity.mesh.position.copy(body.position);
         }
     }
-
     resolveCollisions(body, axis) {
+        if (body.entity.isKinematic) return; // Врагов не толкаем
         for (let j = 0; j < this.bodies.length; j++) {
             const other = this.bodies[j];
             if (body === other || other.isTrigger) continue;
-
             if (body.aabb.intersects(other.aabb)) {
                 if (axis === 'y') {
-                    if (body.velocity.y < 0) { // Игрок падает на блок
-                        body.position.y = other.aabb.maxY + body.size.y / 2;
-                        body.isGrounded = true;
-                    } else if (body.velocity.y > 0) { // Игрок ударяется головой
-                        body.position.y = other.aabb.minY - body.size.y / 2;
-                    }
+                    if (body.velocity.y < 0) { body.position.y = other.aabb.maxY + body.size.y/2; body.isGrounded = true; } 
+                    else if (body.velocity.y > 0) { body.position.y = other.aabb.minY - body.size.y/2; }
                     body.velocity.y = 0;
                 } 
                 else if (axis === 'x') {
-                    if (body.velocity.x > 0) body.position.x = other.aabb.minX - body.size.x / 2;
-                    else if (body.velocity.x < 0) body.position.x = other.aabb.maxX + body.size.x / 2;
+                    if (body.velocity.x > 0) body.position.x = other.aabb.minX - body.size.x/2;
+                    else if (body.velocity.x < 0) body.position.x = other.aabb.maxX + body.size.x/2;
                     body.velocity.x = 0;
                 }
                 else if (axis === 'z') {
-                    if (body.velocity.z > 0) body.position.z = other.aabb.minZ - body.size.z / 2;
-                    else if (body.velocity.z < 0) body.position.z = other.aabb.maxZ + body.size.z / 2;
+                    if (body.velocity.z > 0) body.position.z = other.aabb.minZ - body.size.z/2;
+                    else if (body.velocity.z < 0) body.position.z = other.aabb.maxZ + body.size.z/2;
                     body.velocity.z = 0;
                 }
                 body.updateAABB();
             }
         }
     }
-
     checkTriggers(body) {
         for (let j = 0; j < this.bodies.length; j++) {
             const other = this.bodies[j];
             if (!other.isTrigger || body === other) continue;
-
             if (body.aabb.intersects(other.aabb)) {
                 if (other.onTriggerEnter) other.onTriggerEnter(body.entity);
             }
         }
     }
-
     checkBoundaries(body) {
         if (body.position.y < this.bounds.minY) {
-            if (body.entity && typeof body.entity.die === 'function') {
-                body.entity.die(); // Убиваем игрока при падении в бездну
-            } else {
-                body.position.y = this.bounds.minY;
-                body.velocity.y = 0;
-            }
+            if (body.entity && typeof body.entity.die === 'function') body.entity.die();
+            else { body.position.y = this.bounds.minY; body.velocity.y = 0; }
         }
     }
 }
 
 // ==========================================
-// 3. GRAPHICS ENGINE
+// 3. GRAPHICS ENGINE & VFX (PARTICLES)
 // ==========================================
+class ParticleSystem {
+    constructor(scene) {
+        this.scene = scene;
+        this.particles =[];
+        this.boxGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+        this.matDust = new THREE.MeshBasicMaterial({ color: 0x8899aa, transparent: true, opacity: 0.8 });
+        this.matSpark = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 1.0 });
+    }
+
+    emit(pos, type = 'dust', count = 5) {
+        for(let i=0; i<count; i++) {
+            const mesh = new THREE.Mesh(this.boxGeo, type === 'dust' ? this.matDust.clone() : this.matSpark.clone());
+            mesh.position.copy(pos);
+            // Случайный разброс
+            mesh.position.x += (Math.random() - 0.5) * 0.5;
+            mesh.position.z += (Math.random() - 0.5) * 0.5;
+            
+            const velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                Math.random() * 2 + (type === 'spark' ? 2 : 0.5),
+                (Math.random() - 0.5) * 2
+            );
+            
+            this.scene.add(mesh);
+            this.particles.push({ mesh, velocity, life: 1.0, type });
+        }
+    }
+
+    update(dt) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.life -= dt * (p.type === 'dust' ? 2 : 1.5); // Скорость исчезновения
+            
+            p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
+            p.mesh.rotation.x += dt * 5;
+            p.mesh.rotation.y += dt * 5;
+            
+            if (p.type === 'dust') p.velocity.y -= dt * 5; // Гравитация для пыли
+            
+            p.mesh.material.opacity = p.life;
+            p.mesh.scale.setScalar(p.life);
+
+            if (p.life <= 0) {
+                this.scene.remove(p.mesh);
+                p.mesh.material.dispose();
+                this.particles.splice(i, 1);
+            }
+        }
+    }
+}
+
 class RenderEngine {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: "high-performance" });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         this.scene = new THREE.Scene();
-        const bgColor = new THREE.Color(0x111118);
-        this.scene.background = bgColor;
-        this.scene.fog = new THREE.FogExp2(bgColor, 0.02); // Эффект глубины и тумана
+        this.scene.background = new THREE.Color(0x111118);
+        this.scene.fog = new THREE.FogExp2(0x111118, 0.02);
 
-        const aspect = window.innerWidth / window.innerHeight;
-        this.camera = new THREE.PerspectiveCamera(35, aspect, 1, 1000);
+        this.camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 1000);
         this.cameraOffset = new THREE.Vector3(18, 22, 25);
         this.camera.position.copy(this.cameraOffset);
 
         this.setupLighting();
+        this.particles = new ParticleSystem(this.scene);
+        
+        this.shakeIntensity = 0; // Screen Shake
+
         window.addEventListener('resize', this.onResize.bind(this), false);
     }
 
     setupLighting() {
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-
-        this.dirLight = new THREE.DirectionalLight(0xfff5e6, 1.2); // Теплый солнечный свет
+        this.dirLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
         this.dirLight.position.set(20, 40, 10);
         this.dirLight.castShadow = true;
-        
         this.dirLight.shadow.mapSize.width = 2048;
         this.dirLight.shadow.mapSize.height = 2048;
-        this.dirLight.shadow.camera.near = 0.5;
-        this.dirLight.shadow.camera.far = 100;
+        this.dirLight.shadow.camera.near = 0.5; this.dirLight.shadow.camera.far = 100;
         const d = 20;
         this.dirLight.shadow.camera.left = -d; this.dirLight.shadow.camera.right = d;
         this.dirLight.shadow.camera.top = d; this.dirLight.shadow.camera.bottom = -d;
-        this.dirLight.shadow.bias = -0.0005;
-
         this.scene.add(this.dirLight);
     }
 
@@ -299,69 +387,66 @@ class RenderEngine {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    render() { this.renderer.render(this.scene, this.camera); }
+    shake(intensity) { this.shakeIntensity = intensity; }
 
     followTarget(targetPosition, dt) {
         const desiredPosition = targetPosition.clone().add(this.cameraOffset);
-        this.camera.position.lerp(desiredPosition, 4 * dt);
-        const lookTarget = targetPosition.clone().add(new THREE.Vector3(0, 1, 0));
-        this.camera.lookAt(lookTarget);
         
-        // Свет следит за игроком для четких теней
+        // Применяем Screen Shake
+        if (this.shakeIntensity > 0.01) {
+            desiredPosition.x += (Math.random() - 0.5) * this.shakeIntensity;
+            desiredPosition.y += (Math.random() - 0.5) * this.shakeIntensity;
+            this.shakeIntensity *= 0.9; // Затухание
+        }
+
+        this.camera.position.lerp(desiredPosition, 4 * dt);
+        this.camera.lookAt(targetPosition.clone().add(new THREE.Vector3(0, 1, 0)));
+        
         this.dirLight.position.copy(targetPosition).add(new THREE.Vector3(20, 40, 10));
         this.dirLight.target.position.copy(targetPosition);
         this.dirLight.target.updateMatrixWorld();
     }
+    
+    render(dt) {
+        this.particles.update(dt);
+        this.renderer.render(this.scene, this.camera);
+    }
 }
 
 // ==========================================
-// 4. ENTITIES (PLAYER)
+// 4. ENTITIES (PLAYER, ENEMY)
 // ==========================================
 class Player {
-    constructor(scene, physicsWorld) {
-        this.scene = scene;
-        this.physicsWorld = physicsWorld;
+    constructor(scene, physicsWorld, particleSystem, renderEngine) {
+        this.scene = scene; this.physicsWorld = physicsWorld;
+        this.particles = particleSystem; this.renderEngine = renderEngine;
         this.spawnPoint = new THREE.Vector3(0, 5, 0);
+        this.coins = 0;
         
         this.buildMesh();
         this.setupPhysics();
         
-        this.speed = 450; 
-        this.jumpForce = 24;
-        this.maxJumps = 2;
-        this.currentJumps = 0;
+        this.speed = 450; this.jumpForce = 24;
+        this.maxJumps = 2; this.currentJumps = 0;
     }
 
     buildMesh() {
         this.mesh = new THREE.Group();
-
-        // Ядро
         const coreGeo = new THREE.IcosahedronGeometry(0.35, 2);
         const coreMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8, roughness: 0.2, metalness: 1.0 });
-        this.coreMesh = new THREE.Mesh(coreGeo, coreMat);
-        this.coreMesh.castShadow = true;
-        this.mesh.add(this.coreMesh);
+        this.coreMesh = new THREE.Mesh(coreGeo, coreMat); this.coreMesh.castShadow = true; this.mesh.add(this.coreMesh);
 
-        // Оболочка
         const shellGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
         const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.5, wireframe: true });
-        this.shellMesh = new THREE.Mesh(shellGeo, shellMat);
-        this.shellMesh.castShadow = true;
-        this.mesh.add(this.shellMesh);
+        this.shellMesh = new THREE.Mesh(shellGeo, shellMat); this.shellMesh.castShadow = true; this.mesh.add(this.shellMesh);
 
-        // Свет
-        this.pointLight = new THREE.PointLight(0x00ffcc, 1.5, 8);
-        this.pointLight.position.set(0, 0.5, 0);
-        this.mesh.add(this.pointLight);
-
+        this.pointLight = new THREE.PointLight(0x00ffcc, 1.5, 8); this.pointLight.position.set(0, 0.5, 0); this.mesh.add(this.pointLight);
         this.scene.add(this.mesh);
     }
 
     setupPhysics() {
         this.body = new PhysicsBody(this, false);
-        this.body.setSize(0.8, 0.8, 0.8);
-        this.body.mass = 1.0;
-        this.body.friction = 0.82;
+        this.body.setSize(0.8, 0.8, 0.8); this.body.mass = 1.0; this.body.friction = 0.82;
         this.physicsWorld.addBody(this.body);
     }
 
@@ -372,51 +457,97 @@ class Player {
 
     respawn() {
         this.body.setPosition(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.z);
-        this.body.velocity.set(0,0,0);
-        this.body.acceleration.set(0,0,0);
+        this.body.velocity.set(0,0,0); this.body.acceleration.set(0,0,0);
+        this.particles.emit(this.body.position, 'spark', 15);
     }
 
     die() {
         TelegramManager.vibrate('heavy');
-        console.log("Игрок погиб! Возрождение...");
-        // В Модуле 3 здесь будет эффект взрыва частиц
+        this.renderEngine.shake(1.0);
+        this.particles.emit(this.body.position, 'spark', 20);
         this.respawn();
     }
 
     win() {
         TelegramManager.vibrate('success');
-        console.log("УРОВЕНЬ ПРОЙДЕН!");
-        alert("Уровень пройден!"); // Временная заглушка для Модуля 2
+        this.particles.emit(this.body.position, 'spark', 30);
+        alert(`Уровень пройден! Собрано монет: ${this.coins}`);
         this.respawn();
     }
 
     jump() {
         if (this.body.isGrounded) {
-            this.currentJumps = 1;
-            this.body.velocity.y = this.jumpForce;
+            this.currentJumps = 1; this.body.velocity.y = this.jumpForce;
+            this.particles.emit(this.body.position, 'dust', 5);
             TelegramManager.vibrate('light');
         } else if (this.currentJumps < this.maxJumps) {
-            this.currentJumps++;
-            this.body.velocity.y = this.jumpForce * 0.8;
+            this.currentJumps++; this.body.velocity.y = this.jumpForce * 0.8;
+            this.particles.emit(this.body.position, 'spark', 5);
             TelegramManager.vibrate('medium');
         }
     }
 
+    onLand() {
+        this.renderEngine.shake(0.3); // Тряска при приземлении
+        this.particles.emit(this.body.position, 'dust', 8);
+        TelegramManager.vibrate('light');
+    }
+
     move(dirX, dirZ) {
         this.body.applyForce(new THREE.Vector3(dirX * this.speed, 0, dirZ * this.speed));
+        // Пыль при беге
+        if (this.body.isGrounded && Math.random() > 0.7) {
+            this.particles.emit(this.body.position.clone().add(new THREE.Vector3(0, -0.4, 0)), 'dust', 1);
+        }
     }
 
     update(dt) {
-        this.coreMesh.rotation.x += 2 * dt;
-        this.coreMesh.rotation.y += 3 * dt;
-        
+        this.coreMesh.rotation.x += 2 * dt; this.coreMesh.rotation.y += 3 * dt;
         if (this.body.isGrounded) this.currentJumps = 0;
-
-        // Наклон оболочки в сторону движения
-        const targetTiltZ = -this.body.velocity.x * 0.04;
-        const targetTiltX = this.body.velocity.z * 0.04;
+        const targetTiltZ = -this.body.velocity.x * 0.04; const targetTiltX = this.body.velocity.z * 0.04;
         this.shellMesh.rotation.z += (targetTiltZ - this.shellMesh.rotation.z) * 10 * dt;
         this.shellMesh.rotation.x += (targetTiltX - this.shellMesh.rotation.x) * 10 * dt;
+    }
+}
+
+// Враг: Парящий рунный ромб
+class Enemy {
+    constructor(scene, physicsWorld, x, y, z) {
+        this.scene = scene; this.physicsWorld = physicsWorld;
+        this.isKinematic = true; // Двигается сам, не подчиняется гравитации
+        
+        this.startZ = z;
+        this.time = Math.random() * 10; // Смещение по фазе
+
+        const geo = new THREE.OctahedronGeometry(0.6, 0);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xff0055, emissive: 0xaa0022, roughness: 0.3, metalness: 0.8, flatShading: true });
+        this.mesh = new THREE.Mesh(geo, mat);
+        this.mesh.position.set(x, y + 1, z);
+        this.mesh.castShadow = true;
+        this.scene.add(this.mesh);
+
+        // Триггер смерти
+        this.body = new PhysicsBody(this, true, true);
+        this.body.setSize(1, 1, 1);
+        this.body.setPosition(x, y + 1, z);
+        this.body.onTriggerEnter = (entity) => {
+            if (entity instanceof Player) entity.die();
+        };
+        this.physicsWorld.addBody(this.body);
+    }
+
+    update(dt) {
+        this.time += dt * 2;
+        this.mesh.rotation.y += dt;
+        this.mesh.rotation.z += dt * 0.5;
+        
+        // Патрулирование по оси Z (туда-сюда на 3 блока)
+        const newZ = this.startZ + Math.sin(this.time) * 3;
+        const newY = this.body.position.y + Math.cos(this.time * 2) * 0.02; // Левитация
+        
+        this.mesh.position.z = newZ;
+        this.mesh.position.y = newY;
+        this.body.setPosition(this.mesh.position.x, newY, newZ);
     }
 }
 
@@ -424,157 +555,154 @@ class Player {
 // 5. LEVEL SYSTEM & GENERATOR
 // ==========================================
 class LevelGenerator {
-    constructor(scene, physicsWorld) {
-        this.scene = scene;
-        this.physicsWorld = physicsWorld;
-        this.gridSize = 2; // Размер одного блока (2x2x2)
+    constructor(scene, physicsWorld, particles) {
+        this.scene = scene; this.physicsWorld = physicsWorld; this.particles = particles;
+        this.gridSize = 2;
+        this.dynamicObjects = [];
+        this.torches =[];
     }
 
-    // Генерация случайного цвета камня для реализма (от серого до мшисто-зеленого)
-    getRandomStoneMaterial() {
-        const isMossy = Math.random() > 0.7; // 30% шанс на мох
+    getStoneMat() {
         const color = new THREE.Color();
-        if (isMossy) {
-            color.setHSL(0.3, 0.2, 0.25 + Math.random() * 0.1); // Темно-зеленый
-        } else {
-            color.setHSL(0, 0, 0.3 + Math.random() * 0.15); // Серый камень
-        }
-        return new THREE.MeshStandardMaterial({ 
-            color: color, roughness: 0.9, metalness: 0.0 
-        });
+        Math.random() > 0.7 ? color.setHSL(0.3, 0.2, 0.25 + Math.random()*0.1) : color.setHSL(0, 0, 0.3 + Math.random()*0.15);
+        return new THREE.MeshStandardMaterial({ color: color, roughness: 0.9 });
     }
 
     createLevel(map, player) {
-        // Базовые геометрии
         const boxGeo = new THREE.BoxGeometry(this.gridSize, this.gridSize, this.gridSize);
         const pillarGeo = new THREE.CylinderGeometry(this.gridSize*0.4, this.gridSize*0.4, this.gridSize*2, 8);
         const spikeGeo = new THREE.ConeGeometry(this.gridSize*0.4, this.gridSize, 4);
         const altarGeo = new THREE.TorusGeometry(this.gridSize*0.6, 0.2, 16, 32);
+        const coinGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 16);
 
         const spikeMat = new THREE.MeshStandardMaterial({ color: 0xff2222, roughness: 0.4, metalness: 0.8 });
         const portalMat = new THREE.MeshStandardMaterial({ color: 0xaa00ff, emissive: 0xaa00ff, emissiveIntensity: 2.0 });
+        const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.2 });
 
         for (let z = 0; z < map.length; z++) {
             for (let x = 0; x < map[z].length; x++) {
                 const tile = map[z][x];
                 if (tile === 0) continue;
 
-                const worldX = x * this.gridSize;
-                const worldZ = z * this.gridSize;
-                const worldY = 0; // Базовый уровень пола
+                const worldX = x * this.gridSize; const worldZ = z * this.gridSize; const worldY = 0;
 
-                // 1 - Каменный блок (Стена/Пол)
-                if (tile === 1) {
-                    const mesh = new THREE.Mesh(boxGeo, this.getRandomStoneMaterial());
-                    mesh.position.set(worldX, worldY, worldZ);
-                    mesh.receiveShadow = true; mesh.castShadow = true;
+                // Базовый блок
+                if (tile === 1 || tile === 'S' || tile === 'T' || tile === 'C' || tile === 'P') {
+                    const mesh = new THREE.Mesh(boxGeo, this.getStoneMat());
+                    mesh.position.set(worldX, worldY, worldZ); mesh.receiveShadow = true; mesh.castShadow = true;
                     this.scene.add(mesh);
-
                     const body = new PhysicsBody({ mesh }, true);
-                    body.setSize(this.gridSize, this.gridSize, this.gridSize);
-                    body.setPosition(worldX, worldY, worldZ);
+                    body.setSize(this.gridSize, this.gridSize, this.gridSize); body.setPosition(worldX, worldY, worldZ);
                     this.physicsWorld.addBody(body);
                 }
                 
-                // 2 - Древняя колонна (Декорация/Препятствие)
-                else if (tile === 2) {
-                    const mesh = new THREE.Mesh(pillarGeo, this.getRandomStoneMaterial());
-                    mesh.position.set(worldX, worldY + this.gridSize/2, worldZ);
-                    mesh.receiveShadow = true; mesh.castShadow = true;
+                // Декорации и ловушки поверх блоков
+                if (tile === 2) { // Колонна
+                    const mesh = new THREE.Mesh(pillarGeo, this.getStoneMat());
+                    mesh.position.set(worldX, worldY + this.gridSize/2, worldZ); mesh.receiveShadow = true; mesh.castShadow = true;
                     this.scene.add(mesh);
-
                     const body = new PhysicsBody({ mesh }, true);
-                    body.setSize(this.gridSize*0.8, this.gridSize*2, this.gridSize*0.8);
-                    body.setPosition(worldX, worldY + this.gridSize/2, worldZ);
+                    body.setSize(this.gridSize*0.8, this.gridSize*2, this.gridSize*0.8); body.setPosition(worldX, worldY + this.gridSize/2, worldZ);
                     this.physicsWorld.addBody(body);
                 }
-
-                // S - Скрытые шипы (Ловушка)
-                else if (tile === 'S') {
-                    // Сначала ставим пол
-                    const base = new THREE.Mesh(boxGeo, this.getRandomStoneMaterial());
-                    base.position.set(worldX, worldY, worldZ);
-                    base.receiveShadow = true;
-                    this.scene.add(base);
-                    const baseBody = new PhysicsBody({ mesh: base }, true);
-                    baseBody.setSize(this.gridSize, this.gridSize, this.gridSize);
-                    baseBody.setPosition(worldX, worldY, worldZ);
-                    this.physicsWorld.addBody(baseBody);
-
-                    // Сверху ставим шипы
+                else if (tile === 'S') { // Шипы
                     const spike = new THREE.Mesh(spikeGeo, spikeMat);
-                    spike.position.set(worldX, worldY + this.gridSize, worldZ);
-                    spike.castShadow = true;
-                    this.scene.add(spike);
-
-                    // Триггер для шипов
-                    const triggerBody = new PhysicsBody({ mesh: spike }, true, true); // isTrigger = true
-                    triggerBody.setSize(this.gridSize*0.8, this.gridSize, this.gridSize*0.8);
-                    triggerBody.setPosition(worldX, worldY + this.gridSize, worldZ);
-                    triggerBody.onTriggerEnter = (entity) => {
-                        if (entity instanceof Player) entity.die();
-                    };
-                    this.physicsWorld.addBody(triggerBody);
+                    spike.position.set(worldX, worldY + this.gridSize, worldZ); spike.castShadow = true; this.scene.add(spike);
+                    const trigger = new PhysicsBody({ mesh: spike }, true, true);
+                    trigger.setSize(this.gridSize*0.8, this.gridSize, this.gridSize*0.8); trigger.setPosition(worldX, worldY + this.gridSize, worldZ);
+                    trigger.onTriggerEnter = (ent) => { if(ent instanceof Player) ent.die(); };
+                    this.physicsWorld.addBody(trigger);
                 }
-
-                // F - Финиш (Портал)
-                else if (tile === 'F') {
-                    // Пьедестал
-                    const base = new THREE.Mesh(new THREE.BoxGeometry(this.gridSize, this.gridSize*0.2, this.gridSize), this.getRandomStoneMaterial());
-                    base.position.set(worldX, worldY - this.gridSize*0.4, worldZ);
-                    this.scene.add(base);
-
-                    // Светящееся кольцо портала
+                else if (tile === 'F') { // Финиш
                     const portal = new THREE.Mesh(altarGeo, portalMat);
-                    portal.position.set(worldX, worldY + this.gridSize, worldZ);
-                    portal.rotation.x = Math.PI / 2;
-                    this.scene.add(portal);
-
-                    // Анимация портала (просто сохраняем ссылку в mesh)
-                    portal.userData.isPortal = true;
-
-                    // Триггер финиша
-                    const finishTrigger = new PhysicsBody({ mesh: portal }, true, true);
-                    finishTrigger.setSize(this.gridSize, this.gridSize*2, this.gridSize);
-                    finishTrigger.setPosition(worldX, worldY + this.gridSize, worldZ);
-                    finishTrigger.onTriggerEnter = (entity) => {
-                        if (entity instanceof Player) entity.win();
+                    portal.position.set(worldX, worldY + this.gridSize*0.8, worldZ); portal.rotation.x = Math.PI/2; this.scene.add(portal);
+                    portal.userData.isPortal = true; this.dynamicObjects.push(portal);
+                    const trigger = new PhysicsBody({ mesh: portal }, true, true);
+                    trigger.setSize(this.gridSize, this.gridSize*2, this.gridSize); trigger.setPosition(worldX, worldY + this.gridSize, worldZ);
+                    trigger.onTriggerEnter = (ent) => { if(ent instanceof Player) ent.win(); };
+                    this.physicsWorld.addBody(trigger);
+                }
+                else if (tile === 'E') { // Враг
+                    this.dynamicObjects.push(new Enemy(this.scene, this.physicsWorld, worldX, worldY, worldZ));
+                }
+                else if (tile === 'T') { // Факел (Освещение)
+                    const torchLight = new THREE.PointLight(0xff8800, 1, 15);
+                    torchLight.position.set(worldX, worldY + this.gridSize, worldZ);
+                    this.scene.add(torchLight);
+                    this.torches.push(torchLight);
+                }
+                else if (tile === 'C') { // Монета
+                    const coin = new THREE.Mesh(coinGeo, coinMat);
+                    coin.position.set(worldX, worldY + this.gridSize, worldZ);
+                    coin.rotation.x = Math.PI/2; coin.castShadow = true; this.scene.add(coin);
+                    coin.userData.isCoin = true; this.dynamicObjects.push(coin);
+                    const trigger = new PhysicsBody({ mesh: coin }, true, true);
+                    trigger.setSize(1, 1, 1); trigger.setPosition(worldX, worldY + this.gridSize, worldZ);
+                    trigger.onTriggerEnter = (ent) => {
+                        if(ent instanceof Player && coin.visible) {
+                            coin.visible = false; ent.coins++;
+                            document.getElementById('score-text').innerText = `Монеты: ${ent.coins}`;
+                            this.particles.emit(coin.position, 'spark', 10);
+                            TelegramManager.vibrate('light');
+                        }
                     };
-                    this.physicsWorld.addBody(finishTrigger);
+                    this.physicsWorld.addBody(trigger);
+                }
+                else if (tile === 'P') { // Чекпоинт
+                    const cp = new THREE.Mesh(new THREE.BoxGeometry(1, 0.2, 1), new THREE.MeshStandardMaterial({color: 0x00aaff, emissive: 0x00aaff}));
+                    cp.position.set(worldX, worldY + this.gridSize/2 + 0.1, worldZ); this.scene.add(cp);
+                    const trigger = new PhysicsBody({ mesh: cp }, true, true);
+                    trigger.setSize(2, 2, 2); trigger.setPosition(worldX, worldY + this.gridSize, worldZ);
+                    trigger.onTriggerEnter = (ent) => {
+                        if(ent instanceof Player && ent.spawnPoint.x !== worldX) {
+                            ent.setSpawn(worldX, worldY + this.gridSize*1.5, worldZ);
+                            this.particles.emit(cp.position, 'spark', 15);
+                            TelegramManager.vibrate('medium');
+                        }
+                    };
+                    this.physicsWorld.addBody(trigger);
                 }
             }
         }
-
-        // Установка стартовой позиции игрока (над первым найденным блоком [0][0] или заданным)
         player.setSpawn(0, 5, 0); 
     }
 
-    // Вспомогательный метод для анимации динамических объектов уровня
     update(dt) {
-        this.scene.children.forEach(child => {
-            if (child.userData.isPortal) {
-                child.rotation.x += 1 * dt;
-                child.rotation.y += 2 * dt;
+        // Анимация порталов, монет и врагов
+        this.dynamicObjects.forEach(obj => {
+            if (obj.userData?.isPortal) {
+                obj.rotation.x += 1 * dt; obj.rotation.y += 2 * dt;
+                if(Math.random() > 0.8) this.particles.emit(obj.position, 'spark', 1);
             }
+            if (obj.userData?.isCoin && obj.visible) {
+                obj.rotation.y += 3 * dt;
+            }
+            if (obj instanceof Enemy) obj.update(dt);
+        });
+
+        // Мерцание факелов
+        this.torches.forEach(torch => {
+            torch.intensity = 1 + Math.random() * 0.3;
         });
     }
 }
 
 // ==========================================
-// 6. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (GAME CORE)
+// 6. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ & MOBILE UI
 // ==========================================
 class GameCore {
     constructor() {
         this.physics = new PhysicsWorld();
         this.renderEngine = new RenderEngine();
-        this.levelGen = new LevelGenerator(this.renderEngine.scene, this.physics);
+        this.levelGen = new LevelGenerator(this.renderEngine.scene, this.physics, this.renderEngine.particles);
         
         this.clock = new THREE.Clock();
         this.isRunning = false;
         this.input = { up: false, down: false, left: false, right: false };
+        this.timeElapsed = 0;
 
-        // КАРТА УРОВНЯ (1 - Блок, 2 - Колонна, S - Ловушка, F - Финиш, 0 - Пустота)
-        this.LEVEL_MAP = [[1, 1, 1, 1, 1, 0, 0, 0, 0, 0],[1, 0, 0, 0, 1, 1, 'S', 1, 1, 0],[1, 2, 0, 2, 1, 0, 0, 0, 1, 0],[1, 0, 0, 0, 1, 0, 1, 1, 1, 0],[1, 1, 1, 1, 1, 0, 1, 2, 1, 'F']
+        // Расширенная карта (1-Блок, 2-Колонна, S-Шипы, F-Финиш, E-Враг, T-Факел, C-Монета, P-Чекпоинт)
+        this.LEVEL_MAP = [[1, 1, 1, 1, 1, 0, 0, 0, 0, 0],[1, 'C', 0, 0, 1, 1, 'S', 1, 1, 0],[1, 2, 0, 2, 'T', 0, 0, 0, 1, 0],[1, 0, 0, 0, 1, 'E', 1, 'C', 1, 0],[1, 1, 'P', 1, 1, 0, 1, 2, 1, 'F']
         ];
         
         this.init();
@@ -582,23 +710,24 @@ class GameCore {
 
     async init() {
         TelegramManager.init();
-        
-        this.player = new Player(this.renderEngine.scene, this.physics);
-        
-        // Генерация уровня
+        this.player = new Player(this.renderEngine.scene, this.physics, this.renderEngine.particles, this.renderEngine);
         this.levelGen.createLevel(this.LEVEL_MAP, this.player);
 
         this.setupInput();
+        this.setupMobileUI();
 
-        // Скрываем экран загрузки
         document.getElementById('loading-screen').style.opacity = '0';
-        setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 500);
+        setTimeout(() => {
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('hud').style.display = 'flex';
+        }, 500);
 
         this.isRunning = true;
         this.loop();
     }
 
     setupInput() {
+        // Клавиатура (для ПК тестов)
         window.addEventListener('keydown', (e) => {
             if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = true;
             if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = true;
@@ -614,10 +743,28 @@ class GameCore {
         });
     }
 
+    setupMobileUI() {
+        const bindBtn = (id, key) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); this.input[key] = true; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); this.input[key] = false; });
+            el.addEventListener('mousedown', (e) => { this.input[key] = true; });
+            el.addEventListener('mouseup', (e) => { this.input[key] = false; });
+            el.addEventListener('mouseleave', (e) => { this.input[key] = false; });
+        };
+
+        bindBtn('btn-up', 'up'); bindBtn('btn-down', 'down');
+        bindBtn('btn-left', 'left'); bindBtn('btn-right', 'right');
+        
+        const jumpBtn = document.getElementById('btn-jump');
+        const doJump = (e) => { e.preventDefault(); this.player.jump(); };
+        jumpBtn.addEventListener('touchstart', doJump);
+        jumpBtn.addEventListener('mousedown', doJump);
+    }
+
     processInput() {
         let dirX = 0; let dirZ = 0;
-        
-        // Изометрическое управление (камера повернута под углом)
+        // Изометрия: смешиваем оси
         if (this.input.up) { dirX -= 1; dirZ -= 1; }
         if (this.input.down) { dirX += 1; dirZ += 1; }
         if (this.input.left) { dirX -= 1; dirZ += 1; }
@@ -634,13 +781,16 @@ class GameCore {
         if (!this.isRunning) return;
 
         const dt = this.clock.getDelta();
+        this.timeElapsed += dt;
+        document.getElementById('time-text').innerText = `Время: ${this.timeElapsed.toFixed(1)}с`;
 
         this.processInput();
         this.physics.step(dt);
         this.player.update(dt);
-        this.levelGen.update(dt); // Анимация портала
+        this.levelGen.update(dt);
+        
         this.renderEngine.followTarget(this.player.body.position, dt);
-        this.renderEngine.render();
+        this.renderEngine.render(dt);
     }
 }
 
