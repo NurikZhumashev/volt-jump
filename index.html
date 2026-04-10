@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Revive Update</title>
+    <title>Neon Tower: Escalation Update</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -217,7 +217,6 @@
             sfx.stopBGM(); saveGame(); showState('MAIN');
         }
 
-        // Логика воскрешения
         function confirmRevive() {
             document.getElementById('reviveMenu').classList.remove('active');
             gameState = 'PLAYING';
@@ -330,6 +329,7 @@
             }
         }
 
+        // --- БЕЗОПАСНОЕ АУДИО ---
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
@@ -497,11 +497,13 @@
             }
         }
 
+        // --- ИЗМЕНЕН КОНСТРУКТОР ПЛАТФОРМЫ (ПРИНИМАЕТ TIER) ---
         class Platform {
-            constructor(x, y, width, type = 'normal') {
+            constructor(x, y, width, type = 'normal', tier = 0) {
                 this.x = x; this.y = y; this.width = width; this.height = 20;
                 this.type = type; 
-                this.moveSpeed = 0.8 + Math.random() * 1.2; 
+                // Чем выше Tier, тем быстрее движутся платформы
+                this.moveSpeed = (0.8 + tier * 0.4) + Math.random() * 1.2; 
                 this.direction = Math.random() > 0.5 ? 1 : -1;
                 this.flashTimer = 0; this.broken = false;
             }
@@ -653,31 +655,42 @@
                 this.cameraY = 0; this.highestY = canvas.height - 50;
                 this.maxReachedY = this.highestY; 
                 
+                this.tier = 0; // Фаза сложности для бесконечного режима
+                this.currentScore = 0;
+
                 this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
                 this.finishSpawned = false;
 
-                this.platforms.push(new Platform(0, this.highestY, canvas.width, 'normal'));
+                this.platforms.push(new Platform(0, this.highestY, canvas.width, 'normal', this.tier));
                 this.player = new Player(this); this.hunter = new Hunter(this);
             }
 
+            // --- ЛОГИКА ГЕНЕРАЦИИ С УЧЕТОМ ФАЗ (TIERS) ---
             generateChunk() {
                 while (this.highestY > this.cameraY - canvas.height * 2) {
                     if (this.mode === 'campaign' && this.highestY <= this.targetY) {
-                        if (!this.finishSpawned) { this.platforms.push(new Platform(0, this.targetY - 100, canvas.width, 'finish')); this.finishSpawned = true; }
+                        if (!this.finishSpawned) { this.platforms.push(new Platform(0, this.targetY - 100, canvas.width, 'finish', 0)); this.finishSpawned = true; }
                         break;
                     }
-                    let gap = 90 + Math.random() * (this.isHard ? 60 : 40);
+                    
+                    // Расстояние между платформами растет с каждой фазой
+                    let gap = 90 + (this.tier * 10) + Math.random() * (this.isHard ? 60 : 40 + (this.tier * 5));
                     this.highestY -= gap;
                     
-                    let w = 85 + Math.random() * (this.isHard ? 50 : 80); 
-                    
+                    // Ширина платформ уменьшается с каждой фазой (минимум 40px)
+                    let w = Math.max(40, 85 - (this.tier * 10)) + Math.random() * (this.isHard ? 50 : 80 - (this.tier * 5)); 
                     let x = Math.random() * (canvas.width - w);
                     
                     let type = 'normal'; let r = Math.random();
-                    if (this.isHard) { if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; } 
-                    else { if (r > 0.85) type = 'spring'; else if (r > 0.65) type = 'moving'; }
+                    if (this.isHard) { 
+                        if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; 
+                    } else { 
+                        if (r > 0.85) type = 'spring'; 
+                        // Шанс на появление движущейся платформы растет с каждой фазой
+                        else if (r > Math.max(0.2, 0.65 - (this.tier * 0.15))) type = 'moving'; 
+                    }
                     
-                    this.platforms.push(new Platform(x, this.highestY, w, type));
+                    this.platforms.push(new Platform(x, this.highestY, w, type, this.tier));
                     
                     let ri = Math.random();
                     if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
@@ -711,6 +724,15 @@
 
                 if (this.player.y < this.maxReachedY) this.maxReachedY = this.player.y;
 
+                if (this.mode === 'endless') {
+                    this.currentScore = Math.floor(Math.max(0, ((canvas.height - 50) - this.maxReachedY) / 10));
+                    // СМЕНА ФАЗЫ КАЖДЫЕ 3000 МЕТРОВ
+                    this.tier = Math.floor(this.currentScore / 3000); 
+                    
+                    document.getElementById('hudLeft').innerText = `${this.currentScore} м`;
+                    if (this.currentScore > SAVE.highScore) SAVE.highScore = this.currentScore; 
+                }
+
                 this.generateChunk(); 
                 let cleanupY = this.cameraY + canvas.height + 300;
                 this.platforms = this.platforms.filter(p => p.y < cleanupY && !p.broken); 
@@ -724,14 +746,7 @@
                 if (targetCamera < this.cameraY) {
                     this.cameraY += (targetCamera - this.cameraY) * 0.15; 
                 }
-
-                if (this.mode === 'endless') {
-                    let score = Math.floor(Math.max(0, ((canvas.height - 50) - this.maxReachedY) / 10));
-                    document.getElementById('hudLeft').innerText = `${score} м`;
-                    if (score > SAVE.highScore) SAVE.highScore = score; 
-                }
                 
-                // ЛОГИКА СМЕРТИ
                 if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
                     this.handleDeath("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
                 }
@@ -778,7 +793,15 @@
             }
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (this.isHard) { ctx.fillStyle = 'rgba(50, 0, 10, 0.3)'; ctx.fillRect(0,0,canvas.width, canvas.height); }
+                
+                // --- СМЕНА АТМОСФЕРЫ (ЦВЕТ ФОНА) ---
+                if (this.isHard) { 
+                    ctx.fillStyle = 'rgba(50, 0, 10, 0.3)'; ctx.fillRect(0,0,canvas.width, canvas.height); 
+                } else if (this.mode === 'endless' && this.tier > 0) {
+                    let bgAlpha = Math.min(0.8, this.tier * 0.15); // Чем выше фаза, тем темнее красный фон
+                    ctx.fillStyle = `rgba(60, 0, 15, ${bgAlpha})`; 
+                    ctx.fillRect(0,0,canvas.width, canvas.height);
+                }
 
                 ctx.save(); ctx.translate(0, -this.cameraY);
                 this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
