@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Telegram Release</title>
+    <title>Neon Tower: PRO Release</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -72,7 +72,6 @@
         .shop-btn.equip { background: #00d2ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
-        /* HUD И КНОПКА ПАУЗЫ */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
@@ -140,6 +139,16 @@
     </div>
 
     <script>
+        // Безопасная инициализация холста для мобилок
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        function resizeCanvas() {
+            canvas.width = window.innerWidth || document.documentElement.clientWidth || 400;
+            canvas.height = window.innerHeight || document.documentElement.clientHeight || 800;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
         // --- СИСТЕМА СОХРАНЕНИЙ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
@@ -168,6 +177,7 @@
 
         const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu') };
         const gameHud = document.getElementById('gameHud');
+        let gameState = 'START'; 
 
         function showState(state) {
             sfx.init();
@@ -177,23 +187,22 @@
             updateUI();
         }
 
-        // --- ЛОГИКА ПАУЗЫ ---
         function togglePause() {
             if (gameState === 'PLAYING') {
                 gameState = 'PAUSED';
                 document.getElementById('pauseMenu').classList.add('active');
-                if (sfx.ctx && sfx.ctx.state === 'running') sfx.ctx.suspend(); // Заморозка музыки
+                if (sfx.ctx && sfx.ctx.state === 'running') sfx.ctx.suspend(); 
             } else if (gameState === 'PAUSED') {
                 gameState = 'PLAYING';
                 document.getElementById('pauseMenu').classList.remove('active');
-                if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); // Разморозка
+                if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
             }
         }
 
         function quitGame() {
-            gameState = 'END'; // Останавливаем физику
+            gameState = 'END'; 
             document.getElementById('pauseMenu').classList.remove('active');
-            if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); // Отпускаем контекст
+            if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
             sfx.stopBGM();
             saveGame();
             showState('MAIN');
@@ -214,7 +223,6 @@
             for (let i = 1; i <= 100; i++) {
                 let btn = document.createElement('button');
                 btn.className = 'lvl-btn'; 
-                
                 if (i < SAVE.maxLevel) {
                     btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true;
                 } else if (i === SAVE.maxLevel) {
@@ -232,7 +240,6 @@
         function renderShop() {
             const list = document.getElementById('shopList');
             list.innerHTML = '';
-            
             const items = [
                 { id: 'upg_jp', name: 'РАКЕТА 🚀', desc: '+Время полета', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
                 { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус монет', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
@@ -285,75 +292,99 @@
             }
         }
 
+        // --- БЕЗОПАСНОЕ АУДИО ---
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
-                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                if (this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume();
+                if (!this.ctx) {
+                    try {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (AudioCtx) this.ctx = new AudioCtx();
+                    } catch(e) { console.log('Audio disabled', e); }
+                }
+                if (this.ctx && this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume();
                 if (!this.bgmStarted) this.startBGM();
             }
             playTone(freq, type, duration, vol=0.2) {
                 if(!this.ctx || this.ctx.state !== 'running') return;
-                const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                gain.gain.setValueAtTime(vol, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
+                try {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
             }
             jump() {
                 if(!this.ctx || this.ctx.state !== 'running') return; 
-                const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                osc.type = 'sine'; osc.frequency.setValueAtTime(250, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); 
-                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.15);
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(250, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); 
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.15);
+                } catch(e) {}
             }
             coin() {
                 if(!this.ctx || this.ctx.state !== 'running') return; 
-                const now = this.ctx.currentTime;
-                const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
-                osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-                const osc2 = this.ctx.createOscillator(); const gain2 = this.ctx.createGain();
-                osc2.type = 'square'; osc2.frequency.setValueAtTime(3000, now); gain2.gain.setValueAtTime(0.03, now); gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                osc1.connect(gain1); gain1.connect(this.ctx.destination); osc2.connect(gain2); gain2.connect(this.ctx.destination);
-                osc1.start(now); osc1.stop(now + 0.5); osc2.start(now); osc2.stop(now + 0.2);
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
+                    osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    const osc2 = this.ctx.createOscillator(); const gain2 = this.ctx.createGain();
+                    osc2.type = 'square'; osc2.frequency.setValueAtTime(3000, now); gain2.gain.setValueAtTime(0.03, now); gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc1.connect(gain1); gain1.connect(this.ctx.destination); osc2.connect(gain2); gain2.connect(this.ctx.destination);
+                    osc1.start(now); osc1.stop(now + 0.5); osc2.start(now); osc2.stop(now + 0.2);
+                } catch(e) {}
             }
             purchase() {
-                if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                osc.type = 'square'; osc.frequency.setValueAtTime(1000, now); osc.frequency.setValueAtTime(1500, now + 0.1); 
-                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.3);
+                if(!this.ctx) return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'square'; osc.frequency.setValueAtTime(1000, now); osc.frequency.setValueAtTime(1500, now + 0.1); 
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.3);
+                } catch(e) {}
             }
             powerup() {
                 if(!this.ctx || this.ctx.state !== 'running') return; 
-                const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
-                gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
-                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.4);
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
+                    gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.4);
+                } catch(e) {}
             }
             thrust() {
                 if(!this.ctx || this.ctx.state !== 'running') return;
-                if(Math.random() > 0.7) {
-                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
-                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
-                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.1);
-                }
+                try {
+                    if(Math.random() > 0.7) {
+                        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
+                        gain.gain.setValueAtTime(0.05, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
+                        osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+                    }
+                } catch(e) {}
             }
             death() {
-                if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
-                osc.frequency.setValueAtTime(250, now + 0.2); osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
-                osc.frequency.setValueAtTime(200, now + 0.4); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
-                gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
-                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0);
+                if(!this.ctx) return; 
+                try {
+                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
+                    osc.frequency.setValueAtTime(250, now + 0.2); osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+                    osc.frequency.setValueAtTime(200, now + 0.4); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0);
+                } catch(e) {}
             }
             startBGM() {
                 if (!this.ctx || this.bgmStarted) return;
                 this.bgmStarted = true;
                 const playNote = (time, freq, vol, type, duration) => {
-                    const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
-                    osc.type = type; osc.frequency.value = freq; g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration);
-                    osc.connect(g); g.connect(this.ctx.destination); osc.start(time); osc.stop(time + duration);
+                    try {
+                        const osc = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                        osc.type = type; osc.frequency.value = freq; g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + duration);
+                        osc.connect(g); g.connect(this.ctx.destination); osc.start(time); osc.stop(time + duration);
+                    } catch(e) {}
                 };
                 let step = 0;
                 this.bgmInterval = setInterval(() => {
@@ -372,11 +403,6 @@
             }
         }
         const sfx = new SoundEngine();
-
-        // --- ДВИЖОК ИГРЫ ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
         class InputHandler {
             constructor() {
@@ -469,10 +495,9 @@
         class Hunter {
             constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
             reset() { this.x = canvas.width/2 - 19; this.y = canvas.height-88; this.active = false; this.waitTimer = 0; }
-            startTimer() { this.waitTimer = 120; } // 120 кадров = 2 секунды. Паузо-независимо!
+            startTimer() { this.waitTimer = 120; } // Кадровый таймер, работает корректно с паузой
             update() {
                 if (gameState !== 'PLAYING') return;
-                
                 if (!this.active) { 
                     if (this.waitTimer > 0) this.waitTimer--;
                     else { 
@@ -481,11 +506,11 @@
                     }
                     return; 
                 }
-                
                 let dx = (this.game.player.x + 15) - (this.x + 19);
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 
+                // Баланс скорости
                 let baseSpeed = this.game.isHard ? 1.75 : 1.25; 
                 let speed = baseSpeed + (this.game.level * 0.08); 
                 if (dist > 300) speed += (dist - 300) * 0.003; 
@@ -514,6 +539,7 @@
                 if (gameState !== 'PLAYING') return;
                 if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 
+                // Вращение (Сальто)
                 let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
                 this.angle += (this.jetpackTimer > 0 ? 0.3 : 0.12) * dir;
 
@@ -595,7 +621,7 @@
                     this.platforms.push(new Platform(x, this.highestY, w, type));
                     
                     let ri = Math.random();
-                    // Джетпак спавнится ОЧЕНЬ редко
+                    // Шанс джетпака снижен с 2% до 0.7%
                     if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
                 }
@@ -757,7 +783,6 @@
         
         showState('MAIN'); 
         animate();
-        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
     </script>
 </body>
 </html>
