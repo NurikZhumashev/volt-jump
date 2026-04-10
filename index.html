@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: PRO Release</title>
+    <title>Neon Tower: Revive Update</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -72,7 +72,6 @@
         .shop-btn.equip { background: #00d2ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
-        /* HUD И КНОПКА ПАУЗЫ */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
@@ -107,6 +106,13 @@
         <h2 style="color: white; text-shadow: 0 0 15px #fff;">ПАУЗА</h2>
         <button class="ui-btn" onclick="togglePause()">ПРОДОЛЖИТЬ</button>
         <button class="ui-btn btn-back" onclick="quitGame()">В МЕНЮ</button>
+    </div>
+
+    <div id="reviveMenu" class="overlay" style="z-index: 30;">
+        <h2 style="color: #ff0055; text-shadow: 0 0 15px #ff0055;">КРИТИЧЕСКИЙ УРОН</h2>
+        <p style="font-size: 18px; color: #ccc; margin-bottom: 25px;">Использовать сердце? У вас: <span id="reviveLivesCount" style="color: #ff0055; font-weight: bold;">0</span> ❤️</p>
+        <button class="ui-btn" style="background: linear-gradient(45deg, #ff0055, #ff5e62);" onclick="confirmRevive()">ДА (❤️-1)</button>
+        <button class="ui-btn btn-back" onclick="declineRevive()">СДАТЬСЯ</button>
     </div>
 
     <div id="mainMenu" class="overlay active">
@@ -179,9 +185,10 @@
             updateUI();
         }
 
-        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu') };
+        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu'), REVIVE: document.getElementById('reviveMenu') };
         const gameHud = document.getElementById('gameHud');
         let gameState = 'START'; 
+        let pendingDeathReason = "";
 
         function showState(state) {
             sfx.init();
@@ -208,6 +215,18 @@
             document.getElementById('pauseMenu').classList.remove('active');
             if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
             sfx.stopBGM(); saveGame(); showState('MAIN');
+        }
+
+        // Логика воскрешения
+        function confirmRevive() {
+            document.getElementById('reviveMenu').classList.remove('active');
+            gameState = 'PLAYING';
+            game.useExtraLife();
+        }
+
+        function declineRevive() {
+            document.getElementById('reviveMenu').classList.remove('active');
+            triggerGameOver(pendingDeathReason);
         }
 
         function updateUI() {
@@ -245,7 +264,7 @@
                 { id: 'upg_jp', name: 'РАКЕТА 🚀', desc: '+Время полета', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
                 { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус монет', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
                 { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус джетпаков', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
-                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Авто-спасение.', price: 50, type: 'consumable', lvl: SAVE.lives },
+                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Спасет от смерти.', price: 50, type: 'consumable', lvl: SAVE.lives },
                 { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
                 { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' },
                 { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Убрать шлейф.', price: 0, type: 'trail' },
@@ -406,7 +425,7 @@
                 };
                 let step = 0;
                 this.bgmInterval = setInterval(() => {
-                    if(this.ctx.state !== 'running' || gameState === 'PAUSED') return; 
+                    if(this.ctx.state !== 'running' || gameState === 'PAUSED' || gameState === 'REVIVE_PROMPT') return; 
                     const now = this.ctx.currentTime;
                     const bassNotes = [130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
                     if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.15);
@@ -650,9 +669,7 @@
                     let gap = 90 + Math.random() * (this.isHard ? 60 : 40);
                     this.highestY -= gap;
                     
-                    // ЗДЕСЬ УВЕЛИЧЕНА ШИРИНА ПЛАТФОРМ
                     let w = 85 + Math.random() * (this.isHard ? 50 : 80); 
- 
                     
                     let x = Math.random() * (canvas.width - w);
                     
@@ -665,6 +682,17 @@
                     let ri = Math.random();
                     if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
+                }
+            }
+
+            handleDeath(reason) {
+                if (SAVE.lives > 0 && gameState === 'PLAYING') {
+                    gameState = 'REVIVE_PROMPT';
+                    pendingDeathReason = reason;
+                    document.getElementById('reviveLivesCount').innerText = SAVE.lives;
+                    document.getElementById('reviveMenu').classList.add('active');
+                } else if (gameState === 'PLAYING') {
+                    triggerGameOver(reason);
                 }
             }
 
@@ -703,17 +731,13 @@
                     if (score > SAVE.highScore) SAVE.highScore = score; 
                 }
                 
+                // ЛОГИКА СМЕРТИ
                 if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
-                    if (SAVE.lives > 0) { this.useExtraLife(); } 
-                    else {
-                        for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
-                        triggerGameOver("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
-                    }
+                    this.handleDeath("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
                 }
 
                 if (this.player.y > this.cameraY + canvas.height + 100) {
-                    if (SAVE.lives > 0) { this.useExtraLife(); } 
-                    else { triggerGameOver("УПАЛ В БЕЗДНУ"); }
+                    this.handleDeath("УПАЛ В БЕЗДНУ");
                 }
 
                 if (this.mode === 'campaign') {
@@ -758,11 +782,11 @@
 
                 ctx.save(); ctx.translate(0, -this.cameraY);
                 this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
-                this.hunter.draw(ctx); if (gameState === 'PLAYING' || gameState === 'END') this.player.draw(ctx);
+                this.hunter.draw(ctx); if (gameState === 'PLAYING' || gameState === 'END' || gameState === 'REVIVE_PROMPT') this.player.draw(ctx);
                 this.particles.forEach(p => p.draw(ctx)); this.floatingTexts.forEach(ft => ft.draw(ctx));
                 ctx.restore();
                 
-                if (gameState === 'PLAYING' && this.player.jetpackTimer > 0) {
+                if ((gameState === 'PLAYING' || gameState === 'REVIVE_PROMPT') && this.player.jetpackTimer > 0) {
                     let maxTimer = 90 + (SAVE.jetpackLevel * 30);
                     let prog = this.player.jetpackTimer / maxTimer;
                     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(canvas.width/2 - 50, 50, 100, 6);
