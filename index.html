@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Perfect Balance</title>
+    <title>Neon Tower: Telegram Release</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -72,10 +72,20 @@
         .shop-btn.equip { background: #00d2ff; }
         .lvl-badge { position: absolute; top: -5px; right: -5px; background: #ff0055; color: white; font-size: 10px; padding: 4px 6px; border-radius: 8px; font-weight: bold; border: 1px solid #fff;}
 
+        /* HUD И КНОПКА ПАУЗЫ */
         .top-hud { position: fixed; top: 15px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
         .hud-text { font-size: 22px; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .coin-hud { color: #FFD700; text-shadow: 0 0 10px #FFD700; }
         .lives-hud { color: #ff0055; text-shadow: 0 0 10px #ff0055; margin-top: 5px; font-size: 18px;}
+        
+        .pause-btn {
+            background: rgba(0, 0, 0, 0.6); border: 2px solid rgba(255,255,255,0.2);
+            color: white; font-size: 20px; width: 40px; height: 40px;
+            border-radius: 50%; cursor: pointer; display: flex;
+            justify-content: center; align-items: center; transition: 0.2s;
+            pointer-events: auto; backdrop-filter: blur(5px);
+        }
+        .pause-btn:active { transform: scale(0.85); }
     </style>
 </head>
 <body onclick="sfx.init()">
@@ -87,7 +97,16 @@
             <div class="hud-text" id="hudLeft">УРОВЕНЬ 1</div>
             <div class="lives-hud" id="hudLives"></div>
         </div>
-        <div class="hud-text coin-hud" id="hudCoins">💰 0</div>
+        <div style="display: flex; align-items: flex-start; gap: 15px;">
+            <div class="hud-text coin-hud" id="hudCoins" style="line-height: 40px;">💰 0</div>
+            <button class="pause-btn" onclick="togglePause()">⏸</button>
+        </div>
+    </div>
+
+    <div id="pauseMenu" class="overlay" style="z-index: 25;">
+        <h2 style="color: white; text-shadow: 0 0 15px #fff;">ПАУЗА</h2>
+        <button class="ui-btn" onclick="togglePause()">ПРОДОЛЖИТЬ</button>
+        <button class="ui-btn btn-back" onclick="quitGame()">В МЕНЮ</button>
     </div>
 
     <div id="mainMenu" class="overlay active">
@@ -121,7 +140,7 @@
     </div>
 
     <script>
-        // --- 1. СИСТЕМА СОХРАНЕНИЙ ---
+        // --- СИСТЕМА СОХРАНЕНИЙ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
             maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
@@ -147,8 +166,7 @@
             updateUI();
         }
 
-        // --- УПРАВЛЕНИЕ UI ---
-        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu') };
+        const overlays = { MAIN: document.getElementById('mainMenu'), LEVELS: document.getElementById('levelMenu'), SHOP: document.getElementById('shopMenu'), END: document.getElementById('endMenu'), PAUSE: document.getElementById('pauseMenu') };
         const gameHud = document.getElementById('gameHud');
 
         function showState(state) {
@@ -157,6 +175,28 @@
             gameHud.style.display = 'none';
             if(overlays[state]) overlays[state].classList.add('active');
             updateUI();
+        }
+
+        // --- ЛОГИКА ПАУЗЫ ---
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                document.getElementById('pauseMenu').classList.add('active');
+                if (sfx.ctx && sfx.ctx.state === 'running') sfx.ctx.suspend(); // Заморозка музыки
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                document.getElementById('pauseMenu').classList.remove('active');
+                if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); // Разморозка
+            }
+        }
+
+        function quitGame() {
+            gameState = 'END'; // Останавливаем физику
+            document.getElementById('pauseMenu').classList.remove('active');
+            if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); // Отпускаем контекст
+            sfx.stopBGM();
+            saveGame();
+            showState('MAIN');
         }
 
         function updateUI() {
@@ -245,29 +285,30 @@
             }
         }
 
-        // --- АУДИО (ТЕРРАРИЯ-СТАЙЛ) ---
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
                 if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                if (this.ctx.state === 'suspended') this.ctx.resume();
+                if (this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume();
                 if (!this.bgmStarted) this.startBGM();
             }
             playTone(freq, type, duration, vol=0.2) {
-                if(!this.ctx) return;
+                if(!this.ctx || this.ctx.state !== 'running') return;
                 const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                 osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
                 gain.gain.setValueAtTime(vol, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
                 osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
             }
             jump() {
-                if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                 osc.type = 'sine'; osc.frequency.setValueAtTime(250, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); 
                 gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
                 osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.15);
             }
             coin() {
-                if(!this.ctx) return; const now = this.ctx.currentTime;
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                const now = this.ctx.currentTime;
                 const osc1 = this.ctx.createOscillator(); const gain1 = this.ctx.createGain();
                 osc1.type = 'sine'; osc1.frequency.setValueAtTime(2000, now); gain1.gain.setValueAtTime(0.15, now); gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
                 const osc2 = this.ctx.createOscillator(); const gain2 = this.ctx.createGain();
@@ -282,13 +323,14 @@
                 osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.3);
             }
             powerup() {
-                if(!this.ctx) return; const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                if(!this.ctx || this.ctx.state !== 'running') return; 
+                const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                 osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
                 gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
                 osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.4);
             }
             thrust() {
-                if(!this.ctx) return;
+                if(!this.ctx || this.ctx.state !== 'running') return;
                 if(Math.random() > 0.7) {
                     const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
@@ -315,13 +357,18 @@
                 };
                 let step = 0;
                 this.bgmInterval = setInterval(() => {
-                    if(this.ctx.state !== 'running') return; const now = this.ctx.currentTime;
+                    if(this.ctx.state !== 'running' || gameState === 'PAUSED') return; 
+                    const now = this.ctx.currentTime;
                     const bassNotes = [130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
                     if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.15);
                     const leadNotes = [523, 0, 659, 0, 783, 0, 659, 0, 1046, 0, 783, 0, 659, 0, 523, 0];
                     if (leadNotes[step]) playNote(now, leadNotes[step], 0.03, 'sine', 0.2);
                     step = (step + 1) % 16;
                 }, 180); 
+            }
+            stopBGM() {
+                clearInterval(this.bgmInterval);
+                this.bgmStarted = false;
             }
         }
         const sfx = new SoundEngine();
@@ -421,16 +468,24 @@
 
         class Hunter {
             constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
-            reset() { this.x = canvas.width/2 - 19; this.y = canvas.height-88; this.active = false; this.startTime = 0; }
-            startTimer() { this.startTime = Date.now(); }
+            reset() { this.x = canvas.width/2 - 19; this.y = canvas.height-88; this.active = false; this.waitTimer = 0; }
+            startTimer() { this.waitTimer = 120; } // 120 кадров = 2 секунды. Паузо-независимо!
             update() {
                 if (gameState !== 'PLAYING') return;
-                if (!this.active) { if (Date.now() - this.startTime > 2000) this.active = true; return; }
+                
+                if (!this.active) { 
+                    if (this.waitTimer > 0) this.waitTimer--;
+                    else { 
+                        this.active = true; 
+                        for(let i=0; i<15; i++) this.game.particles.push(new Particle(this.x+19, this.y+19, '#ff0033', true));
+                    }
+                    return; 
+                }
+                
                 let dx = (this.game.player.x + 15) - (this.x + 19);
                 let dy = (this.game.player.y + 15) - (this.y + 19);
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 
-                // ИСПРАВЛЕНИЕ: СКОРОСТЬ СТАЛА МЕНЬШЕ!
                 let baseSpeed = this.game.isHard ? 1.75 : 1.25; 
                 let speed = baseSpeed + (this.game.level * 0.08); 
                 if (dist > 300) speed += (dist - 300) * 0.003; 
@@ -459,7 +514,6 @@
                 if (gameState !== 'PLAYING') return;
                 if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 
-                // АНИМАЦИЯ САЛЬТО (Вращение)
                 let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
                 this.angle += (this.jetpackTimer > 0 ? 0.3 : 0.12) * dir;
 
@@ -493,13 +547,12 @@
             createJumpDust(color, speedMult) { for(let i=0; i<12; i++) this.game.particles.push(new Particle(this.x+15, this.y+30, color, false, speedMult)); }
             draw(ctx) { 
                 ctx.save();
-                ctx.translate(this.x + 15, this.y + 15); // Смещаем центр для вращения
+                ctx.translate(this.x + 15, this.y + 15);
                 ctx.rotate(this.angle);
 
                 ctx.fillStyle = this.jetpackTimer > 0 ? '#fff' : this.color; 
                 ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : this.color; 
                 
-                // Рисуем куб от нового центра
                 ctx.fillRect(-15, -15, 30, 30); 
                 
                 ctx.shadowBlur = 0; 
@@ -542,6 +595,7 @@
                     this.platforms.push(new Platform(x, this.highestY, w, type));
                     
                     let ri = Math.random();
+                    // Джетпак спавнится ОЧЕНЬ редко
                     if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
                     else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
                 }
