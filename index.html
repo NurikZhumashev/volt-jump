@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tower: Escalation Update</title>
+    <title>Neon Downfall: The Pivot</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0b0b1a; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -23,8 +23,13 @@
             50% { text-shadow: 0 0 20px #00d2ff, 0 0 40px #00d2ff; transform: scale(1.05); }
             100% { text-shadow: 0 0 10px #00d2ff, 0 0 20px #00d2ff; transform: scale(1); }
         }
+        @keyframes laserPulse {
+            0% { text-shadow: 0 0 10px #ff0033, 0 0 20px #ff0033; color: #ff5555;}
+            50% { text-shadow: 0 0 20px #ff0033, 0 0 40px #ff0033; color: #fff;}
+            100% { text-shadow: 0 0 10px #ff0033, 0 0 20px #ff0033; color: #ff5555;}
+        }
 
-        h1 { font-size: 42px; margin-bottom: 10px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 3px; margin-top:0;}
+        h1 { font-size: 42px; margin-bottom: 5px; text-align: center; color: #fff; animation: neonPulse 2s infinite; font-weight: 900; letter-spacing: 3px; margin-top:0;}
         h2 { color: #FFD700; text-shadow: 0 0 15px #FFD700; font-size: 30px; margin: 0 0 15px 0; text-align: center; letter-spacing: 2px; }
 
         .ui-btn {
@@ -93,7 +98,7 @@
 
     <div class="top-hud" id="gameHud" style="display:none;">
         <div>
-            <div class="hud-text" id="hudLeft">УРОВЕНЬ 1</div>
+            <div class="hud-text" id="hudLeft">ГЛУБИНА: 0 м</div>
             <div class="lives-hud" id="hudLives"></div>
         </div>
         <div style="display: flex; align-items: flex-start; gap: 15px;">
@@ -109,24 +114,25 @@
     </div>
 
     <div id="reviveMenu" class="overlay" style="z-index: 30;">
-        <h2 style="color: #ff0055; text-shadow: 0 0 15px #ff0055;">КРИТИЧЕСКИЙ УРОН</h2>
+        <h2 style="color: #ff0055; text-shadow: 0 0 15px #ff0055; animation: laserPulse 1s infinite;">СЖЖЕН ЛАЗЕРОМ</h2>
         <p style="font-size: 18px; color: #ccc; margin-bottom: 25px;">Использовать сердце? У вас: <span id="reviveLivesCount" style="color: #ff0055; font-weight: bold;">0</span> ❤️</p>
         <button class="ui-btn" style="background: linear-gradient(45deg, #ff0055, #ff5e62);" onclick="confirmRevive()">ДА (❤️-1)</button>
         <button class="ui-btn btn-back" onclick="declineRevive()">СДАТЬСЯ</button>
     </div>
 
     <div id="mainMenu" class="overlay active">
-        <h1>NEON RUN</h1>
-        <p style="color: #aaa; margin-bottom: 15px; font-size: 14px;">Нажми на экран для звука 🔊</p>
-        <button class="ui-btn" onclick="showState('LEVELS')">КАМПАНИЯ</button>
-        <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕСКОНЕЧНЫЙ</button>
-        <button class="ui-btn btn-shop" onclick="showState('SHOP')">МАГАЗИН</button>
+        <h1 style="font-size: 48px; color: #ff0055; text-shadow: 0 0 20px #ff0055; animation: none;">NEON</h1>
+        <h1 style="margin-top: -15px;">DOWNFALL</h1>
+        <p style="color: #00d2ff; margin-bottom: 15px; font-weight: bold;">КАК ИГРАТЬ: Жми в ЦЕНТР экрана, чтобы ПРОБИТЬ платформу!</p>
+        <button class="ui-btn" onclick="showState('LEVELS')">ШАХТЫ (КАМПАНИЯ)</button>
+        <button class="ui-btn btn-endless" onclick="startGame('endless')">БЕЗДНА (БЕСКОНЕЧНЫЙ)</button>
+        <button class="ui-btn btn-shop" onclick="showState('SHOP')">АРСЕНАЛ</button>
         <p class="coin-hud" style="font-size: 26px; margin-top: 15px;" id="menuCoins">💰 0</p>
-        <p class="hud-text" style="font-size: 14px; color: #888;" id="menuScore">Рекорд: 0 м</p>
+        <p class="hud-text" style="font-size: 14px; color: #888;" id="menuScore">Макс. Глубина: 0 м</p>
     </div>
 
     <div id="levelMenu" class="overlay">
-        <h2>КАМПАНИЯ</h2>
+        <h2>СЕКТОРА ШАХТЫ</h2>
         <div id="levelGrid"></div>
         <button class="ui-btn btn-back" onclick="showState('MAIN')">НАЗАД</button>
     </div>
@@ -139,8 +145,8 @@
     </div>
 
     <div id="endMenu" class="overlay">
-        <h2 id="endTitle">УРОВЕНЬ ПРОЙДЕН</h2>
-        <p id="endDesc" style="color: #ccc; font-size: 18px; margin-bottom: 30px;">Молодец!</p>
+        <h2 id="endTitle">СЕКТОР ЗАЧИЩЕН</h2>
+        <p id="endDesc" style="color: #ccc; font-size: 18px; margin-bottom: 30px;">Глубина достигнута!</p>
         <button class="ui-btn" id="endBtn1" onclick="nextAction()">ДАЛЕЕ</button>
         <button class="ui-btn btn-back" onclick="showState('MAIN')">В МЕНЮ</button>
     </div>
@@ -155,7 +161,6 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // --- СИСТЕМА СОХРАНЕНИЙ ---
         const SAVE = {
             coins: parseInt(localStorage.getItem('neonCoins')) || 0,
             maxLevel: parseInt(localStorage.getItem('neonMaxLevel')) || 1,
@@ -200,27 +205,23 @@
 
         function togglePause() {
             if (gameState === 'PLAYING') {
-                gameState = 'PAUSED';
-                document.getElementById('pauseMenu').classList.add('active');
+                gameState = 'PAUSED'; document.getElementById('pauseMenu').classList.add('active');
                 if (sfx.ctx && sfx.ctx.state === 'running') sfx.ctx.suspend(); 
             } else if (gameState === 'PAUSED') {
-                gameState = 'PLAYING';
-                document.getElementById('pauseMenu').classList.remove('active');
+                gameState = 'PLAYING'; document.getElementById('pauseMenu').classList.remove('active');
                 if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
             }
         }
 
         function quitGame() {
-            gameState = 'END'; 
-            document.getElementById('pauseMenu').classList.remove('active');
+            gameState = 'END'; document.getElementById('pauseMenu').classList.remove('active');
             if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume(); 
             sfx.stopBGM(); saveGame(); showState('MAIN');
         }
 
         function confirmRevive() {
             document.getElementById('reviveMenu').classList.remove('active');
-            gameState = 'PLAYING';
-            game.useExtraLife();
+            gameState = 'PLAYING'; game.useExtraLife();
         }
 
         function declineRevive() {
@@ -231,7 +232,7 @@
         function updateUI() {
             document.getElementById('menuCoins').innerText = `💰 ${SAVE.coins}`;
             document.getElementById('shopCoins').innerText = `💰 ${SAVE.coins}`;
-            document.getElementById('menuScore').innerText = `Рекорд: ${SAVE.highScore} м`;
+            document.getElementById('menuScore').innerText = `Макс. Глубина: ${SAVE.highScore} м`;
             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
             document.getElementById('hudLives').innerText = SAVE.lives > 0 ? `❤️ ${SAVE.lives}` : '';
             renderShop(); renderLevels();
@@ -241,17 +242,13 @@
             const grid = document.getElementById('levelGrid');
             grid.innerHTML = '';
             for (let i = 1; i <= 100; i++) {
-                let btn = document.createElement('button');
-                btn.className = 'lvl-btn'; 
-                if (i < SAVE.maxLevel) {
-                    btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true;
-                } else if (i === SAVE.maxLevel) {
+                let btn = document.createElement('button'); btn.className = 'lvl-btn'; 
+                if (i < SAVE.maxLevel) { btn.classList.add('completed'); btn.innerText = '✔️'; btn.disabled = true; } 
+                else if (i === SAVE.maxLevel) {
                     btn.innerText = i;
                     if (i % 5 === 0) btn.classList.add('hard'); else btn.classList.add('current');
                     btn.onclick = () => startGame('campaign', i);
-                } else {
-                    btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true;
-                }
+                } else { btn.classList.add('locked'); btn.innerText = '🔒'; btn.disabled = true; }
                 grid.appendChild(btn);
             }
         }
@@ -260,10 +257,10 @@
             const list = document.getElementById('shopList');
             list.innerHTML = '';
             const items = [
-                { id: 'upg_jp', name: 'РАКЕТА 🚀', desc: '+Время полета', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
-                { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус монет', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
-                { id: 'mag_jp', name: 'МАГНИТ РАКЕТ 🧲', desc: '+Радиус джетпаков', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
-                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Спасет от смерти.', price: 50, type: 'consumable', lvl: SAVE.lives },
+                { id: 'upg_jp', name: 'МЕТЕОР ☄️', desc: '+Время супер-удара', price: SAVE.jetpackLevel * 100, type: 'upg_jp', lvl: SAVE.jetpackLevel, maxed: SAVE.jetpackLevel >= 10 },
+                { id: 'mag_coin', name: 'МАГНИТ ЗОЛОТА 🧲', desc: '+Радиус', price: SAVE.magnetCoinLvl * 100 + 100, type: 'mag_coin', lvl: SAVE.magnetCoinLvl, maxed: SAVE.magnetCoinLvl >= 5 },
+                { id: 'mag_jp', name: 'МАГНИТ МЕТЕОРОВ 🧲', desc: '+Радиус', price: SAVE.magnetJpLvl * 150 + 150, type: 'mag_jp', lvl: SAVE.magnetJpLvl, maxed: SAVE.magnetJpLvl >= 5 },
+                { id: 'life', name: 'СЕРДЦЕ ❤️', desc: 'Авто-спасение от лазера', price: 50, type: 'consumable', lvl: SAVE.lives },
                 { id: '#39ff14', name: 'ТОКСИК 🟢', desc: 'Скин', price: 300, type: 'skin' },
                 { id: '#FFD700', name: 'ЗОЛОТО 🟡', desc: 'Скин', price: 1000, type: 'skin' },
                 { id: 'none', name: 'ОБЫЧНЫЙ ❌', desc: 'Убрать шлейф.', price: 0, type: 'trail' },
@@ -274,9 +271,7 @@
 
             items.forEach(item => {
                 let actionText = `КУПИТЬ (${item.price} 💰)`;
-                let btnClass = 'shop-btn';
-                let disabled = SAVE.coins < item.price;
-                let badge = '';
+                let btnClass = 'shop-btn'; let disabled = SAVE.coins < item.price; let badge = '';
 
                 if (item.type.startsWith('upg') || item.type.startsWith('mag')) {
                     badge = `<div class="lvl-badge">LVL ${item.lvl}</div>`;
@@ -329,16 +324,11 @@
             }
         }
 
-        // --- БЕЗОПАСНОЕ АУДИО ---
+        // --- НОВЫЙ АУДИО ДВИЖОК ---
         class SoundEngine {
             constructor() { this.ctx = null; this.bgmStarted = false; this.bgmInterval = null; }
             init() {
-                if (!this.ctx) {
-                    try {
-                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                        if (AudioCtx) this.ctx = new AudioCtx();
-                    } catch(e) { console.log('Audio disabled', e); }
-                }
+                if (!this.ctx) { try { const AudioCtx = window.AudioContext || window.webkitAudioContext; if (AudioCtx) this.ctx = new AudioCtx(); } catch(e) {} }
                 if (this.ctx && this.ctx.state === 'suspended' && gameState !== 'PAUSED') this.ctx.resume();
                 if (!this.bgmStarted) this.startBGM();
             }
@@ -351,13 +341,14 @@
                     osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration);
                 } catch(e) {}
             }
-            jump() {
+            jump() { this.playTone(250, 'sine', 0.15, 0.2); } // Легкий отскок
+            smash() { 
                 if(!this.ctx || this.ctx.state !== 'running') return; 
                 try {
                     const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                    osc.type = 'sine'; osc.frequency.setValueAtTime(250, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.15); 
-                    gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.15);
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.2); 
+                    gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.2);
                 } catch(e) {}
             }
             coin() {
@@ -372,15 +363,7 @@
                     osc1.start(now); osc1.stop(now + 0.5); osc2.start(now); osc2.stop(now + 0.2);
                 } catch(e) {}
             }
-            purchase() {
-                if(!this.ctx) return; 
-                try {
-                    const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                    osc.type = 'square'; osc.frequency.setValueAtTime(1000, now); osc.frequency.setValueAtTime(1500, now + 0.1); 
-                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 0.3);
-                } catch(e) {}
-            }
+            purchase() { this.playTone(1000, 'square', 0.3, 0.1); }
             powerup() {
                 if(!this.ctx || this.ctx.state !== 'running') return; 
                 try {
@@ -393,10 +376,10 @@
             thrust() {
                 if(!this.ctx || this.ctx.state !== 'running') return;
                 try {
-                    if(Math.random() > 0.7) {
+                    if(Math.random() > 0.6) {
                         const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                         osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50 + Math.random()*50, this.ctx.currentTime);
-                        gain.gain.setValueAtTime(0.05, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
+                        gain.gain.setValueAtTime(0.08, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
                         osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.1);
                     }
                 } catch(e) {}
@@ -406,10 +389,8 @@
                 try {
                     const now = this.ctx.currentTime; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                     osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(250, now + 0.2);
-                    osc.frequency.setValueAtTime(250, now + 0.2); osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
-                    osc.frequency.setValueAtTime(200, now + 0.4); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
-                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
+                    osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(100, now + 1.0);
+                    gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
                     osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now); osc.stop(now + 1.0);
                 } catch(e) {}
             }
@@ -427,29 +408,32 @@
                 this.bgmInterval = setInterval(() => {
                     if(this.ctx.state !== 'running' || gameState === 'PAUSED' || gameState === 'REVIVE_PROMPT') return; 
                     const now = this.ctx.currentTime;
-                    const bassNotes = [130, 0, 130, 0, 196, 0, 146, 0, 130, 0, 130, 0, 196, 146, 0, 0];
-                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.15);
-                    const leadNotes = [523, 0, 659, 0, 783, 0, 659, 0, 1046, 0, 783, 0, 659, 0, 523, 0];
-                    if (leadNotes[step]) playNote(now, leadNotes[step], 0.03, 'sine', 0.2);
+                    // Мрачный бас падения
+                    const bassNotes = [82, 0, 82, 0, 98, 0, 82, 0, 73, 0, 73, 0, 98, 82, 0, 0];
+                    if (bassNotes[step]) playNote(now, bassNotes[step], 0.05, 'square', 0.2);
                     step = (step + 1) % 16;
-                }, 180); 
+                }, 160); // Темп быстрее!
             }
-            stopBGM() {
-                clearInterval(this.bgmInterval);
-                this.bgmStarted = false;
-            }
+            stopBGM() { clearInterval(this.bgmInterval); this.bgmStarted = false; }
         }
         const sfx = new SoundEngine();
 
+        // --- НОВОЕ УПРАВЛЕНИЕ (3 ЗОНЫ) ---
         class InputHandler {
             constructor() {
                 this.keys = [];
                 window.addEventListener('keydown', e => { if (!this.keys.includes(e.key)) this.keys.push(e.key); });
                 window.addEventListener('keyup', e => { this.keys = this.keys.filter(k => k !== e.key); });
+                
                 const handleTouch = (e) => {
                     if (gameState !== 'PLAYING') return; e.preventDefault(); this.keys = []; 
                     for (let i = 0; i < e.touches.length; i++) {
-                        if (e.touches[i].clientX < canvas.width / 2) this.keys.push('ArrowLeft'); else this.keys.push('ArrowRight');
+                        let x = e.touches[i].clientX;
+                        let w = canvas.width;
+                        // Левая треть - влево, Правая треть - вправо, Центр - УДАР ВНИЗ!
+                        if (x < w * 0.33) this.keys.push('ArrowLeft');
+                        else if (x > w * 0.66) this.keys.push('ArrowRight');
+                        else this.keys.push('ArrowDown');
                     }
                 };
                 const handleTouchEnd = (e) => { if (e.touches.length === 0) this.keys = []; else handleTouch(e); };
@@ -464,51 +448,38 @@
                 this.x = x; this.y = y; this.color = color; this.text = text;
                 this.size = Math.random() * (isFire ? 10 : 6) + 2;
                 this.vx = (Math.random() - 0.5) * (isFire ? 5 : 12) * speedMult;
-                this.vy = isFire ? (Math.random() * 6 + 2) : (Math.random() - 0.8) * 12 * speedMult;
+                this.vy = (Math.random() - 0.5) * 12 * speedMult; // Разлет во все стороны!
                 this.life = 1.0; this.decay = isFire ? 0.05 : 0.03;
             }
             update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
             draw(ctx) { 
-                ctx.globalAlpha = Math.max(0, this.life); 
-                ctx.fillStyle = this.color; 
+                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color; 
                 ctx.shadowBlur = 10; ctx.shadowColor = this.color; 
-                if (this.text) {
-                    ctx.font = 'bold 16px monospace';
-                    ctx.fillText(this.text, this.x, this.y);
-                } else {
-                    ctx.fillRect(this.x, this.y, this.size, this.size); 
-                }
+                if (this.text) { ctx.font = 'bold 16px monospace'; ctx.fillText(this.text, this.x, this.y); } 
+                else { ctx.fillRect(this.x, this.y, this.size, this.size); }
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; 
             }
         }
 
         class FloatingText {
-            constructor(x, y, text) {
-                this.x = x; this.y = y; this.text = text;
-                this.life = 1.0; this.vy = -1.5;
-            }
+            constructor(x, y, text) { this.x = x; this.y = y; this.text = text; this.life = 1.0; this.vy = -1.5; }
             update() { this.y += this.vy; this.life -= 0.02; }
             draw(ctx) {
-                ctx.globalAlpha = Math.max(0, this.life);
-                ctx.fillStyle = '#ff0055'; ctx.font = 'bold 24px Arial';
-                ctx.shadowBlur = 10; ctx.shadowColor = '#fff';
-                ctx.fillText(this.text, this.x - 30, this.y);
+                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = '#ff0055'; ctx.font = 'bold 24px Arial';
+                ctx.shadowBlur = 10; ctx.shadowColor = '#fff'; ctx.fillText(this.text, this.x - 30, this.y);
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1.0;
             }
         }
 
-        // --- ИЗМЕНЕН КОНСТРУКТОР ПЛАТФОРМЫ (ПРИНИМАЕТ TIER) ---
         class Platform {
             constructor(x, y, width, type = 'normal', tier = 0) {
                 this.x = x; this.y = y; this.width = width; this.height = 20;
                 this.type = type; 
-                // Чем выше Tier, тем быстрее движутся платформы
                 this.moveSpeed = (0.8 + tier * 0.4) + Math.random() * 1.2; 
                 this.direction = Math.random() > 0.5 ? 1 : -1;
-                this.flashTimer = 0; this.broken = false;
+                this.broken = false;
             }
             update() {
-                if (this.flashTimer > 0) this.flashTimer--;
                 if (this.type === 'moving') {
                     this.x += this.moveSpeed * this.direction;
                     if (this.x <= 0 || this.x + this.width >= canvas.width) this.direction *= -1;
@@ -517,13 +488,10 @@
             draw(ctx) {
                 if(this.broken) return;
                 if (this.type === 'finish') { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 20; ctx.shadowColor = '#FFD700'; }
-                else if (this.flashTimer > 0) { ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; } 
                 else if (this.type === 'moving') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#ff00ff'; }
                 else if (this.type === 'spring') { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00ff00'; }
                 else { ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.fillStyle = '#00d2ff'; }
-                
-                if(this.type !== 'finish' && this.flashTimer === 0) ctx.fillRect(this.x, this.y, this.width, 4); 
-                else ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillRect(this.x, this.y, this.width, 4); 
                 ctx.shadowBlur = 0;
             }
         }
@@ -540,88 +508,131 @@
             }
         }
 
+        // --- НОВЫЙ ОХОТНИК: НАДВИГАЮЩИЙСЯ ЛАЗЕРНЫЙ ПОТОЛОК ---
         class Hunter {
-            constructor(game) { this.game = game; this.width = 38; this.height = 38; this.color = '#ff0033'; this.reset(); }
-            reset() { this.x = canvas.width/2 - 19; this.y = canvas.height-88; this.active = false; this.waitTimer = 0; }
+            constructor(game) { this.game = game; this.y = -500; this.active = false; this.waitTimer = 0; }
+            reset() { this.y = this.game.cameraY - 500; this.active = false; this.waitTimer = 120; }
             startTimer() { this.waitTimer = 120; } 
             update() {
                 if (gameState !== 'PLAYING') return;
                 if (!this.active) { 
                     if (this.waitTimer > 0) this.waitTimer--;
-                    else { 
-                        this.active = true; 
-                        for(let i=0; i<15; i++) this.game.particles.push(new Particle(this.x+19, this.y+19, '#ff0033', true));
-                    }
+                    else this.active = true; 
                     return; 
                 }
-                let dx = (this.game.player.x + 15) - (this.x + 19);
-                let dy = (this.game.player.y + 15) - (this.y + 19);
-                let dist = Math.sqrt(dx*dx + dy*dy);
                 
-                let baseSpeed = this.game.isHard ? 1.75 : 1.25; 
-                let speed = baseSpeed + (this.game.level * 0.08); 
-                if (dist > 300) speed += (dist - 300) * 0.003; 
-                let maxSpeed = this.game.isHard ? 8.5 : 6.5;
-                if (speed > maxSpeed) speed = maxSpeed;
+                // Лазер постоянно ползет вниз
+                let baseSpeed = this.game.isHard ? 2.5 : 1.5; 
+                let speed = baseSpeed + (this.game.level * 0.1); 
                 
-                if (dist > 0) { this.x += (dx/dist)*speed; this.y += (dy/dist)*speed; }
-                
-                let bottom = this.game.cameraY + canvas.height - 48;
-                if (this.y > bottom) this.y -= (this.y - bottom) * 0.08;
-                if (Math.random() > 0.4) this.game.particles.push(new Particle(this.x + Math.random()*38, this.y + 19, this.color));
+                // Если игрок улетел слишком далеко вниз, лазер ускоряется, чтобы догнать
+                if (this.game.player.y - this.y > 700) {
+                    speed += (this.game.player.y - this.y - 700) * 0.01;
+                }
+                this.y += speed;
             }
             draw(ctx) {
-                ctx.fillStyle = this.color; ctx.shadowBlur = 25; ctx.shadowColor = this.color; ctx.fillRect(this.x, this.y, 38, 38);
-                let lx = (this.game.player.x - this.x) > 0 ? 3 : -3; let ly = (this.game.player.y - this.y) > 0 ? 3 : -3;
-                ctx.fillStyle = '#fff'; ctx.fillRect(this.x+6+lx, this.y+10+ly, 8, 8); ctx.fillRect(this.x+24+lx, this.y+10+ly, 8, 8);
-                ctx.fillStyle = '#000'; ctx.fillRect(this.x+8+lx, this.y+12+ly, 4, 4); ctx.fillRect(this.x+26+lx, this.y+12+ly, 4, 4);
+                // Рисуем заливку сверху экрана до линии лазера
+                ctx.fillStyle = 'rgba(255, 0, 50, 0.4)';
+                let topEdge = this.game.cameraY;
+                if (this.y > topEdge) {
+                    ctx.fillRect(0, topEdge, canvas.width, this.y - topEdge);
+                }
+                
+                // Сам лазерный луч
+                ctx.fillStyle = '#ff0033'; ctx.shadowBlur = 20; ctx.shadowColor = '#ff0033'; 
+                ctx.fillRect(0, this.y - 10, canvas.width, 15);
+                
+                // Искры от лазера
+                if (Math.random() > 0.5) {
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(Math.random() * canvas.width, this.y - 5, 10 + Math.random()*20, 2);
+                }
                 ctx.shadowBlur = 0;
             }
         }
 
         class Player {
             constructor(game) { this.game = game; this.width = 30; this.height = 30; this.color = SAVE.skin; this.reset(); }
-            reset() { this.x = canvas.width/2 - 15; this.y = canvas.height-80; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin; this.angle = 0; this.frameCount = 0;}
+            reset() { this.x = canvas.width/2 - 15; this.y = 100; this.vx = 0; this.vy = 0; this.jetpackTimer = 0; this.color = SAVE.skin; this.angle = 0; this.frameCount = 0; this.isSmashing = false;}
             update(input) {
                 if (gameState !== 'PLAYING') return;
                 this.frameCount++;
 
+                // Движение влево/вправо
                 if (input.keys.includes('ArrowRight')) this.vx = 8; else if (input.keys.includes('ArrowLeft')) this.vx = -8; else this.vx *= 0.8;
                 
-                let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
-                this.angle += (this.jetpackTimer > 0 ? 0.3 : 0.12) * dir;
+                // УДАР ВНИЗ (SMASH)
+                if (input.keys.includes('ArrowDown') && this.vy >= 0 && !this.isSmashing) {
+                    this.isSmashing = true;
+                    this.vy = 25; // Резкое ускорение вниз
+                    sfx.smash();
+                }
 
-                if (SAVE.trail !== 'none') {
-                    if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) {
-                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 15 + Math.random()*10, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.3));
+                let dir = this.vx > 0 ? 1 : (this.vx < 0 ? -1 : 1);
+                this.angle += (this.jetpackTimer > 0 || this.isSmashing ? 0.4 : 0.1) * dir;
+
+                // Шлейфы
+                if (SAVE.trail !== 'none' || this.isSmashing) {
+                    if (this.isSmashing) {
+                        this.game.particles.push(new Particle(this.x + 15, this.y, '#ff5500', true, 0.5));
+                    } else if (SAVE.trail === 'rainbow' && this.frameCount % 2 === 0) {
+                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 5, `hsl(${this.frameCount * 5 % 360}, 100%, 50%)`, false, 0.3));
                     } else if (SAVE.trail === 'matrix' && this.frameCount % 3 === 0) {
                         let char = Math.random() > 0.5 ? '0' : '1';
-                        this.game.particles.push(new Particle(this.x + Math.random()*20, this.y + 30, '#00ff00', false, 0.2, char));
+                        this.game.particles.push(new Particle(this.x + Math.random()*20, this.y, '#00ff00', false, 0.2, char));
                     } else if (SAVE.trail === 'fire' && this.frameCount % 2 === 0) {
-                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y + 20, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.4));
+                        this.game.particles.push(new Particle(this.x + 10 + Math.random()*10, this.y, Math.random() > 0.5 ? '#ff0000' : '#ff9900', true, 0.4));
                     }
                 }
 
+                // Гравитация тянет ВНИЗ (в плюс)
                 if (this.jetpackTimer > 0) { 
-                    this.vy = -18; this.jetpackTimer--; sfx.thrust(); 
-                    this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff9900', true)); 
-                    this.game.particles.push(new Particle(this.x+15, this.y+30, '#ff0055', true)); 
-                } else { this.vy += 0.8; }
+                    this.isSmashing = true; this.vy = 30; this.jetpackTimer--; sfx.thrust(); 
+                    this.game.particles.push(new Particle(this.x+15, this.y, '#ff9900', true)); 
+                } else if (!this.isSmashing) { 
+                    this.vy += 0.8; // Гравитация
+                }
+                
+                if (this.vy < 0) this.isSmashing = false; // Отменили смэш после отскока
+                if (this.vy > 35) this.vy = 35; // Терминальная скорость
                 
                 this.y += this.vy;
+                
+                // КОЛЛИЗИЯ С ПЛАТФОРМАМИ (Только при падении)
                 if (this.vy > 0) {
                     this.game.platforms.forEach(p => {
-                        if (p.type === 'finish' || p.broken) return;
+                        if (p.type === 'finish') {
+                            // Финиш ловим всегда
+                            if (this.x < p.x + p.width && this.x + 30 > p.x && this.y + 30 >= p.y && this.y < p.y + 20) {
+                                triggerWin();
+                            }
+                            return;
+                        }
+
+                        if (p.broken) return;
                         
-                        if (this.x < p.x + p.width && this.x + 30 > p.x && this.y < p.y + 20 && this.y + 30 > p.y) {
-                            if (this.y + 30 - this.vy <= p.y + 15) { 
-                                this.y = p.y - 30; p.flashTimer = 5; sfx.jump(); 
-                                if (p.type === 'spring') { this.vy = -26; this.createJumpDust('#00ff00', 1.5); } 
-                                else { this.vy = -17; this.createJumpDust('#ffffff', 1); } 
+                        if (this.x < p.x + p.width && this.x + 30 > p.x && this.y + 30 >= p.y && this.y + 30 - this.vy <= p.y + 20) {
+                            if (this.isSmashing) {
+                                // ПРОБИВАЕМ ПЛАТФОРМУ НАХРЕН!
+                                p.broken = true;
+                                sfx.death(); // Звук разрушения
+                                for(let i=0; i<20; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y, p.type === 'spring' ? '#00ff00' : '#00d2ff', false, 1.5));
+                            } else {
+                                // ОТСКОК ОТ ПЛАТФОРМЫ
+                                this.y = p.y - 30; 
+                                sfx.jump(); 
+                                if (p.type === 'spring') { 
+                                    this.vy = -26; // Пружина кидает жестко вверх к лазеру!
+                                    this.createJumpDust('#00ff00', 1.5); 
+                                } else { 
+                                    this.vy = -12; // Легкий авто-отскок от обычной платформы
+                                    this.createJumpDust('#ffffff', 1); 
+                                } 
                                 
-                                if (this.game.isHard && p.type !== 'finish') {
+                                if (this.game.isHard) {
                                     p.broken = true;
-                                    for(let i=0; i<15; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y + 10, '#555'));
+                                    for(let i=0; i<15; i++) this.game.particles.push(new Particle(p.x + Math.random()*p.width, p.y, '#555'));
                                 }
                             }
                         }
@@ -635,8 +646,8 @@
                 ctx.translate(this.x + 15, this.y + 15);
                 ctx.rotate(this.angle);
 
-                ctx.fillStyle = this.jetpackTimer > 0 ? '#fff' : this.color; 
-                ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : this.color; 
+                ctx.fillStyle = this.jetpackTimer > 0 || this.isSmashing ? '#fff' : this.color; 
+                ctx.shadowBlur = 20; ctx.shadowColor = this.jetpackTimer > 0 ? '#ff0055' : (this.isSmashing ? '#ff9900' : this.color); 
                 
                 ctx.fillRect(-15, -15, 30, 30); 
                 
@@ -652,69 +663,52 @@
                 this.isHard = (this.mode === 'campaign' && this.level % 5 === 0);
                 
                 this.input = new InputHandler(); this.platforms = []; this.items = []; this.particles = []; this.floatingTexts = [];
-                this.cameraY = 0; this.highestY = canvas.height - 50;
-                this.maxReachedY = this.highestY; 
                 
-                this.tier = 0; // Фаза сложности для бесконечного режима
+                this.cameraY = 0; 
+                this.lowestY = canvas.height + 50; // Генерируем ВНИЗ
+                this.maxReachedY = 0; 
+                
+                this.tier = 0; 
                 this.currentScore = 0;
 
-                this.targetY = this.mode === 'campaign' ? -(1500 + (this.level * 500)) : -Infinity;
+                this.targetY = this.mode === 'campaign' ? (1500 + (this.level * 500)) : Infinity;
                 this.finishSpawned = false;
 
-                this.platforms.push(new Platform(0, this.highestY, canvas.width, 'normal', this.tier));
+                this.platforms.push(new Platform(0, this.lowestY, canvas.width, 'normal', this.tier));
                 this.player = new Player(this); this.hunter = new Hunter(this);
             }
 
-            // --- ЛОГИКА ГЕНЕРАЦИИ С УЧЕТОМ ФАЗ (TIERS) ---
+            // ГЕНЕРАЦИЯ ЧАНКОВ ВНИЗ
             generateChunk() {
-                while (this.highestY > this.cameraY - canvas.height * 2) {
-                    if (this.mode === 'campaign' && this.highestY <= this.targetY) {
-                        if (!this.finishSpawned) { this.platforms.push(new Platform(0, this.targetY - 100, canvas.width, 'finish', 0)); this.finishSpawned = true; }
+                while (this.lowestY < this.cameraY + canvas.height * 2) {
+                    if (this.mode === 'campaign' && this.lowestY >= this.targetY) {
+                        if (!this.finishSpawned) { this.platforms.push(new Platform(0, this.targetY + 100, canvas.width, 'finish', 0)); this.finishSpawned = true; }
                         break;
                     }
+                    let gap = 120 + (this.tier * 10) + Math.random() * (this.isHard ? 60 : 40 + (this.tier * 5));
+                    this.lowestY += gap; // Увеличиваем Y
                     
-                    // Расстояние между платформами растет с каждой фазой
-                    let gap = 90 + (this.tier * 10) + Math.random() * (this.isHard ? 60 : 40 + (this.tier * 5));
-                    this.highestY -= gap;
-                    
-                    // Ширина платформ уменьшается с каждой фазой (минимум 40px)
-                    let w = Math.max(40, 85 - (this.tier * 10)) + Math.random() * (this.isHard ? 50 : 80 - (this.tier * 5)); 
+                    let w = 85 + Math.random() * (this.isHard ? 50 : 80); 
                     let x = Math.random() * (canvas.width - w);
                     
                     let type = 'normal'; let r = Math.random();
-                    if (this.isHard) { 
-                        if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; 
-                    } else { 
-                        if (r > 0.85) type = 'spring'; 
-                        // Шанс на появление движущейся платформы растет с каждой фазой
-                        else if (r > Math.max(0.2, 0.65 - (this.tier * 0.15))) type = 'moving'; 
-                    }
+                    if (this.isHard) { if (r > 0.95) type = 'spring'; else if (r > 0.4) type = 'moving'; } 
+                    else { if (r > 0.85) type = 'spring'; else if (r > Math.max(0.2, 0.65 - (this.tier * 0.15))) type = 'moving'; }
                     
-                    this.platforms.push(new Platform(x, this.highestY, w, type, this.tier));
+                    this.platforms.push(new Platform(x, this.lowestY, w, type, this.tier));
                     
                     let ri = Math.random();
-                    if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.highestY - 40, 'jetpack'));
-                    else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.highestY - 35, 'coin'));
-                }
-            }
-
-            handleDeath(reason) {
-                if (SAVE.lives > 0 && gameState === 'PLAYING') {
-                    gameState = 'REVIVE_PROMPT';
-                    pendingDeathReason = reason;
-                    document.getElementById('reviveLivesCount').innerText = SAVE.lives;
-                    document.getElementById('reviveMenu').classList.add('active');
-                } else if (gameState === 'PLAYING') {
-                    triggerGameOver(reason);
+                    if (ri > 0.993 && !this.isHard) this.items.push(new Item(x + w/2 - 12, this.lowestY - 40, 'jetpack'));
+                    else if (ri > 0.6) this.items.push(new Item(x + w/2 - 12, this.lowestY - 35, 'coin'));
                 }
             }
 
             useExtraLife() {
                 SAVE.lives--; saveGame(); sfx.powerup();
                 for(let i=0; i<50; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ffffff', false, 2));
-                this.player.vy = -30; 
-                this.player.y -= 100;
-                this.hunter.y = this.cameraY + canvas.height + 300; 
+                // Даем кратковременный супер-метеор вниз, отодвигаем лазер вверх
+                this.player.jetpackTimer = 40; 
+                this.hunter.y = this.cameraY - 600; 
                 this.hunter.active = false; this.hunter.startTimer(); 
                 this.floatingTexts.push(new FloatingText(this.player.x, this.player.y, "❤️ СПАСЕН!"));
             }
@@ -722,41 +716,37 @@
             update() {
                 if (gameState !== 'PLAYING') return;
 
-                if (this.player.y < this.maxReachedY) this.maxReachedY = this.player.y;
+                if (this.player.y > this.maxReachedY) this.maxReachedY = this.player.y; // Учет рекорда ВНИЗ
 
                 if (this.mode === 'endless') {
-                    this.currentScore = Math.floor(Math.max(0, ((canvas.height - 50) - this.maxReachedY) / 10));
-                    // СМЕНА ФАЗЫ КАЖДЫЕ 3000 МЕТРОВ
+                    this.currentScore = Math.floor(this.maxReachedY / 10);
                     this.tier = Math.floor(this.currentScore / 3000); 
-                    
-                    document.getElementById('hudLeft').innerText = `${this.currentScore} м`;
+                    document.getElementById('hudLeft').innerText = `ГЛУБИНА: ${this.currentScore} м`;
                     if (this.currentScore > SAVE.highScore) SAVE.highScore = this.currentScore; 
                 }
 
                 this.generateChunk(); 
-                let cleanupY = this.cameraY + canvas.height + 300;
-                this.platforms = this.platforms.filter(p => p.y < cleanupY && !p.broken); 
-                this.items = this.items.filter(i => i.y < cleanupY && !i.markedForDeletion); 
+                let cleanupY = this.cameraY - 500; // Удаляем то, что осталось сильно СВЕРХУ
+                this.platforms = this.platforms.filter(p => p.y > cleanupY && !p.broken); 
+                this.items = this.items.filter(i => i.y > cleanupY && !i.markedForDeletion); 
 
                 this.platforms.forEach(p => p.update()); this.player.update(this.input); this.hunter.update(); 
                 this.items.forEach(i => i.update()); this.particles.forEach(p => p.update()); this.particles = this.particles.filter(p => p.life > 0);
                 this.floatingTexts.forEach(ft => ft.update()); this.floatingTexts = this.floatingTexts.filter(ft => ft.life > 0);
                 
-                let targetCamera = this.player.y - canvas.height / 2;
-                if (targetCamera < this.cameraY) {
+                // Камера плавно спускается за игроком
+                let targetCamera = this.player.y - canvas.height * 0.3; // Игрок в верхней трети экрана
+                if (targetCamera > this.cameraY) {
                     this.cameraY += (targetCamera - this.cameraY) * 0.15; 
                 }
                 
-                if (this.hunter.active && this.player.x < this.hunter.x+33 && this.player.x+25 > this.hunter.x && this.player.y < this.hunter.y+33 && this.player.y+25 > this.hunter.y) {
-                    this.handleDeath("ОХОТНИК ПОГЛОТИЛ ТЕБЯ");
-                }
-
-                if (this.player.y > this.cameraY + canvas.height + 100) {
-                    this.handleDeath("УПАЛ В БЕЗДНУ");
-                }
-
-                if (this.mode === 'campaign') {
-                    this.platforms.forEach(p => { if (p.type === 'finish' && this.player.x < p.x + p.width && this.player.x + 30 > p.x && this.player.y < p.y + 20 && this.player.y + 30 > p.y) triggerWin(); });
+                // ЕДИНСТВЕННАЯ СМЕРТЬ: КАСАНИЕ ЛАЗЕРНОГО ПОТОЛКА
+                if (this.player.y < this.hunter.y) {
+                    if (SAVE.lives > 0) { this.useExtraLife(); } 
+                    else {
+                        for(let i=0; i<40; i++) this.particles.push(new Particle(this.player.x+15, this.player.y+15, '#ff0033', false, 1.5));
+                        this.handleDeath("СЖЖЕН ЛАЗЕРОМ");
+                    }
                 }
 
                 let magCoinRadius = SAVE.magnetCoinLvl * 45; 
@@ -779,8 +769,10 @@
                         item.markedForDeletion = true;
                         
                         if (item.type === 'coin') { 
-                            let reward = this.isHard ? 3 : 1; 
+                            // Бонус за Смэш-сбор! Если разбил платформу и собрал монету
+                            let reward = (this.isHard ? 3 : 1) * (this.player.isSmashing ? 2 : 1); 
                             SAVE.coins += reward; sfx.coin(); saveGame(); 
+                            if (this.player.isSmashing) this.floatingTexts.push(new FloatingText(item.x, item.y, "SMASH x2!"));
                             for(let i=0; i<15; i++) this.particles.push(new Particle(item.x+12, item.y+12, '#FFD700')); 
                             document.getElementById('hudCoins').innerText = `💰 ${SAVE.coins}`;
                         } else if (item.type === 'jetpack') { 
@@ -791,21 +783,27 @@
                     }
                 });
             }
+            handleDeath(reason) {
+                if (SAVE.lives > 0 && gameState === 'PLAYING') {
+                    gameState = 'REVIVE_PROMPT'; pendingDeathReason = reason;
+                    document.getElementById('reviveLivesCount').innerText = SAVE.lives; document.getElementById('reviveMenu').classList.add('active');
+                } else if (gameState === 'PLAYING') { triggerGameOver(reason); }
+            }
             draw(ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // --- СМЕНА АТМОСФЕРЫ (ЦВЕТ ФОНА) ---
                 if (this.isHard) { 
                     ctx.fillStyle = 'rgba(50, 0, 10, 0.3)'; ctx.fillRect(0,0,canvas.width, canvas.height); 
                 } else if (this.mode === 'endless' && this.tier > 0) {
-                    let bgAlpha = Math.min(0.8, this.tier * 0.15); // Чем выше фаза, тем темнее красный фон
+                    let bgAlpha = Math.min(0.8, this.tier * 0.15);
                     ctx.fillStyle = `rgba(60, 0, 15, ${bgAlpha})`; 
                     ctx.fillRect(0,0,canvas.width, canvas.height);
                 }
 
                 ctx.save(); ctx.translate(0, -this.cameraY);
                 this.platforms.forEach(p => p.draw(ctx)); this.items.forEach(i => i.draw(ctx)); 
-                this.hunter.draw(ctx); if (gameState === 'PLAYING' || gameState === 'END' || gameState === 'REVIVE_PROMPT') this.player.draw(ctx);
+                if (gameState === 'PLAYING' || gameState === 'END' || gameState === 'REVIVE_PROMPT') this.player.draw(ctx);
+                this.hunter.draw(ctx); // Лазер рисуем поверх всего
                 this.particles.forEach(p => p.draw(ctx)); this.floatingTexts.forEach(ft => ft.draw(ctx));
                 ctx.restore();
                 
@@ -818,38 +816,24 @@
             }
         }
 
-        let game = null;
-        let lastPlayedMode = 'campaign';
-        let lastPlayedLevel = 1;
+        let game = null; let lastPlayedMode = 'campaign'; let lastPlayedLevel = 1;
 
-        function animate() { 
-            if (game) { game.update(); game.draw(ctx); }
-            requestAnimationFrame(animate); 
-        }
+        function animate() { if (game) { game.update(); game.draw(ctx); } requestAnimationFrame(animate); }
         
         function startGame(mode, level = 1) {
             lastPlayedMode = mode; lastPlayedLevel = level;
-            game = new Game(mode, level);
-            gameState = 'PLAYING'; 
-            
-            document.getElementById('hudLeft').innerText = mode === 'campaign' ? `УРОВЕНЬ ${level}` : `0 м`;
+            game = new Game(mode, level); gameState = 'PLAYING'; 
+            document.getElementById('hudLeft').innerText = mode === 'campaign' ? `СЕКТОР ${level}` : `ГЛУБИНА: 0 м`;
             document.getElementById('hudLeft').style.color = game.isHard ? '#ff0055' : 'white';
-            updateUI();
-            
-            showState('NONE'); 
-            gameHud.style.display = 'flex';
-
-            if (game.player.vy === 0) game.player.vy = -17; 
-            game.hunter.startTimer();
+            updateUI(); showState('NONE'); gameHud.style.display = 'flex';
+            game.hunter.reset(); game.hunter.startTimer();
         }
 
         function triggerGameOver(reason) { 
             gameState = 'END'; sfx.death(); saveGame(); 
             setTimeout(() => { 
-                document.getElementById('endTitle').innerText = "ВЫ ПОГИБЛИ"; 
-                document.getElementById('endTitle').style.color = "#ff0055";
-                document.getElementById('endDesc').innerText = reason; 
-                document.getElementById('endBtn1').innerText = "ПОВТОРИТЬ";
+                document.getElementById('endTitle').innerText = "КРИТИЧЕСКИЙ УРОН"; document.getElementById('endTitle').style.color = "#ff0055";
+                document.getElementById('endDesc').innerText = reason; document.getElementById('endBtn1').innerText = "ПОВТОРИТЬ";
                 document.getElementById('endBtn1').onclick = () => startGame(lastPlayedMode, lastPlayedLevel);
                 showState('END');
             }, 800); 
@@ -860,8 +844,7 @@
             if (lastPlayedLevel === SAVE.maxLevel && SAVE.maxLevel < 100) SAVE.maxLevel++;
             saveGame();
             setTimeout(() => { 
-                document.getElementById('endTitle').innerText = "УРОВЕНЬ ПРОЙДЕН"; 
-                document.getElementById('endTitle').style.color = "#00ff00";
+                document.getElementById('endTitle').innerText = "СЕКТОР ЗАЧИЩЕН"; document.getElementById('endTitle').style.color = "#00ff00";
                 document.getElementById('endDesc').innerText = game.isHard ? "ХАРДКОР ЗАВЕРШЕН!" : "Отличная работа!"; 
                 document.getElementById('endBtn1').innerText = "СЛЕДУЮЩИЙ";
                 document.getElementById('endBtn1').onclick = () => startGame('campaign', lastPlayedLevel + 1);
@@ -869,8 +852,7 @@
             }, 500); 
         }
         
-        showState('MAIN'); 
-        animate();
+        showState('MAIN'); animate();
     </script>
 </body>
 </html>
